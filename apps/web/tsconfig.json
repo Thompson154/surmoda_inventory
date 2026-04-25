@@ -11,7 +11,9 @@
     "useDefineForClassFields": true,
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@surmoda/contracts": ["../../packages/contracts/src/index.ts"],
+      "@surmoda/contracts/*": ["../../packages/contracts/src/*"]
     }
   },
   "include": ["src/**/*", "vite.config.ts", "vitest.config.ts"],

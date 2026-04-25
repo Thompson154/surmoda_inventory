@@ -1,78 +1,16 @@
-export type Role = 'encargada' | 'vendedora';
-
-export interface UserAssignment {
-  id: string;
-  storeId: string;
-  role: Role;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  fullName: string;
-  isAdmin: boolean;
-  isActive: boolean;
-  assignments: UserAssignment[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface UserListItem {
-  id: string;
-  email: string;
-  fullName: string;
-  isAdmin: boolean;
-  isActive: boolean;
-  assignmentsCount: number;
-  createdAt: string;
-}
-
-export interface PaginatedUsers {
-  items: UserListItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface CreateUserPayload {
-  email: string;
-  password: string;
-  fullName: string;
-  isAdmin: boolean;
-  assignments?: Array<{ storeId: string; role: Role }>;
-}
-
-export interface UpdateUserPayload {
-  fullName?: string;
-  isAdmin?: boolean;
-}
-
-export interface ListUsersFilters {
-  q?: string;
-  isActive?: boolean;
-  isAdmin?: boolean;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface Assignment {
-  id: string;
-  userId: string;
-  storeId: string;
-  role: Role;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AssignmentsListResponse {
-  items: Assignment[];
-}
-
-export interface CreateAssignmentPayload {
-  storeId: string;
-  role: Role;
-}
-
-export interface UpdateAssignmentPayload {
-  role: Role;
-}
+// WHY: types live in @surmoda/contracts — single source of truth.
+// Re-export everything so existing consumers keep their import paths unchanged.
+export type {
+  Role,
+  UserAssignment,
+  User,
+  UserListItem,
+  PaginatedUsers,
+  CreateUserPayload,
+  UpdateUserPayload,
+  ListUsersFilters,
+  Assignment,
+  AssignmentsListResponse,
+  CreateAssignmentPayload,
+  UpdateAssignmentPayload,
+} from '@surmoda/contracts';

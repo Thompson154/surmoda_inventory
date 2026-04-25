@@ -1,17 +1,7 @@
 import { create } from 'zustand';
+import type { AuthUser, AuthAssignment } from '@surmoda/contracts';
 
-export interface AuthAssignment {
-  storeId: string;
-  role: 'encargada' | 'vendedora';
-}
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  fullName: string;
-  isAdmin: boolean;
-  assignments: AuthAssignment[];
-}
+export type { AuthUser, AuthAssignment };
 
 interface AuthState {
   accessToken: string | null;

@@ -1,19 +1,9 @@
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface LoginResponse {
-  accessToken: string;
-  user: {
-    id: string;
-    email: string;
-    fullName: string;
-    isAdmin: boolean;
-    assignments: Array<{ storeId: string; role: 'encargada' | 'vendedora' }>;
-  };
-}
-
-export interface RefreshResponse {
-  accessToken: string;
-}
+// WHY: types live in @surmoda/contracts — single source of truth.
+// Re-export everything so existing consumers keep their import paths unchanged.
+export type {
+  LoginCredentials,
+  LoginResponse,
+  RefreshResponse,
+  AuthUser,
+  AuthAssignment,
+} from '@surmoda/contracts';

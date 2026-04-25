@@ -7,6 +7,10 @@ const baseProject: Partial<Config> = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
   },
+  moduleNameMapper: {
+    '^@surmoda/contracts$': '<rootDir>/../../packages/contracts/src/index.ts',
+    '^@surmoda/contracts/(.*)$': '<rootDir>/../../packages/contracts/src/$1',
+  },
   setupFiles: ['<rootDir>/src/test/setupEnv.ts'],
   clearMocks: true,
   resetMocks: true,

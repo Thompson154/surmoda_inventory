@@ -1,31 +1,18 @@
-import type { Role } from '@prisma/client';
+import type {
+  AuthAssignment as AuthAssignmentContract,
+  AuthUser as AuthUserContract,
+  LoginCredentials,
+  LoginResponse as LoginResponseContract,
+  RefreshResponse as RefreshResponseContract,
+} from '@surmoda/contracts';
 
-export interface LoginDTO {
-  email: string;
-  password: string;
-}
+export type LoginDTO = LoginCredentials;
+export type AssignmentDTO = AuthAssignmentContract;
+export type AuthUserDTO = AuthUserContract;
+export type LoginResponse = LoginResponseContract;
+export type RefreshResponse = RefreshResponseContract;
 
-export interface AssignmentDTO {
-  storeId: string;
-  role: Role;
-}
-
-export interface AuthUserDTO {
-  id: string;
-  email: string;
-  fullName: string;
-  isAdmin: boolean;
-  assignments: AssignmentDTO[];
-}
-
-export interface LoginResponse {
-  accessToken: string;
-  user: AuthUserDTO;
-}
-
-export interface RefreshResponse {
-  accessToken: string;
-}
+// These are BE-only types (no FE equivalent):
 
 export interface IssuedRefreshToken {
   plaintext: string;

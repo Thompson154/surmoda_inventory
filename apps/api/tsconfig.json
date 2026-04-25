@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@surmoda/contracts": ["../../packages/contracts/src/index.ts"],
+      "@surmoda/contracts/*": ["../../packages/contracts/src/*"]
+    },
     "module": "CommonJS",
     "moduleResolution": "node",
     "target": "ES2022",
