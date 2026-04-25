@@ -157,6 +157,17 @@ describe('GET /api/v1/stores (RBAC scope)', () => {
     const codes = res.body.items.map((s: { code: string }) => s.code);
     expect(codes).toEqual(['ZSUR']);
   });
+
+  it('encargada (global operator) sees ALL stores including ALMACEN', async () => {
+    const token = await loginToken(ENCARGADA_PRADO_EMAIL, STAFF_PASSWORD);
+    const res = await request(app)
+      .get('/api/v1/stores')
+      .set(await bearer(token));
+
+    expect(res.status).toBe(200);
+    const codes = res.body.items.map((s: { code: string }) => s.code);
+    expect(codes).toEqual(expect.arrayContaining(['ALMACEN', 'PRADO', 'ZSUR']));
+  });
 });
 
 describe('GET /api/v1/stores/:id (RBAC scope)', () => {

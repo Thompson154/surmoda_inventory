@@ -145,11 +145,11 @@ describe('StoreService.list', () => {
     expect(call.isActive).toBeUndefined();
   });
 
-  it('staff is scoped to their assigned store ids and forced isActive=true', async () => {
+  it('vendedora is scoped to their assigned store ids and forced isActive=true', async () => {
     assignments.listActiveByUser.mockResolvedValue([
-      { storeId: 'store-prado-seed' },
-      { storeId: 'store-zsur-seed' },
-      { storeId: 'store-prado-seed' }, // duplicate -> deduped
+      { storeId: 'store-prado-seed', role: 'vendedora' },
+      { storeId: 'store-zsur-seed', role: 'vendedora' },
+      { storeId: 'store-prado-seed', role: 'vendedora' }, // duplicate -> deduped
     ]);
     stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
 
@@ -176,6 +176,22 @@ describe('StoreService.list', () => {
     expect(stores.list).toHaveBeenCalledWith(expect.any(Object), []);
     expect(result.items).toEqual([]);
   });
+
+  it('encargada (any role=encargada) sees ALL stores regardless of assignments', async () => {
+    assignments.listActiveByUser.mockResolvedValue([
+      { storeId: 'store-prado-seed', role: 'encargada' },
+    ]);
+    stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+
+    await service.list(
+      { page: 1, pageSize: 20 },
+      { userId: 'encargada-1', isAdmin: false },
+    );
+
+    // Encargada acts as global operator: receives ONE list-arg (no allowedIds filter).
+    expect(stores.list).toHaveBeenCalledTimes(1);
+    expect(stores.list.mock.calls[0]).toHaveLength(1);
+  });
 });
 
 describe('StoreService.getById', () => {
@@ -188,13 +204,26 @@ describe('StoreService.getById', () => {
     expect(assignments.listActiveByUser).not.toHaveBeenCalled();
   });
 
-  it('returns the store for staff with a valid assignment', async () => {
+  it('returns the store for vendedora with a valid assignment', async () => {
     stores.findById.mockResolvedValue(buildStore());
-    assignments.listActiveByUser.mockResolvedValue([{ storeId: 'store-prado-seed' }]);
+    assignments.listActiveByUser.mockResolvedValue([
+      { storeId: 'store-prado-seed', role: 'vendedora' },
+    ]);
 
     const result = await service.getById('store-prado-seed', { userId: 'u1', isAdmin: false });
 
     expect(result.id).toBe('store-prado-seed');
+  });
+
+  it('encargada accesses any store, even without direct assignment', async () => {
+    stores.findById.mockResolvedValue(buildStore({ id: 'store-zsur-seed' }));
+    assignments.listActiveByUser.mockResolvedValue([
+      { storeId: 'store-prado-seed', role: 'encargada' },
+    ]);
+
+    const result = await service.getById('store-zsur-seed', { userId: 'u1', isAdmin: false });
+
+    expect(result.id).toBe('store-zsur-seed');
   });
 
   it('throws STORE_NOT_FOUND when store is missing', async () => {
@@ -205,9 +234,11 @@ describe('StoreService.getById', () => {
     ).rejects.toMatchObject({ code: 'STORE_NOT_FOUND', statusCode: 404 });
   });
 
-  it('throws STORE_NOT_FOUND (no leak) when staff has no assignment to that store', async () => {
+  it('throws STORE_NOT_FOUND (no leak) when vendedora has no assignment to that store', async () => {
     stores.findById.mockResolvedValue(buildStore({ id: 'store-zsur-seed' }));
-    assignments.listActiveByUser.mockResolvedValue([{ storeId: 'store-prado-seed' }]);
+    assignments.listActiveByUser.mockResolvedValue([
+      { storeId: 'store-prado-seed', role: 'vendedora' },
+    ]);
 
     await expect(
       service.getById('store-zsur-seed', { userId: 'u1', isAdmin: false }),

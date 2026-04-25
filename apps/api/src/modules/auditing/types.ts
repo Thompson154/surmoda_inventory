@@ -22,9 +22,19 @@ export type AuditAction =
   | 'VARIANT_CREATED'
   | 'VARIANT_UPDATED'
   | 'VARIANT_DEACTIVATED'
-  | 'VARIANT_REACTIVATED';
+  | 'VARIANT_REACTIVATED'
+  | 'INVENTORY_QUANTITY_ADJUSTED'
+  | 'STORE_EDIT_PERMISSION_TOGGLED';
 
-export type AuditEntity = 'User' | 'UserStore' | 'RefreshToken' | 'Store' | 'Product' | 'Variant';
+export type AuditEntity =
+  | 'User'
+  | 'UserStore'
+  | 'RefreshToken'
+  | 'Store'
+  | 'Product'
+  | 'Variant'
+  | 'Stock'
+  | 'StoreEditPermission';
 
 export interface AuditWriteInput {
   userId?: string | null;

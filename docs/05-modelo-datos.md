@@ -342,23 +342,94 @@ Prisma gestiona las migraciones en `apps/api/prisma/migrations/`. El flujo es:
 
 - **Desarrollo:** `prisma migrate dev` — genera una nueva migración SQL a partir del diff del schema y la aplica.
 - **Producción / CI:** `prisma migrate deploy` — aplica las migraciones pendientes sin interactividad.
-- **Estado actual:** tres migraciones registradas:
+- **Estado actual:** cuatro migraciones registradas:
   - `20260425035147_001_init_auth` — schema completo de Feature 001 (User, UserStore, RefreshToken, AuditLog).
-  - `20260425200000_002_init_stores` — Feature 002: enum `StoreKind`, tabla `stores`, FK `user_stores.store_id → stores.id` (`ON DELETE RESTRICT, ON UPDATE CASCADE`), seed idempotente de las 3 sedes preexistentes.
-  - `20260425210000_003_init_products` — Feature 003: enum `Size`, tablas `products` y `variants`, FK `variants.product_id → products.id` (`ON DELETE RESTRICT, ON UPDATE CASCADE`), índices únicos en `code` y `barcode`, índice compuesto `(product_id, size, color, deleted_at)`.
+  - `20260425200000_002_init_stores` — Feature 002: enum `StoreKind`, tabla `stores`, FK `user_stores.store_id → stores.id`.
+  - `20260425210000_003_init_products` — Feature 003: enum `Size`, tablas `products` y `variants`, índices únicos en `code` y `barcode`.
+  - `20260425220000_004_init_inventory` — Feature 004: enum `StockMovementType`, tablas `stock_by_site` (con UNIQUE (variant_id, store_id)), `stock_movements` (append-only) y `store_edit_permission` (PK = store_id).
 
 El archivo `migration_lock.toml` registra el proveedor de base de datos (`postgresql`) y actúa como checksum de integridad del historial de migraciones.
 
 ---
 
-## 5. Entidades planificadas — Features 004-009
+### 3.12 `StockBySite` (Feature 004)
+
+Stock per-sede de cada variante. NO existe stock global agregado — cada sede mantiene su propia fila independiente.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | `String` (cuid) | Identificador único |
+| `variantId` | `String` (FK) | Referencia a `Variant` (`ON DELETE RESTRICT`) |
+| `storeId` | `String` (FK) | Referencia a `Store` (`ON DELETE RESTRICT`) |
+| `quantity` | `Int` | Stock disponible en la sede; nunca negativo |
+| `createdAt` / `updatedAt` | `DateTime` | Auditoría temporal |
+
+**Índices:**
+- `(variant_id, store_id)` UNIQUE — evita filas duplicadas para el mismo par.
+- `(store_id)` — filtros del listado por sede.
+
+**Invariantes:**
+- `quantity >= 0` (validado por servicio).
+- Las filas se pre-crean en el seed para todas las combinaciones activas `(variant × store)`. Las mutaciones son UPDATE.
+
+---
+
+### 3.13 `StockMovement` (Feature 004)
+
+Audit log per-sede de los cambios de inventario. Append-only — nunca se actualiza ni se borra en flujo normal.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | `String` (cuid) | Identificador único |
+| `storeId` | `String` (FK) | Sede donde ocurrió el movimiento |
+| `variantId` | `String?` (FK) | Variante afectada (null en toggles de permiso) |
+| `userId` | `String` (FK) | Usuario que ejecutó la acción |
+| `type` | `StockMovementType` | `adjusted` o `edit_permission_toggled` |
+| `payload` | `Json` | `{ delta, previous, next, reason }` para `adjusted` o `{ isEnabled }` para toggles |
+| `createdAt` | `DateTime` | Momento del movimiento |
+
+**Índices:**
+- `(store_id, created_at)` — listado paginado descendente por sede.
+- `(variant_id)` — historial de una variante.
+
+---
+
+### 3.14 `StoreEditPermission` (Feature 004)
+
+Toggle por sede que controla si las vendedoras pueden ajustar inventario. Una fila por sede (PK = `store_id`).
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `storeId` | `String` (PK, FK) | Sede a la que aplica el toggle |
+| `isEnabled` | `Boolean` | `true` = vendedoras pueden ajustar; `false` = sólo encargada/admin |
+| `toggledByUserId` | `String?` (FK) | Último usuario que cambió el toggle |
+| `toggledAt` | `DateTime?` | Momento del último cambio |
+
+Cuando no existe fila, el comportamiento por defecto es `isEnabled = false`.
+
+---
+
+### 3.15 Enum `StockMovementType`
+
+```prisma
+enum StockMovementType {
+  adjusted
+  edit_permission_toggled
+
+  @@map("stock_movement_type")
+}
+```
+
+Futuras features extenderán este enum: `delivery_in`/`delivery_out` (005) y `sale_out` (006).
+
+---
+
+## 5. Entidades planificadas — Features 005-009
 
 Las siguientes entidades serán agregadas en futuras features. Se listan aquí para que el tribunal pueda evaluar la coherencia del modelo de dominio completo.
 
 | Entidad | Feature | Descripción |
 |---------|---------|-------------|
-| `StockEntry` | 004 | Stock de una variante en una sede (quantity) |
-| `StockMovement` | 004 | Movimiento de inventario por sede (tipo, cantidad, motivo) |
 | `Delivery` | 005 | Transferencia de variantes del almacén a una tienda |
 | `DeliveryItem` | 005 | Línea de entrega (variante + cantidad) |
 | `Sale` | 006 | Venta registrada en una tienda (método de pago, total, vendedora) |

@@ -42,6 +42,13 @@ enum Size {
   @@map("variant_size")
 }
 
+enum StockMovementType {
+  adjusted
+  edit_permission_toggled
+
+  @@map("stock_movement_type")
+}
+
 model Store {
   id        String    @id @default(cuid())
   code      String    @unique
@@ -50,6 +57,9 @@ model Store {
   isActive  Boolean   @default(true) @map("is_active")
 
   assignments UserStore[]
+  stock          StockBySite[]
+  movements      StockMovement[]
+  editPermission StoreEditPermission?
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -86,7 +96,9 @@ model Variant {
   imagePath  String? @map("image_path")
   isActive   Boolean @default(true) @map("is_active")
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  stock     StockBySite[]
+  movements StockMovement[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -106,8 +118,10 @@ model User {
   isAdmin      Boolean   @default(false) @map("is_admin")
   isActive     Boolean   @default(true) @map("is_active")
 
-  assignments   UserStore[]
-  refreshTokens RefreshToken[]
+  assignments      UserStore[]
+  refreshTokens    RefreshToken[]
+  stockMovements   StockMovement[]
+  editPermissions  StoreEditPermission[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -172,4 +186,51 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([action, timestamp])
   @@map("audit_logs")
+}
+
+model StockBySite {
+  id        String @id @default(cuid())
+  variantId String @map("variant_id")
+  storeId   String @map("store_id")
+  quantity  Int    @default(0)
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([variantId, storeId])
+  @@index([storeId])
+  @@map("stock_by_site")
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  storeId   String            @map("store_id")
+  variantId String?           @map("variant_id")
+  userId    String            @map("user_id")
+  type      StockMovementType
+  payload   Json              @default("{}")
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  store   Store    @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  variant Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([variantId])
+  @@map("stock_movements")
+}
+
+model StoreEditPermission {
+  storeId         String    @id @map("store_id")
+  isEnabled       Boolean   @default(false) @map("is_enabled")
+  toggledByUserId String?   @map("toggled_by_user_id")
+  toggledAt       DateTime? @map("toggled_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user  User? @relation(fields: [toggledByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("store_edit_permission")
 }
