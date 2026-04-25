@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { usersService } from '../services/usersService';
-import type { CreateUserPayload, ListUsersFilters, UpdateUserPayload } from '../types';
+import type { CreateUserPayload, ListUsersFilters, UpdateUserPayload, User } from '../types';
 
 export const usersQueryKeys = {
   all: ['users'] as const,
@@ -25,14 +24,13 @@ export function useUser(id: string | undefined) {
   });
 }
 
-export function useCreateUser() {
+export function useCreateUser(options?: { onSuccess?: (user: User) => void }) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   return useMutation({
     mutationFn: (payload: CreateUserPayload) => usersService.create(payload),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all });
-      navigate(`/users/${created.id}`, { replace: true });
+      options?.onSuccess?.(created);
     },
   });
 }
