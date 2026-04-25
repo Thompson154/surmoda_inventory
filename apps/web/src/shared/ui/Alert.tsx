@@ -1,21 +1,49 @@
 import { type ReactNode } from 'react';
+import { AlertCircle, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { cn } from './cn';
 
 export interface AlertProps {
   variant?: 'error' | 'warning' | 'info' | 'success';
   children: ReactNode;
+  className?: string;
 }
 
-const variantClasses: Record<NonNullable<AlertProps['variant']>, string> = {
-  error: 'bg-red-50 text-red-700 border-red-200',
-  warning: 'bg-amber-50 text-amber-800 border-amber-200',
-  info: 'bg-slate-50 text-slate-700 border-slate-200',
-  success: 'bg-green-50 text-green-800 border-green-200',
+const variantConfig: Record<
+  NonNullable<AlertProps['variant']>,
+  { icon: typeof AlertCircle; classes: string }
+> = {
+  error: {
+    icon: AlertCircle,
+    classes: 'bg-status-danger-soft border-status-danger/20 text-red-800',
+  },
+  warning: {
+    icon: AlertTriangle,
+    classes: 'bg-status-warning-soft border-status-warning/30 text-amber-800',
+  },
+  info: {
+    icon: Info,
+    classes: 'bg-status-info-soft border-status-info/20 text-sky-800',
+  },
+  success: {
+    icon: CheckCircle2,
+    classes: 'bg-status-success-soft border-status-success/20 text-emerald-800',
+  },
 };
 
-export function Alert({ variant = 'error', children }: AlertProps) {
+export function Alert({ variant = 'error', children, className }: AlertProps) {
+  const { icon: Icon, classes } = variantConfig[variant];
+
   return (
-    <div role="alert" className={`rounded border px-3 py-2 text-sm ${variantClasses[variant]}`}>
-      {children}
+    <div
+      role="alert"
+      className={cn(
+        'rounded-md border px-3 py-2.5 text-sm flex items-start gap-2',
+        classes,
+        className,
+      )}
+    >
+      <Icon className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+      <div>{children}</div>
     </div>
   );
 }

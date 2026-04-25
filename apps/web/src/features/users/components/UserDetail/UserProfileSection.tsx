@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { Pencil, Save } from 'lucide-react';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Button, Field, Input } from '@/shared/ui';
+import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input } from '@/shared/ui';
 import { useUpdateUser } from '../../hooks/useUsers';
 import type { User } from '../../types';
 import type { HttpError } from '@/shared/services/httpClient';
@@ -46,56 +47,82 @@ export function UserProfileSection({ user }: UserProfileSectionProps) {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-800">Datos personales</h2>
-        {!editing && (
-          <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(true)}>
-            Editar
-          </Button>
-        )}
-      </div>
-
-      {!editing ? (
-        <>
-          <ProfileField label="Nombre completo">{user.fullName}</ProfileField>
-          <ProfileField label="Email">{user.email}</ProfileField>
-          <ProfileField label="Tipo de cuenta">
-            {user.isAdmin ? 'Admin global' : 'Staff de sucursal'}
-          </ProfileField>
-        </>
-      ) : (
-        <form onSubmit={handleSave} className="flex flex-col gap-3">
-          <Field label="Nombre completo" htmlFor="edit-fullname">
-            <Input
-              id="edit-fullname"
-              type="text"
-              required
-              minLength={1}
-              maxLength={120}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
-          </Field>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isAdmin}
-              onChange={(e) => setIsAdmin(e.target.checked)}
-            />
-            Admin global
-          </label>
-          {updateError && <Alert variant="error">{updateError}</Alert>}
-          <div className="flex gap-2">
-            <Button type="submit" variant="primary" isLoading={update.isPending}>
-              {update.isPending ? 'Guardando...' : 'Guardar cambios'}
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Datos personales</CardTitle>
+          {!editing && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              leftIcon={<Pencil className="h-3.5 w-3.5" />}
+              onClick={() => setEditing(true)}
+            >
+              Editar
             </Button>
-            <Button type="button" variant="secondary" onClick={handleCancel}>
-              Cancelar
-            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {!editing ? (
+          <div className="flex flex-col gap-3">
+            <ProfileField label="Nombre completo">{user.fullName}</ProfileField>
+            <ProfileField label="Email">{user.email}</ProfileField>
+            <ProfileField label="Tipo de cuenta">
+              {user.isAdmin ? (
+                <Badge variant="info">Admin global</Badge>
+              ) : (
+                <Badge variant="default">Staff de sucursal</Badge>
+              )}
+            </ProfileField>
+            <ProfileField label="Estado">
+              {user.isActive ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="default">Inactivo</Badge>
+              )}
+            </ProfileField>
           </div>
-        </form>
-      )}
-    </section>
+        ) : (
+          <form onSubmit={handleSave} className="flex flex-col gap-3">
+            <Field label="Nombre completo" htmlFor="edit-fullname">
+              <Input
+                id="edit-fullname"
+                type="text"
+                required
+                minLength={1}
+                maxLength={120}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={isAdmin}
+                onChange={(e) => setIsAdmin(e.target.checked)}
+              />
+              Admin global
+            </label>
+            {updateError && <Alert variant="error">{updateError}</Alert>}
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                leftIcon={<Save className="h-3.5 w-3.5" />}
+                isLoading={update.isPending}
+              >
+                {update.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={handleCancel}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 }

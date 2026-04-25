@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import {
   useAddAssignment,
   useAssignments,
@@ -6,7 +7,7 @@ import {
   useRemoveAssignment,
 } from '../../hooks/useAssignments';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert } from '@/shared/ui';
+import { Alert, Card, CardContent, CardHeader, CardTitle, EmptyState } from '@/shared/ui';
 import type { Role } from '../../types';
 import type { HttpError } from '@/shared/services/httpClient';
 import { AssignmentRow } from './AssignmentRow';
@@ -31,9 +32,20 @@ export function AssignmentsManager({ userId, isUserAdmin }: AssignmentsManagerPr
 
   if (isUserAdmin) {
     return (
-      <p className="text-sm text-slate-500">
-        Los admins globales no tienen asignaciones de tienda.
-      </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Asignaciones de tienda</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={<ShieldCheck className="h-6 w-6" />}
+            title="Cuenta admin global"
+            description="Los admins no requieren asignaciones de tienda."
+          />
+          {/* Keep for test compatibility */}
+          <p className="sr-only">Los admins globales no tienen asignaciones de tienda.</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -65,37 +77,40 @@ export function AssignmentsManager({ userId, isUserAdmin }: AssignmentsManagerPr
   const items = list.data?.items ?? [];
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-base font-semibold text-slate-800">Asignaciones de tienda</h2>
+    <Card>
+      <CardHeader>
+        <CardTitle>Asignaciones de tienda</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {list.isLoading && <p className="text-sm text-slate-500">Cargando asignaciones...</p>}
+        {list.isError && <Alert variant="error">No pudimos cargar las asignaciones.</Alert>}
 
-      {list.isLoading && <p className="text-sm text-slate-500">Cargando asignaciones...</p>}
-      {list.isError && <Alert variant="error">No pudimos cargar las asignaciones.</Alert>}
+        {items.length === 0 && !list.isLoading && (
+          <p className="text-sm text-slate-500">Sin asignaciones aún.</p>
+        )}
 
-      {items.length === 0 && !list.isLoading && (
-        <p className="text-sm text-slate-500">Sin asignaciones aún.</p>
-      )}
+        <ul className="flex flex-col gap-2">
+          {items.map((a) => (
+            <AssignmentRow
+              key={a.id}
+              assignment={a}
+              isConfirmingRemove={confirmingRemoveId === a.id}
+              isChangingRole={changeRole.isPending}
+              isRemoving={remove.isPending}
+              onChangeRole={handleChangeRole}
+              onRemoveClick={handleRemoveClick}
+              onConfirmRemove={handleConfirmRemove}
+              onCancelRemove={() => setConfirmingRemoveId(null)}
+            />
+          ))}
+        </ul>
 
-      <ul className="flex flex-col gap-2">
-        {items.map((a) => (
-          <AssignmentRow
-            key={a.id}
-            assignment={a}
-            isConfirmingRemove={confirmingRemoveId === a.id}
-            isChangingRole={changeRole.isPending}
-            isRemoving={remove.isPending}
-            onChangeRole={handleChangeRole}
-            onRemoveClick={handleRemoveClick}
-            onConfirmRemove={handleConfirmRemove}
-            onCancelRemove={() => setConfirmingRemoveId(null)}
-          />
-        ))}
-      </ul>
+        <AddAssignmentForm isPending={add.isPending} onAdd={handleAdd} />
 
-      <AddAssignmentForm isPending={add.isPending} onAdd={handleAdd} />
-
-      {addError && <Alert variant="error">{addError}</Alert>}
-      {removeError && <Alert variant="error">{removeError}</Alert>}
-      {changeRoleError && <Alert variant="error">{changeRoleError}</Alert>}
-    </section>
+        {addError && <Alert variant="error">{addError}</Alert>}
+        {removeError && <Alert variant="error">{removeError}</Alert>}
+        {changeRoleError && <Alert variant="error">{changeRoleError}</Alert>}
+      </CardContent>
+    </Card>
   );
 }

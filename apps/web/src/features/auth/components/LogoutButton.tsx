@@ -8,8 +8,10 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/useAuthStore';
+import { Button } from '@/shared/ui';
 
 interface LogoutButtonProps {
   className?: string;
@@ -34,16 +36,16 @@ export function LogoutButton({ className }: LogoutButtonProps) {
   };
 
   return (
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      size="sm"
+      leftIcon={<LogOut className="h-4 w-4" />}
       onClick={() => void handleLogout()}
       disabled={loading}
-      className={
-        className ??
-        'rounded border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-500 hover:text-slate-900 disabled:opacity-50'
-      }
+      className={className}
     >
       {loading ? 'Saliendo...' : 'Cerrar sesión'}
-    </button>
+    </Button>
   );
 }
