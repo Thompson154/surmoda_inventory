@@ -2,12 +2,15 @@ import type { Request, Response, NextFunction } from 'express';
 import { emitAudit } from '../../middleware/auditLogger';
 import { ListUsersQuerySchema } from './validators';
 import type { UserService } from './service';
-import type { CreateUserDTO } from './types';
+import type { CreateUserDTO, UpdateUserDTO } from './types';
 
 export interface UserController {
   create(req: Request, res: Response, next: NextFunction): Promise<void>;
   list(req: Request, res: Response, next: NextFunction): Promise<void>;
   getById(req: Request, res: Response, next: NextFunction): Promise<void>;
+  update(req: Request, res: Response, next: NextFunction): Promise<void>;
+  deactivate(req: Request, res: Response, next: NextFunction): Promise<void>;
+  reactivate(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 
 export function buildUserController(service: UserService): UserController {
@@ -47,6 +50,70 @@ export function buildUserController(service: UserService): UserController {
           return;
         }
         const user = await service.getById(id);
+        res.status(200).json(user);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async update(req, res, next) {
+      try {
+        const id = req.params.id;
+        if (!id) {
+          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'id required' });
+          return;
+        }
+        const input = req.body as UpdateUserDTO;
+        const user = await service.update(id, input);
+        emitAudit(req, {
+          userId: req.auth?.userId ?? null,
+          action: 'USER_UPDATED',
+          entity: 'User',
+          entityId: user.id,
+          payload: { fullName: user.fullName, isAdmin: user.isAdmin },
+        });
+        res.status(200).json(user);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async deactivate(req, res, next) {
+      try {
+        const id = req.params.id;
+        if (!id) {
+          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'id required' });
+          return;
+        }
+        const user = await service.deactivate(id);
+        emitAudit(req, {
+          userId: req.auth?.userId ?? null,
+          action: 'USER_DEACTIVATED',
+          entity: 'User',
+          entityId: user.id,
+          payload: {},
+        });
+        res.status(200).json(user);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async reactivate(req, res, next) {
+      try {
+        const id = req.params.id;
+        if (!id) {
+          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'id required' });
+          return;
+        }
+        const user = await service.reactivate(id);
+        emitAudit(req, {
+          userId: req.auth?.userId ?? null,
+          action: 'USER_REACTIVATED',
+          entity: 'User',
+          entityId: user.id,
+          payload: {},
+        });
         res.status(200).json(user);
       } catch (err) {
         next(err);

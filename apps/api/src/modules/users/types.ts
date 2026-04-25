@@ -49,3 +49,8 @@ export interface ListUsersQuery {
   page: number;
   pageSize: number;
 }
+
+export interface UpdateUserDTO {
+  fullName?: string;
+  isAdmin?: boolean;
+}

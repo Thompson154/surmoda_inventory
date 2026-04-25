@@ -42,10 +42,37 @@ export interface CreateUserPayload {
   assignments?: Array<{ storeId: string; role: Role }>;
 }
 
+export interface UpdateUserPayload {
+  fullName?: string;
+  isAdmin?: boolean;
+}
+
 export interface ListUsersFilters {
   q?: string;
   isActive?: boolean;
   isAdmin?: boolean;
   page?: number;
   pageSize?: number;
+}
+
+export interface Assignment {
+  id: string;
+  userId: string;
+  storeId: string;
+  role: Role;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignmentsListResponse {
+  items: Assignment[];
+}
+
+export interface CreateAssignmentPayload {
+  storeId: string;
+  role: Role;
+}
+
+export interface UpdateAssignmentPayload {
+  role: Role;
 }

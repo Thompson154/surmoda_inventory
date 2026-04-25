@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authGuard } from '../../middleware/authGuard';
 import { roleGuard } from '../../middleware/roleGuard';
 import { validateBody } from '../../middleware/validateBody';
-import { CreateUserSchema } from './validators';
+import { CreateUserSchema, UpdateUserSchema } from './validators';
 import { ADMIN_FLAG } from '../../shared/constants/roles';
 import type { UserController } from './controller';
 
@@ -17,6 +17,11 @@ export function buildUsersRouter(controller: UserController): Router {
     controller.create(req, res, next),
   );
   router.get('/:id', (req, res, next) => controller.getById(req, res, next));
+  router.patch('/:id', validateBody(UpdateUserSchema), (req, res, next) =>
+    controller.update(req, res, next),
+  );
+  router.post('/:id/deactivate', (req, res, next) => controller.deactivate(req, res, next));
+  router.post('/:id/reactivate', (req, res, next) => controller.reactivate(req, res, next));
 
   return router;
 }

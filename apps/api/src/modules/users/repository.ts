@@ -10,11 +10,20 @@ export interface CreateUserPersistInput {
   assignments: Array<{ storeId: string; role: Role }>;
 }
 
+export interface UpdateUserPersistInput {
+  fullName?: string;
+  isAdmin?: boolean;
+}
+
 export interface UserRepository {
   findById(id: string): Promise<UserDTO | null>;
   findByEmail(email: string): Promise<{ id: string; email: string } | null>;
   create(input: CreateUserPersistInput): Promise<UserDTO>;
   list(query: ListUsersQuery): Promise<PaginatedUsers>;
+  update(id: string, input: UpdateUserPersistInput): Promise<UserDTO>;
+  setActive(id: string, isActive: boolean): Promise<UserDTO>;
+  countActiveAdmins(): Promise<number>;
+  isAdminById(id: string): Promise<boolean>;
 }
 
 const userInclude = { assignments: true } as const;
@@ -92,6 +101,42 @@ export function buildUserRepository(db: Database): UserRepository {
         page: query.page,
         pageSize: query.pageSize,
       };
+    },
+
+    async update(id, input) {
+      const data: Prisma.UserUpdateInput = {};
+      if (input.fullName !== undefined) data.fullName = input.fullName;
+      if (input.isAdmin !== undefined) data.isAdmin = input.isAdmin;
+
+      const updated = await db.user.update({
+        where: { id },
+        data,
+        include: userInclude,
+      });
+      return toUserDTO(updated);
+    },
+
+    async setActive(id, isActive) {
+      const updated = await db.user.update({
+        where: { id },
+        data: { isActive },
+        include: userInclude,
+      });
+      return toUserDTO(updated);
+    },
+
+    async countActiveAdmins() {
+      return db.user.count({
+        where: { isAdmin: true, isActive: true, deletedAt: null },
+      });
+    },
+
+    async isAdminById(id) {
+      const u = await db.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { isAdmin: true },
+      });
+      return Boolean(u?.isAdmin);
     },
   };
 }

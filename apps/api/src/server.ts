@@ -14,6 +14,10 @@ import { buildUserRepository } from './modules/users/repository';
 import { buildUserService } from './modules/users/service';
 import { buildUserController } from './modules/users/controller';
 import { buildUsersRouter } from './modules/users/routes';
+import { buildUserStoreRepository } from './modules/assignments/repository';
+import { buildAssignmentService } from './modules/assignments/service';
+import { buildAssignmentController } from './modules/assignments/controller';
+import { buildAssignmentsRouter } from './modules/assignments/routes';
 
 export function buildServer(): Express {
   const config = loadConfig();
@@ -42,12 +46,14 @@ export function buildServer(): Express {
   app.use('/api/v1/auth', buildAuthRouter(authController));
 
   const usersRepo = buildUserRepository(db);
-  const usersService = buildUserService({ users: usersRepo });
+  const usersService = buildUserService({ users: usersRepo, refreshTokens });
   const usersController = buildUserController(usersService);
   app.use('/api/v1/users', buildUsersRouter(usersController));
 
-  // Other module routers will be mounted here as features ship:
-  //   app.use('/api/v1/users/:userId/assignments', assignmentsRouter);
+  const assignmentsRepo = buildUserStoreRepository(db);
+  const assignmentsService = buildAssignmentService({ assignments: assignmentsRepo, users: usersRepo });
+  const assignmentsController = buildAssignmentController(assignmentsService);
+  app.use('/api/v1/users/:userId/assignments', buildAssignmentsRouter(assignmentsController));
 
   app.use(errorHandler);
 

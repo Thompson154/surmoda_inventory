@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { usersService } from '../services/usersService';
-import type { CreateUserPayload, ListUsersFilters } from '../types';
+import type { CreateUserPayload, ListUsersFilters, UpdateUserPayload } from '../types';
 
 export const usersQueryKeys = {
   all: ['users'] as const,
@@ -33,6 +33,36 @@ export function useCreateUser() {
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all });
       navigate(`/users/${created.id}`, { replace: true });
+    },
+  });
+}
+
+export function useUpdateUser(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateUserPayload) => usersService.update(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all });
+    },
+  });
+}
+
+export function useDeactivateUser(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => usersService.deactivate(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all });
+    },
+  });
+}
+
+export function useReactivateUser(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => usersService.reactivate(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all });
     },
   });
 }

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useCreateUser } from '../hooks/useUsers';
+import { useStores } from '../hooks/useStores';
 import type { CreateUserPayload, Role } from '../types';
 import type { HttpError } from '@/shared/services/httpClient';
 
@@ -8,20 +9,16 @@ interface AssignmentDraft {
   role: Role;
 }
 
-const KNOWN_STORES: Array<{ id: string; label: string }> = [
-  { id: 'store-prado-seed', label: 'Prado' },
-  { id: 'store-zsur-seed', label: 'Z. Sur' },
-  { id: 'store-almacen-seed', label: 'Almacén' },
-];
-
 export function UserForm() {
   const create = useCreateUser();
+  const stores = useStores();
+  const firstStoreId = stores.data[0]?.id ?? '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [assignments, setAssignments] = useState<AssignmentDraft[]>([
-    { storeId: KNOWN_STORES[0]!.id, role: 'vendedora' },
+    { storeId: firstStoreId, role: 'vendedora' },
   ]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -41,7 +38,7 @@ export function UserForm() {
   };
 
   const addAssignment = () => {
-    setAssignments((prev) => [...prev, { storeId: KNOWN_STORES[0]!.id, role: 'vendedora' }]);
+    setAssignments((prev) => [...prev, { storeId: firstStoreId, role: 'vendedora' }]);
   };
 
   const removeAssignment = (idx: number) => {
@@ -109,7 +106,7 @@ export function UserForm() {
                 onChange={(e) => updateAssignment(idx, { storeId: e.target.value })}
                 className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
               >
-                {KNOWN_STORES.map((s) => (
+                {stores.data.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
                   </option>
