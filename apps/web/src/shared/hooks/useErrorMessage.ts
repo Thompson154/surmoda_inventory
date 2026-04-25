@@ -59,6 +59,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.STOCK_NEGATIVE_NOT_ALLOWED]: 'El stock no puede ser negativo.',
   [ERROR_CODES.STORE_EDIT_PERMISSION_FORBIDDEN]: 'Sólo encargada/admin puede realizar esta acción.',
   [ERROR_CODES.INVENTORY_PRODUCT_NOT_IN_STORE]: 'Este producto no tiene stock en esta sede.',
+
+  [ERROR_CODES.DELIVERY_NOT_FOUND]: 'Entrega no encontrada.',
+  [ERROR_CODES.DELIVERY_NO_WAREHOUSE]: 'No hay un almacén activo configurado.',
+  [ERROR_CODES.DELIVERY_INSUFFICIENT_STOCK]: 'Stock insuficiente en el almacén.',
+  [ERROR_CODES.DELIVERY_EMPTY_ITEMS]: 'Agregá al menos un ítem.',
+  [ERROR_CODES.DELIVERY_VARIANT_NOT_FOUND]: 'Una de las variantes no existe o está inactiva.',
+  [ERROR_CODES.DELIVERY_FORBIDDEN]: 'Sólo encargada/admin puede crear entregas.',
 } satisfies Record<(typeof ERROR_CODES)[ErrorCodeKey], string>;
 
 const DEFAULT_MESSAGE = 'No pudimos completar la operación.';

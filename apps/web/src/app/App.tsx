@@ -13,6 +13,7 @@ import { ProductDetailPage } from '@/features/products/pages/ProductDetailPage';
 import { SedePickerPage } from '@/features/inventory/pages/SedePickerPage';
 import { SedeInventoryPage } from '@/features/inventory/pages/SedeInventoryPage';
 import { PlaceholderSectionPage } from '@/features/inventory/pages/PlaceholderSectionPage';
+import { DeliveriesPage } from '@/features/deliveries/pages/DeliveriesPage';
 import { AdminHomePage } from '@/features/admin/AdminHomePage';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
@@ -47,11 +48,7 @@ export function App() {
         path="/sedes/:storeId/entregas"
         element={
           <Authenticated>
-            <PlaceholderSectionPage
-              section="entregas"
-              title="Entregas"
-              description="Próximamente vas a poder enviar mercadería del almacén a las sucursales."
-            />
+            <DeliveriesPage />
           </Authenticated>
         }
       />

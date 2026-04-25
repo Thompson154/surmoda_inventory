@@ -424,4 +424,99 @@ export const handlers = [
       toggledAt: new Date().toISOString(),
     });
   }),
+
+  // Deliveries
+  http.get(`${BASE}/stores/:storeId/deliveries/grouped`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          productId: 'prod-1',
+          productCode: 'JN001',
+          productName: 'Jean Bota Recta',
+          imagePath: 'imagesTest/JeanAzulBotaRecta.png',
+          totalUnits: 30,
+          deliveryCount: 2,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
+  ),
+
+  http.get(`${BASE}/stores/:storeId/deliveries`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'del-1',
+          kind: 'distribution',
+          fromStoreId: 'store-almacen-seed',
+          fromStoreName: 'Almacén Central',
+          toStoreId: 'store-prado-seed',
+          toStoreName: 'Sucursal Prado',
+          createdByUserId: 'user-1',
+          createdByFullName: 'Admin Demo',
+          note: null,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          itemCount: 2,
+          totalUnits: 30,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
+  ),
+
+  http.get(`${BASE}/deliveries/:id`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      kind: 'distribution',
+      fromStoreId: 'store-almacen-seed',
+      fromStoreName: 'Almacén Central',
+      toStoreId: 'store-prado-seed',
+      toStoreName: 'Sucursal Prado',
+      createdByUserId: 'user-1',
+      createdByFullName: 'Admin Demo',
+      note: 'lote enero',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      itemCount: 1,
+      totalUnits: 10,
+      items: [
+        {
+          id: 'di-1',
+          variantId: 'var-1',
+          quantity: 10,
+          productId: 'prod-1',
+          productCode: 'JN001',
+          productName: 'Jean Bota Recta',
+          size: '30',
+          color: 'azul',
+          barcode: 'ABC123ABC123',
+          imagePath: null,
+        },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/stores/:storeId/deliveries`, () =>
+    HttpResponse.json(
+      {
+        id: 'del-new',
+        kind: 'distribution',
+        fromStoreId: 'store-almacen-seed',
+        fromStoreName: 'Almacén Central',
+        toStoreId: 'store-prado-seed',
+        toStoreName: 'Sucursal Prado',
+        createdByUserId: 'user-1',
+        createdByFullName: 'Admin Demo',
+        note: null,
+        createdAt: new Date().toISOString(),
+        itemCount: 1,
+        totalUnits: 5,
+        items: [],
+      },
+      { status: 201 },
+    ),
+  ),
 ];
