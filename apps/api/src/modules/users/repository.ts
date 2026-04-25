@@ -1,4 +1,5 @@
-import type { Prisma, Role } from '@prisma/client';
+import type { Prisma, Role as PrismaRole } from '@prisma/client';
+import type { Role } from '@surmoda/contracts';
 import type { Database } from '../../infrastructure/database';
 import type { ListUsersQuery, PaginatedUsers, UserDTO } from './types';
 
@@ -55,7 +56,9 @@ export function buildUserRepository(db: Database): UserRepository {
           fullName: input.fullName,
           isAdmin: input.isAdmin,
           assignments: {
-            create: input.assignments.map((a) => ({ storeId: a.storeId, role: a.role })),
+            // WHY: Prisma enum is structurally identical to contracts Role string union.
+            // Cast is safe — values are the same at runtime.
+            create: input.assignments.map((a) => ({ storeId: a.storeId, role: a.role as PrismaRole })),
           },
         },
         include: userInclude,
@@ -160,7 +163,7 @@ function toUserDTO(user: {
   assignments: Array<{
     id: string;
     storeId: string;
-    role: Role;
+    role: PrismaRole;
     deletedAt: Date | null;
   }>;
 }): UserDTO {
@@ -172,7 +175,7 @@ function toUserDTO(user: {
     isActive: user.isActive,
     assignments: user.assignments
       .filter((a) => a.deletedAt === null)
-      .map((a) => ({ id: a.id, storeId: a.storeId, role: a.role })),
+      .map((a) => ({ id: a.id, storeId: a.storeId, role: a.role as Role })),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

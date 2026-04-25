@@ -1,4 +1,5 @@
-import type { Role } from '@prisma/client';
+import type { Role as PrismaRole } from '@prisma/client';
+import type { Role } from '@surmoda/contracts';
 import type { Database } from '../../infrastructure/database';
 import type { AssignmentDTO } from './types';
 
@@ -57,7 +58,9 @@ export function buildUserStoreRepository(db: Database): UserStoreRepository {
         data: {
           userId: input.userId,
           storeId: input.storeId,
-          role: input.role,
+          // WHY: Prisma enum is structurally identical to contracts Role string union.
+          // Cast is safe — values are the same at runtime.
+          role: input.role as PrismaRole,
         },
       });
       return toDTO(created);
@@ -66,7 +69,8 @@ export function buildUserStoreRepository(db: Database): UserStoreRepository {
     async updateRole(id, role) {
       const updated = await db.userStore.update({
         where: { id },
-        data: { role },
+        // WHY: same cast as above — Prisma enum ↔ contracts string union, same values.
+        data: { role: role as PrismaRole },
       });
       return toDTO(updated);
     },
@@ -84,7 +88,7 @@ function toDTO(row: {
   id: string;
   userId: string;
   storeId: string;
-  role: Role;
+  role: PrismaRole;
   createdAt: Date;
   updatedAt: Date;
 }): AssignmentDTO {
@@ -92,7 +96,7 @@ function toDTO(row: {
     id: row.id,
     userId: row.userId,
     storeId: row.storeId,
-    role: row.role,
+    role: row.role as Role,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -102,14 +106,14 @@ function toRow(row: {
   id: string;
   userId: string;
   storeId: string;
-  role: Role;
+  role: PrismaRole;
   deletedAt: Date | null;
 }): AssignmentRow {
   return {
     id: row.id,
     userId: row.userId,
     storeId: row.storeId,
-    role: row.role,
+    role: row.role as Role,
     deletedAt: row.deletedAt,
   };
 }

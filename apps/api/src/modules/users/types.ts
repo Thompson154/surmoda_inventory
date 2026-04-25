@@ -1,60 +1,27 @@
-import type { Role } from '@prisma/client';
+import type {
+  User as UserContract,
+  UserAssignment as UserAssignmentContract,
+  UserListItem as UserListItemContract,
+  PaginatedUsers as PaginatedUsersContract,
+  CreateUserPayload,
+  UpdateUserPayload,
+  ResetPasswordPayload,
+} from '@surmoda/contracts';
 
-export interface UserAssignmentDTO {
-  id: string;
-  storeId: string;
-  role: Role;
-}
+export type UserAssignmentDTO = UserAssignmentContract;
+export type UserDTO = UserContract;
+export type UserListItem = UserListItemContract;
+export type PaginatedUsers = PaginatedUsersContract;
+export type CreateUserDTO = CreateUserPayload;
+export type UpdateUserDTO = UpdateUserPayload;
+export type ResetPasswordDTO = ResetPasswordPayload;
 
-export interface UserDTO {
-  id: string;
-  email: string;
-  fullName: string;
-  isAdmin: boolean;
-  isActive: boolean;
-  assignments: UserAssignmentDTO[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface UserListItem {
-  id: string;
-  email: string;
-  fullName: string;
-  isAdmin: boolean;
-  isActive: boolean;
-  assignmentsCount: number;
-  createdAt: string;
-}
-
-export interface PaginatedUsers {
-  items: UserListItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface CreateUserDTO {
-  email: string;
-  password: string;
-  fullName: string;
-  isAdmin: boolean;
-  assignments?: Array<{ storeId: string; role: Role }>;
-}
-
+// WHY: ListUsersQuery is BE-specific — page is REQUIRED here (defaulted by the validator),
+// whereas ListUsersFilters in contracts has page?: optional (FE/shared usage).
 export interface ListUsersQuery {
   q?: string;
   isActive?: boolean;
   isAdmin?: boolean;
   page: number;
   pageSize: number;
-}
-
-export interface UpdateUserDTO {
-  fullName?: string;
-  isAdmin?: boolean;
-}
-
-export interface ResetPasswordDTO {
-  newPassword: string;
 }

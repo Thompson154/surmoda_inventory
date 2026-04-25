@@ -1,23 +1,14 @@
-import type { Role } from '@prisma/client';
+import type {
+  Assignment as AssignmentContract,
+  CreateAssignmentPayload,
+  UpdateAssignmentPayload,
+} from '@surmoda/contracts';
 
-export interface AssignmentDTO {
-  id: string;
-  userId: string;
-  storeId: string;
-  role: Role;
-  createdAt: string;
-  updatedAt: string;
-}
+export type AssignmentDTO = AssignmentContract;
+export type CreateAssignmentDTO = CreateAssignmentPayload;
+export type UpdateAssignmentDTO = UpdateAssignmentPayload;
 
-export interface CreateAssignmentDTO {
-  storeId: string;
-  role: Role;
-}
-
-export interface UpdateAssignmentDTO {
-  role: Role;
-}
-
+// BE-only: no contracts equivalent (UI-state / query param concern).
 export interface RemoveAssignmentOptions {
   confirm?: boolean;
 }
