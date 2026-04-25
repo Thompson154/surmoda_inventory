@@ -4,7 +4,9 @@ import { loadConfig } from './config';
 // WHY: soft-delete extension auto-filters `findMany` for entities with `deletedAt`
 // (Constitution § 4.7). For `findUnique`/`findFirst`/`count`, repositories add the
 // `deletedAt: null` filter explicitly — keeps Prisma's unique-key contract intact.
-const SOFT_DELETED_MODELS = new Set(['User', 'UserStore', 'RefreshToken']);
+// WHY: RefreshToken has no deletedAt column — soft-delete does not apply to it.
+// Only User and UserStore have the deletedAt field in the schema.
+const SOFT_DELETED_MODELS = new Set(['User', 'UserStore']);
 
 function buildSoftDeleteExtension() {
   return Prisma.defineExtension((client) =>

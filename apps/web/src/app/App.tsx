@@ -4,6 +4,7 @@ import { UsersListPage } from '@/features/users/pages/UsersListPage';
 import { UserCreatePage } from '@/features/users/pages/UserCreatePage';
 import { UserDetailPage } from '@/features/users/pages/UserDetailPage';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { LogoutButton } from '@/features/auth/components/LogoutButton';
 import type { ReactNode } from 'react';
 
 export function App() {
@@ -57,7 +58,10 @@ function HomePage() {
   const user = useAuthStore((s) => s.user);
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
-      <h1 className="text-xl font-semibold">Hola, {user?.fullName}</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Hola, {user?.fullName}</h1>
+        <LogoutButton />
+      </div>
       <p className="text-sm text-slate-500">
         {user?.isAdmin
           ? 'Sos admin global. Podés gestionar usuarios y, cuando estén listas, tiendas/inventario.'
