@@ -1,4 +1,5 @@
-import { Button, Select } from '@/shared/ui';
+import { Store, Trash2 } from 'lucide-react';
+import { Badge, Button, IconButton, Select } from '@/shared/ui';
 import { getStoreLabel } from '../../hooks/useStores';
 import type { Assignment, Role } from '../../types';
 
@@ -26,11 +27,17 @@ export function AssignmentRow({
   const storeLabel = getStoreLabel(assignment.storeId);
 
   return (
-    <li className="flex items-center justify-between rounded border border-slate-200 bg-white px-3 py-2">
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{storeLabel}</span>
-        <span className="text-xs text-slate-500">{assignment.storeId}</span>
+    <li className="flex items-center justify-between rounded-lg border border-surface-border bg-surface-raised px-3 py-2">
+      {/* Store info */}
+      <div className="flex items-center gap-2">
+        <Store className="h-4 w-4 text-slate-400 shrink-0" />
+        <span className="text-sm font-medium text-slate-800">{storeLabel}</span>
+        <Badge variant={assignment.role === 'encargada' ? 'success' : 'info'}>
+          {assignment.role}
+        </Badge>
       </div>
+
+      {/* Actions */}
       <div className="flex items-center gap-2">
         <Select
           value={assignment.role}
@@ -64,16 +71,14 @@ export function AssignmentRow({
             </Button>
           </>
         ) : (
-          <Button
-            type="button"
+          <IconButton
+            icon={<Trash2 className="h-4 w-4" />}
+            label={`Quitar ${storeLabel}`}
             variant="ghost"
             size="sm"
             onClick={() => onRemoveClick(assignment.id)}
             disabled={isRemoving}
-            aria-label={`Quitar ${storeLabel}`}
-          >
-            Quitar
-          </Button>
+          />
         )}
       </div>
     </li>

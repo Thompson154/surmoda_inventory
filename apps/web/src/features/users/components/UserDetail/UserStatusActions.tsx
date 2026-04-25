@@ -1,20 +1,12 @@
+import { Power, RotateCcw } from 'lucide-react';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Button } from '@/shared/ui';
+import { Alert, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
 import { useDeactivateUser, useReactivateUser } from '../../hooks/useUsers';
 import type { User } from '../../types';
 import type { HttpError } from '@/shared/services/httpClient';
 
 interface UserStatusActionsProps {
   user: User;
-}
-
-function ProfileField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
-      <div className="text-sm">{children}</div>
-    </div>
-  );
 }
 
 export function UserStatusActions({ user }: UserStatusActionsProps) {
@@ -24,43 +16,40 @@ export function UserStatusActions({ user }: UserStatusActionsProps) {
   const deactivateError = useErrorMessage(deactivate.error as HttpError | null | undefined);
 
   return (
-    <>
-      <ProfileField label="Estado">
-        <div className="flex items-center gap-2">
-          <span
-            className={
-              user.isActive
-                ? 'rounded bg-green-100 px-2 py-0.5 text-xs text-green-800'
-                : 'rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-700'
-            }
-          >
-            {user.isActive ? 'Activo' : 'Inactivo'}
-          </span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Estado de cuenta</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
           {user.isActive ? (
             <Button
               type="button"
               variant="danger"
               size="sm"
+              leftIcon={<Power className="h-3.5 w-3.5" />}
               onClick={() => deactivate.mutate()}
               disabled={deactivate.isPending}
+              isLoading={deactivate.isPending}
             >
               {deactivate.isPending ? 'Desactivando...' : 'Desactivar'}
             </Button>
           ) : (
             <Button
               type="button"
-              variant="ghost"
+              variant="primary"
               size="sm"
+              leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
               onClick={() => reactivate.mutate()}
               disabled={reactivate.isPending}
-              className="bg-green-50 text-green-700 hover:bg-green-100"
+              isLoading={reactivate.isPending}
             >
               {reactivate.isPending ? 'Activando...' : 'Reactivar'}
             </Button>
           )}
         </div>
-      </ProfileField>
-      {deactivateError && <Alert variant="error">{deactivateError}</Alert>}
-    </>
+        {deactivateError && <Alert variant="error">{deactivateError}</Alert>}
+      </CardContent>
+    </Card>
   );
 }

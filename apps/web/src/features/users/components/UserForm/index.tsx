@@ -55,7 +55,7 @@ export function UserForm() {
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-lg">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
       <EmailField value={email} onChange={setEmail} />
       <FullNameField value={fullName} onChange={setFullName} />
       <PasswordField value={password} onChange={setPassword} />
@@ -69,7 +69,7 @@ export function UserForm() {
         />
       )}
       {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
-      <Button type="submit" isLoading={create.isPending} size="md" className="py-2 text-base">
+      <Button type="submit" variant="primary" isLoading={create.isPending} size="md" className="w-full">
         {create.isPending ? 'Creando...' : 'Crear usuario'}
       </Button>
     </form>

@@ -1,6 +1,7 @@
-import { Button, Select } from '@/shared/ui';
+import { Button, IconButton, Select } from '@/shared/ui';
 import { useStores } from '../../hooks/useStores';
 import type { Role } from '../../types';
+import { Plus, Trash2 } from 'lucide-react';
 
 export interface AssignmentDraft {
   storeId: string;
@@ -23,8 +24,8 @@ export function AssignmentsDraftList({
   const stores = useStores();
 
   return (
-    <fieldset className="flex flex-col gap-3 rounded border border-slate-200 p-3">
-      <legend className="text-sm text-slate-700">Asignaciones de tienda</legend>
+    <fieldset className="flex flex-col gap-3 rounded-lg border border-surface-border p-3">
+      <legend className="text-sm font-medium text-slate-700 px-1">Asignaciones de tienda</legend>
       {assignments.map((a, idx) => (
         <div key={idx} className="flex items-center gap-2">
           <Select
@@ -48,25 +49,27 @@ export function AssignmentsDraftList({
             <option value="encargada">encargada</option>
           </Select>
           {assignments.length > 1 && (
-            <Button
-              type="button"
+            <IconButton
+              icon={<Trash2 className="h-4 w-4" />}
+              label={`Quitar asignación ${idx + 1}`}
               variant="ghost"
               size="sm"
+              type="button"
               onClick={() => onRemove(idx)}
-              aria-label={`Quitar asignación ${idx + 1}`}
-            >
-              Quitar
-            </Button>
+            />
           )}
         </div>
       ))}
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="sm"
+        leftIcon={<Plus className="h-4 w-4" />}
         onClick={onAdd}
-        className="self-start rounded border border-dashed border-slate-400 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+        className="self-start"
       >
-        + Agregar otra tienda
-      </button>
+        Agregar otra tienda
+      </Button>
     </fieldset>
   );
 }

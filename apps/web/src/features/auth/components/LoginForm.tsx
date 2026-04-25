@@ -17,7 +17,7 @@ export function LoginForm() {
   const errorMessage = useErrorMessage(login.error as HttpError | null | undefined);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
       <Field label="Email" htmlFor="login-email">
         <Input
           id="login-email"
@@ -25,6 +25,7 @@ export function LoginForm() {
           required
           autoComplete="email"
           inputMode="email"
+          placeholder="usuario@demo.local"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -41,7 +42,13 @@ export function LoginForm() {
         />
       </Field>
       {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
-      <Button type="submit" isLoading={login.isPending} size="md" className="py-2 text-base">
+      <Button
+        type="submit"
+        variant="primary"
+        size="lg"
+        isLoading={login.isPending}
+        className="w-full"
+      >
         {login.isPending ? 'Ingresando...' : 'Ingresar'}
       </Button>
     </form>
