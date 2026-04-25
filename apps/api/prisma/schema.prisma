@@ -45,8 +45,17 @@ enum Size {
 enum StockMovementType {
   adjusted
   edit_permission_toggled
+  delivery_in
+  delivery_out
 
   @@map("stock_movement_type")
+}
+
+enum DeliveryKind {
+  reception
+  distribution
+
+  @@map("delivery_kind")
 }
 
 model Store {
@@ -60,6 +69,8 @@ model Store {
   stock          StockBySite[]
   movements      StockMovement[]
   editPermission StoreEditPermission?
+  deliveriesIn   Delivery[] @relation("DeliveryDest")
+  deliveriesOut  Delivery[] @relation("DeliveryOrigin")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -96,9 +107,10 @@ model Variant {
   imagePath  String? @map("image_path")
   isActive   Boolean @default(true) @map("is_active")
 
-  product   Product         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  stock     StockBySite[]
-  movements StockMovement[]
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  stock         StockBySite[]
+  movements     StockMovement[]
+  deliveryItems DeliveryItem[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -118,10 +130,11 @@ model User {
   isAdmin      Boolean   @default(false) @map("is_admin")
   isActive     Boolean   @default(true) @map("is_active")
 
-  assignments      UserStore[]
-  refreshTokens    RefreshToken[]
-  stockMovements   StockMovement[]
-  editPermissions  StoreEditPermission[]
+  assignments       UserStore[]
+  refreshTokens     RefreshToken[]
+  stockMovements    StockMovement[]
+  editPermissions   StoreEditPermission[]
+  deliveriesCreated Delivery[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -233,4 +246,37 @@ model StoreEditPermission {
   user  User? @relation(fields: [toggledByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@map("store_edit_permission")
+}
+
+model Delivery {
+  id              String       @id @default(cuid())
+  kind            DeliveryKind
+  fromStoreId     String?      @map("from_store_id")
+  toStoreId       String       @map("to_store_id")
+  createdByUserId String       @map("created_by_user_id")
+  note            String?
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  fromStore Store?         @relation("DeliveryOrigin", fields: [fromStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  toStore   Store          @relation("DeliveryDest", fields: [toStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user      User           @relation(fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items     DeliveryItem[]
+
+  @@index([toStoreId, createdAt])
+  @@index([fromStoreId, createdAt])
+  @@map("deliveries")
+}
+
+model DeliveryItem {
+  id         String @id @default(cuid())
+  deliveryId String @map("delivery_id")
+  variantId  String @map("variant_id")
+  quantity   Int
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant  Variant  @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([deliveryId])
+  @@index([variantId])
+  @@map("delivery_items")
 }

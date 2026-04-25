@@ -30,6 +30,13 @@ import { buildInventoryRepository } from './modules/inventory/repository';
 import { buildInventoryService } from './modules/inventory/service';
 import { buildInventoryController } from './modules/inventory/controller';
 import { buildInventoryRouter } from './modules/inventory/routes';
+import { buildDeliveryRepository } from './modules/deliveries/repository';
+import { buildDeliveryService } from './modules/deliveries/service';
+import { buildDeliveryController } from './modules/deliveries/controller';
+import {
+  buildDeliveriesByIdRouter,
+  buildDeliveriesPerStoreRouter,
+} from './modules/deliveries/routes';
 
 export interface Composition {
   db: Database;
@@ -41,6 +48,8 @@ export interface Composition {
   productsRouter: Router;
   variantsRouter: Router;
   inventoryRouter: Router;
+  deliveriesPerStoreRouter: Router;
+  deliveriesByIdRouter: Router;
 }
 
 /**
@@ -102,6 +111,31 @@ export function buildComposition(): Composition {
   const inventoryController = buildInventoryController(inventoryService);
   const inventoryRouter = buildInventoryRouter(inventoryController);
 
+  const deliveryRepo = buildDeliveryRepository(db);
+  const deliveryService = buildDeliveryService({
+    deliveries: deliveryRepo,
+    stores: {
+      async findById(id) {
+        const found = await storesRepo.findById(id);
+        if (!found) return null;
+        return { id: found.id, kind: found.kind };
+      },
+    },
+    assignments: {
+      async findActiveAssignment(userId, storeId) {
+        const row = await inventoryRepo.findUserAssignment(userId, storeId);
+        if (!row) return null;
+        return { role: row.role };
+      },
+      async hasAnyEncargadaRole(userId) {
+        return inventoryRepo.hasAnyEncargadaRole(userId);
+      },
+    },
+  });
+  const deliveryController = buildDeliveryController(deliveryService);
+  const deliveriesPerStoreRouter = buildDeliveriesPerStoreRouter(deliveryController);
+  const deliveriesByIdRouter = buildDeliveriesByIdRouter(deliveryController);
+
   return {
     db,
     auditService,
@@ -112,5 +146,7 @@ export function buildComposition(): Composition {
     productsRouter,
     variantsRouter,
     inventoryRouter,
+    deliveriesPerStoreRouter,
+    deliveriesByIdRouter,
   };
 }

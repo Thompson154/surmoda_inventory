@@ -2,7 +2,11 @@
 
 import type { Size } from './products';
 
-export type StockMovementType = 'adjusted' | 'edit_permission_toggled';
+export type StockMovementType =
+  | 'adjusted'
+  | 'edit_permission_toggled'
+  | 'delivery_in'
+  | 'delivery_out';
 
 export interface InventoryRow {
   variantId: string;

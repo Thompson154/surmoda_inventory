@@ -31,11 +31,15 @@ const SIZE_FROM_PRISMA: Record<PrismaSize, Size> = {
 const MOVEMENT_TYPE_FROM_PRISMA: Record<PrismaStockMovementType, StockMovementType> = {
   adjusted: 'adjusted',
   edit_permission_toggled: 'edit_permission_toggled',
+  delivery_in: 'delivery_in',
+  delivery_out: 'delivery_out',
 };
 
 const MOVEMENT_TYPE_TO_PRISMA: Record<StockMovementType, PrismaStockMovementType> = {
   adjusted: 'adjusted',
   edit_permission_toggled: 'edit_permission_toggled',
+  delivery_in: 'delivery_in',
+  delivery_out: 'delivery_out',
 };
 
 export interface UserAssignmentRow {
