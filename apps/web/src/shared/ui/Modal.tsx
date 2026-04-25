@@ -17,18 +17,20 @@ export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: Moda
   const titleId = ariaLabelledBy ?? 'modal-title';
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  // WHY: focus management runs ONLY on open transitions — not on every parent re-render.
+  // Tying focus to a callback dep (onClose) causes the close button to steal focus mid-typing.
   useEffect(() => {
     if (!isOpen) return;
-
-    // Focus close button on open (minimal focus management)
     closeButtonRef.current?.focus();
+  }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         onClose();
       }
     }
-
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);

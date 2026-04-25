@@ -29,6 +29,8 @@ interface CartItem {
   color: string;
   imagePath?: string | null;
   quantity: number;
+  /** Stock disponible en el origen (warehouse). Permite validar antes del POST. */
+  available: number;
 }
 
 const SIZE_LABEL: Record<string, string> = {
@@ -82,8 +84,12 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
     setCart((prev) => {
       const existing = prev.find((i) => i.variantId === row.variantId);
       if (existing) {
+        // Cap at the available stock in the warehouse so the user can't oversell.
+        const cap = isReception ? Number.POSITIVE_INFINITY : row.quantity;
         return prev.map((i) =>
-          i.variantId === row.variantId ? { ...i, quantity: i.quantity + 1 } : i,
+          i.variantId === row.variantId
+            ? { ...i, quantity: Math.min(cap, i.quantity + 1), available: row.quantity }
+            : i,
         );
       }
       return [
@@ -96,18 +102,26 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
           color: row.color,
           imagePath: row.imagePath,
           quantity: 1,
+          available: row.quantity,
         },
       ];
     });
   };
 
   const updateQty = (variantId: string, qty: number) => {
-    if (qty <= 0) {
-      setCart((prev) => prev.filter((i) => i.variantId !== variantId));
-      return;
-    }
+    // WHY: typing/clearing the input must NEVER drop the row. Removal is explicit (Trash button).
     setCart((prev) =>
-      prev.map((i) => (i.variantId === variantId ? { ...i, quantity: qty } : i)),
+      prev.map((i) =>
+        i.variantId === variantId
+          ? {
+              ...i,
+              quantity: Math.max(
+                0,
+                isReception ? qty : Math.min(qty, i.available),
+              ),
+            }
+          : i,
+      ),
     );
   };
 
@@ -115,10 +129,13 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
     setCart((prev) => prev.filter((i) => i.variantId !== variantId));
   };
 
+  // Items with quantity===0 are silently dropped from the payload — useful when the
+  // user wants to keep editing one row at zero without losing it from the cart.
   const submit = () => {
-    if (cart.length === 0) return;
+    const toSend = cart.filter((i) => i.quantity > 0);
+    if (toSend.length === 0) return;
     create.mutate(
-      { items: cart.map((i) => ({ variantId: i.variantId, quantity: i.quantity })), note: note || undefined },
+      { items: toSend.map((i) => ({ variantId: i.variantId, quantity: i.quantity })), note: note || undefined },
       {
         onSuccess: () => {
           reset();
@@ -127,6 +144,11 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
       },
     );
   };
+
+  const submittableUnits = useMemo(
+    () => cart.filter((i) => i.quantity > 0).reduce((s, i) => s + i.quantity, 0),
+    [cart],
+  );
 
   return (
     <>
@@ -171,6 +193,17 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                         </p>
                         <p className="text-xs text-slate-500 truncate">{row.productName}</p>
                       </div>
+                      <span
+                        className={`text-xs font-mono shrink-0 ${
+                          row.quantity === 0
+                            ? 'text-status-danger'
+                            : row.quantity < 5
+                            ? 'text-status-warning'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        Stock: {row.quantity}
+                      </span>
                       <Plus className="h-4 w-4 text-slate-400 shrink-0" />
                     </button>
                   </li>
@@ -200,15 +233,21 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                         <span className="font-mono">{i.productCode}</span> ·{' '}
                         {SIZE_LABEL[i.size] ?? i.size} · <span className="capitalize">{i.color}</span>
                       </p>
+                      {!isReception && (
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Disponible en almacén: {i.available}
+                        </p>
+                      )}
                     </div>
                     <Input
                       type="number"
-                      min={1}
+                      min={0}
+                      max={isReception ? undefined : i.available}
                       value={String(i.quantity)}
-                      onChange={(e) =>
-                        updateQty(i.variantId, Math.max(0, Number(e.target.value) || 0))
-                      }
-                      className="w-16 text-center text-sm py-1"
+                      onChange={(e) => updateQty(i.variantId, Number(e.target.value) || 0)}
+                      className={`w-16 text-center text-sm py-1 ${
+                        i.quantity === 0 ? 'border-status-warning' : ''
+                      }`}
                       aria-label="Cantidad"
                     />
                     <IconButton
@@ -240,7 +279,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
             variant="primary"
             size="md"
             onClick={() => setConfirmOpen(true)}
-            disabled={cart.length === 0}
+            disabled={submittableUnits === 0}
           >
             Continuar
           </Button>
@@ -254,16 +293,19 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
       >
         <div className="flex flex-col gap-3">
           <p className="text-sm text-slate-700">
-            Vas a {isReception ? 'recibir' : 'entregar'} <strong>{totalUnits}</strong> unidad
-            {totalUnits === 1 ? '' : 'es'} en <strong>{targetStore?.name ?? '—'}</strong>.
+            Vas a {isReception ? 'recibir' : 'entregar'} <strong>{submittableUnits}</strong>{' '}
+            unidad{submittableUnits === 1 ? '' : 'es'} en{' '}
+            <strong>{targetStore?.name ?? '—'}</strong>.
           </p>
           <ul className="text-xs text-slate-600 max-h-40 overflow-y-auto">
-            {cart.map((i) => (
-              <li key={i.variantId} className="py-0.5">
-                · {i.productCode} {SIZE_LABEL[i.size] ?? i.size} {i.color} ×{' '}
-                <strong>{i.quantity}</strong>
-              </li>
-            ))}
+            {cart
+              .filter((i) => i.quantity > 0)
+              .map((i) => (
+                <li key={i.variantId} className="py-0.5">
+                  · {i.productCode} {SIZE_LABEL[i.size] ?? i.size} {i.color} ×{' '}
+                  <strong>{i.quantity}</strong>
+                </li>
+              ))}
           </ul>
           {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
           <div className="flex gap-2 justify-end">

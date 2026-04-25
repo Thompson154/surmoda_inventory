@@ -252,6 +252,11 @@ async function main(): Promise<void> {
     select: { id: true },
   });
 
+  // WHY: warehouse gets a non-zero starting stock so deliveries to branches can be tested
+  // out of the box. Branches stay at 0 until distribution moves stock to them.
+  const WAREHOUSE_DEFAULT_QTY = 50;
+  const warehouseStore = allStores.find((s) => s.id === STORE_ALMACEN);
+
   let stockRowsCreated = 0;
   for (const v of allVariants) {
     for (const s of allStores) {
@@ -259,11 +264,33 @@ async function main(): Promise<void> {
         where: { variantId_storeId: { variantId: v.id, storeId: s.id } },
       });
       if (!existing) {
+        const isWarehouse = warehouseStore?.id === s.id;
         await prisma.stockBySite.create({
-          data: { variantId: v.id, storeId: s.id, quantity: 0 },
+          data: {
+            variantId: v.id,
+            storeId: s.id,
+            quantity: isWarehouse ? WAREHOUSE_DEFAULT_QTY : 0,
+          },
         });
         stockRowsCreated += 1;
       }
+    }
+  }
+
+  // Refill warehouse rows that ended up at 0 (e.g. after integration tests cleared stock).
+  // Only touches still-empty rows so real operations are never overwritten.
+  let warehouseRefilled = 0;
+  if (warehouseStore) {
+    const empty = await prisma.stockBySite.findMany({
+      where: { storeId: warehouseStore.id, quantity: 0 },
+      select: { id: true },
+    });
+    for (const row of empty) {
+      await prisma.stockBySite.update({
+        where: { id: row.id },
+        data: { quantity: WAREHOUSE_DEFAULT_QTY },
+      });
+      warehouseRefilled += 1;
     }
   }
 
@@ -272,7 +299,8 @@ async function main(): Promise<void> {
     `Seed OK — admin: ${admin.email}; staff: 4 users; assignments: ${assignments.length}; ` +
       `placeholder stores: ${STORE_PRADO}, ${STORE_ZSUR}, ${STORE_ALMACEN}; ` +
       `products: ${productCount}; variants created: ${variantCount}; ` +
-      `stock rows created: ${stockRowsCreated}`,
+      `stock rows created: ${stockRowsCreated}; ` +
+      `warehouse rows refilled to ${WAREHOUSE_DEFAULT_QTY}: ${warehouseRefilled}`,
   );
 }
 
