@@ -13,6 +13,10 @@ import { buildUserStoreRepository } from './modules/assignments/repository';
 import { buildAssignmentService } from './modules/assignments/service';
 import { buildAssignmentController } from './modules/assignments/controller';
 import { buildAssignmentsRouter } from './modules/assignments/routes';
+import { buildStoreRepository } from './modules/stores/repository';
+import { buildStoreService } from './modules/stores/service';
+import { buildStoreController } from './modules/stores/controller';
+import { buildStoresRouter } from './modules/stores/routes';
 
 export interface Composition {
   db: Database;
@@ -20,6 +24,7 @@ export interface Composition {
   authRouter: Router;
   usersRouter: Router;
   assignmentsRouter: Router;
+  storesRouter: Router;
 }
 
 /**
@@ -43,9 +48,22 @@ export function buildComposition(): Composition {
   const usersRouter = buildUsersRouter(usersController);
 
   const assignmentsRepo = buildUserStoreRepository(db);
-  const assignmentsService = buildAssignmentService({ assignments: assignmentsRepo, users: usersRepo });
+  const storesRepo = buildStoreRepository(db);
+
+  const assignmentsService = buildAssignmentService({
+    assignments: assignmentsRepo,
+    users: usersRepo,
+    stores: storesRepo,
+  });
   const assignmentsController = buildAssignmentController(assignmentsService);
   const assignmentsRouter = buildAssignmentsRouter(assignmentsController);
 
-  return { db, auditService, authRouter, usersRouter, assignmentsRouter };
+  const storesService = buildStoreService({
+    stores: storesRepo,
+    assignments: assignmentsRepo,
+  });
+  const storesController = buildStoreController(storesService);
+  const storesRouter = buildStoresRouter(storesController);
+
+  return { db, auditService, authRouter, usersRouter, assignmentsRouter, storesRouter };
 }

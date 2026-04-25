@@ -14,6 +14,7 @@
 - Auth: `AUTH_LOGIN_INVALID_CREDENTIALS`, `AUTH_LOGIN_USER_INACTIVE`, `AUTH_TOKEN_EXPIRED`, `AUTH_TOKEN_INVALID`, `AUTH_REFRESH_TOKEN_NOT_FOUND`, `AUTH_REFRESH_TOKEN_REVOKED`, `AUTH_REFRESH_TOKEN_EXPIRED`, `AUTH_REFRESH_TOKEN_REPLAY`, `AUTH_FORBIDDEN_ROLE`, `AUTH_FORBIDDEN_STORE`
 - Usuarios: `USER_NOT_FOUND`, `USER_CREATE_DUPLICATE_EMAIL`, `USER_DEACTIVATE_LAST_ADMIN`, `USER_PASSWORD_TOO_SHORT`, `USER_PASSWORD_RESET_BY_ADMIN`
 - Asignaciones: `ASSIGNMENT_DUPLICATE`, `ASSIGNMENT_NOT_FOUND`, `ASSIGNMENT_LAST_REMOVAL_REQUIRES_CONFIRM`, `ASSIGNMENT_STORE_NOT_FOUND`, `ASSIGNMENT_INVALID_FOR_ADMIN`
+- Tiendas: `STORE_NOT_FOUND`, `STORE_DUPLICATE_CODE`, `STORE_HAS_ACTIVE_ASSIGNMENTS`, `STORE_WAREHOUSE_ALREADY_EXISTS`, `STORE_KIND_INVALID`
 
 ---
 
@@ -437,6 +438,171 @@ Elimina (soft-delete) una asignación.
 | 409 | `ASSIGNMENT_LAST_REMOVAL_REQUIRES_CONFIRM` | Es la última asignación y no se pasó `confirm=true` |
 
 **Auditoría emitida:** `ASSIGNMENT_REMOVED` (payload: `{ targetUserId }`)
+
+---
+
+## Tiendas (Feature 002)
+
+Endpoints CRUD para sedes (`Store`). Las lecturas son accesibles a cualquier usuario autenticado y aplican filtrado por RBAC (los staff sólo ven sus tiendas asignadas; los admin ven todas). Las mutaciones requieren `isAdmin = true`.
+
+### GET /api/v1/stores
+
+Lista las tiendas visibles para el usuario actual con paginación.
+
+**Autenticación requerida:** Sí (cualquier rol)
+
+**Query params:**
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `q` | `string` | — | Búsqueda en `code` (uppercased) y `name` (case-insensitive) |
+| `kind` | `'warehouse' \| 'branch'` | — | Filtrado por tipo |
+| `isActive` | `boolean` | admin: `true` si no se pasa `includeInactive`; staff: forzado a `true` | Filtra por estado |
+| `includeInactive` | `boolean` | `false` | (Sólo admin) — incluir inactivas en el listado |
+| `page` | `number` | `1` | Página (1-indexed) |
+| `pageSize` | `number` | `20` (máx. `100`) | Tamaño de página |
+
+**Respuesta exitosa — 200:**
+```typescript
+{
+  items: Array<{
+    id: string;
+    code: string;
+    name: string;
+    kind: "warehouse" | "branch";
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  total: number;
+  page: number;
+  pageSize: number;
+}
+```
+
+**Comportamiento RBAC:**
+- **Admin:** ve todas las tiendas; respeta `isActive` y `includeInactive`.
+- **Staff (encargada/vendedora):** sólo ve las tiendas activas a las que está asignada vía `UserStore`. Si no tiene asignaciones, recibe `items: []`.
+
+---
+
+### GET /api/v1/stores/:id
+
+Devuelve el detalle de una tienda por id.
+
+**Autenticación requerida:** Sí
+
+**Comportamiento RBAC:**
+- **Admin:** acceso total.
+- **Staff:** sólo si tiene una asignación activa a esa tienda; en caso contrario devuelve `404 STORE_NOT_FOUND` (sin distinguir entre "no existe" y "no autorizada", para evitar leak de existencia).
+
+**Respuesta exitosa — 200:** mismo shape que `items[]` arriba.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 404 | `STORE_NOT_FOUND` | Tienda no existe o usuario no autorizado |
+
+---
+
+### POST /api/v1/stores
+
+Crea una nueva tienda. Sólo admin.
+
+**Autenticación requerida:** Sí (admin)
+
+**Request body:**
+```typescript
+{
+  code: string; // 2-20 chars, [A-Z0-9_]+ (autouppercased en el servicio)
+  name: string; // 2-80 chars
+  kind: "warehouse" | "branch";
+}
+```
+
+**Respuesta exitosa — 201:** la tienda creada.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 400 | `VALIDATION_ERROR` | `code` no cumple el patrón / longitud, `name` fuera de rango, `kind` inválido |
+| 403 | `AUTH_FORBIDDEN_ROLE` | Usuario no admin |
+| 409 | `STORE_WAREHOUSE_ALREADY_EXISTS` | Ya existe un almacén central activo |
+| 409 | `STORE_DUPLICATE_CODE` | Ya existe una tienda con ese `code` |
+
+**Auditoría emitida:** `STORE_CREATED` (payload: `{ code, kind }`).
+
+**Notas técnicas:**
+- La invariante de almacén único se enforza en una transacción `Serializable` (count-then-insert). Bajo contención puede haber retries automáticos del cliente Prisma.
+
+---
+
+### PATCH /api/v1/stores/:id
+
+Actualiza `code` y/o `name`. **`kind` es inmutable** y será rechazado por el validador con `400`.
+
+**Autenticación requerida:** Sí (admin)
+
+**Request body:**
+```typescript
+{
+  code?: string; // mismo patrón que en create
+  name?: string;
+}
+```
+
+Al menos un campo debe estar presente.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 400 | `VALIDATION_ERROR` | Body vacío, formato inválido, o `kind` presente |
+| 403 | `AUTH_FORBIDDEN_ROLE` | No admin |
+| 404 | `STORE_NOT_FOUND` | Tienda no existe |
+| 409 | `STORE_DUPLICATE_CODE` | El nuevo `code` ya está en uso por otra tienda |
+
+**Auditoría emitida:** `STORE_UPDATED` (payload: `{ changes }`).
+
+---
+
+### POST /api/v1/stores/:id/deactivate
+
+Desactiva una tienda (`isActive = false`). Idempotente.
+
+**Autenticación requerida:** Sí (admin)
+
+**Reglas de negocio:**
+- Si existen asignaciones activas (`UserStore` con `deletedAt = null`), la operación falla con `409 STORE_HAS_ACTIVE_ASSIGNMENTS` y el campo `details.activeAssignmentsCount` indica cuántos usuarios deben ser reasignados primero.
+- Si la tienda ya está inactiva, devuelve `200` con el estado actual (sin modificar).
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 403 | `AUTH_FORBIDDEN_ROLE` | No admin |
+| 404 | `STORE_NOT_FOUND` | Tienda no existe |
+| 409 | `STORE_HAS_ACTIVE_ASSIGNMENTS` | Hay usuarios asignados activos (ver `details.activeAssignmentsCount`) |
+
+**Auditoría emitida:** `STORE_DEACTIVATED`.
+
+---
+
+### POST /api/v1/stores/:id/reactivate
+
+Reactiva una tienda previamente desactivada. Idempotente.
+
+**Autenticación requerida:** Sí (admin)
+
+**Reglas de negocio:**
+- Si la tienda ya está activa, devuelve `200` con el estado actual.
+- Si la tienda es de tipo `warehouse` y ya existe otro almacén activo distinto, falla con `409 STORE_WAREHOUSE_ALREADY_EXISTS`.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 403 | `AUTH_FORBIDDEN_ROLE` | No admin |
+| 404 | `STORE_NOT_FOUND` | Tienda no existe |
+| 409 | `STORE_WAREHOUSE_ALREADY_EXISTS` | Ya hay otro almacén central activo |
+
+**Auditoría emitida:** `STORE_REACTIVATED`.
 
 ---
 

@@ -32,6 +32,13 @@ const ERROR_MESSAGES: Record<string, string> = {
     'Esta es la última asignación. Confirmá si querés que el usuario quede sin acceso a tiendas.',
   [ERROR_CODES.ASSIGNMENT_STORE_NOT_FOUND]: 'Tienda no encontrada.',
   [ERROR_CODES.ASSIGNMENT_INVALID_FOR_ADMIN]: 'Los administradores no pueden tener asignaciones de tienda.',
+
+  [ERROR_CODES.STORE_NOT_FOUND]: 'Tienda no encontrada.',
+  [ERROR_CODES.STORE_DUPLICATE_CODE]: 'Ese código ya está en uso.',
+  [ERROR_CODES.STORE_HAS_ACTIVE_ASSIGNMENTS]:
+    'Reasigná o desactivá los usuarios asignados antes de desactivar la tienda.',
+  [ERROR_CODES.STORE_WAREHOUSE_ALREADY_EXISTS]: 'Solo puede existir un almacén central activo.',
+  [ERROR_CODES.STORE_KIND_INVALID]: 'Tipo de tienda inválido.',
 } satisfies Record<(typeof ERROR_CODES)[ErrorCodeKey], string>;
 
 const DEFAULT_MESSAGE = 'No pudimos completar la operación.';

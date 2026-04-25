@@ -1,6 +1,6 @@
 import { Store, Trash2 } from 'lucide-react';
 import { Badge, Button, IconButton, Select } from '@/shared/ui';
-import { getStoreLabel } from '../../hooks/useStores';
+import { useStoreLabel } from '@/features/stores/hooks/useStores';
 import type { Assignment, Role } from '../../types';
 
 interface AssignmentRowProps {
@@ -24,7 +24,7 @@ export function AssignmentRow({
   onConfirmRemove,
   onCancelRemove,
 }: AssignmentRowProps) {
-  const storeLabel = getStoreLabel(assignment.storeId);
+  const storeLabel = useStoreLabel(assignment.storeId);
 
   return (
     <li className="flex items-center justify-between rounded-lg border border-surface-border bg-surface-raised px-3 py-2">

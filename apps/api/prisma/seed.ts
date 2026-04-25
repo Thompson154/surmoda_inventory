@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, StoreKind } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -11,6 +11,22 @@ async function main(): Promise<void> {
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
   const adminPasswordHash = await bcrypt.hash('Admin1234', saltRounds);
   const staffPasswordHash = await bcrypt.hash('Pass1234', saltRounds);
+
+  await prisma.store.upsert({
+    where: { code: 'ALMACEN' },
+    update: {},
+    create: { id: STORE_ALMACEN, code: 'ALMACEN', name: 'Almacén Central', kind: StoreKind.warehouse },
+  });
+  await prisma.store.upsert({
+    where: { code: 'PRADO' },
+    update: {},
+    create: { id: STORE_PRADO, code: 'PRADO', name: 'Sucursal Prado', kind: StoreKind.branch },
+  });
+  await prisma.store.upsert({
+    where: { code: 'ZSUR' },
+    update: {},
+    create: { id: STORE_ZSUR, code: 'ZSUR', name: 'Sucursal Zona Sur', kind: StoreKind.branch },
+  });
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@demo.local' },

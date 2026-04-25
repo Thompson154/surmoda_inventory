@@ -5,8 +5,8 @@ import { loadConfig } from './config';
 // (Constitution § 4.7). For `findUnique`/`findFirst`/`count`, repositories add the
 // `deletedAt: null` filter explicitly — keeps Prisma's unique-key contract intact.
 // WHY: RefreshToken has no deletedAt column — soft-delete does not apply to it.
-// Only User and UserStore have the deletedAt field in the schema.
-const SOFT_DELETED_MODELS = new Set(['User', 'UserStore']);
+// Only User, UserStore, and Store have the deletedAt field in the schema.
+const SOFT_DELETED_MODELS = new Set(['User', 'UserStore', 'Store']);
 
 function buildSoftDeleteExtension() {
   return Prisma.defineExtension((client) =>

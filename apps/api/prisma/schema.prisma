@@ -20,6 +20,30 @@ enum Role {
   @@map("user_role")
 }
 
+enum StoreKind {
+  warehouse
+  branch
+
+  @@map("store_kind")
+}
+
+model Store {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  name      String
+  kind      StoreKind
+  isActive  Boolean   @default(true) @map("is_active")
+
+  assignments UserStore[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([isActive, kind])
+  @@map("stores")
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -46,8 +70,8 @@ model UserStore {
   storeId String @map("store_id")
   role    Role
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // store relation will be added by the stores feature
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

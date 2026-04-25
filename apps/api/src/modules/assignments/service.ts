@@ -2,6 +2,7 @@ import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import type { UserStoreRepository } from './repository';
 import type { UserRepository } from '../users/repository';
+import type { StoreRepository } from '../stores/repository';
 import type {
   AssignmentDTO,
   CreateAssignmentDTO,
@@ -12,6 +13,7 @@ import type {
 export interface AssignmentServiceDeps {
   assignments: UserStoreRepository;
   users: UserRepository;
+  stores: StoreRepository;
 }
 
 export interface AssignmentService {
@@ -21,7 +23,11 @@ export interface AssignmentService {
   remove(userId: string, assignmentId: string, options: RemoveAssignmentOptions): Promise<void>;
 }
 
-export function buildAssignmentService({ assignments, users }: AssignmentServiceDeps): AssignmentService {
+export function buildAssignmentService({
+  assignments,
+  users,
+  stores,
+}: AssignmentServiceDeps): AssignmentService {
   async function ensureUserExistsAndIsStaff(userId: string) {
     const user = await users.findById(userId);
     if (!user) {
@@ -32,6 +38,17 @@ export function buildAssignmentService({ assignments, users }: AssignmentService
         400,
         ERROR_CODES.ASSIGNMENT_INVALID_FOR_ADMIN,
         'Admin users cannot have store assignments',
+      );
+    }
+  }
+
+  async function ensureStoreIsActive(storeId: string) {
+    const store = await stores.findById(storeId);
+    if (!store || !store.isActive) {
+      throw new AppError(
+        404,
+        ERROR_CODES.ASSIGNMENT_STORE_NOT_FOUND,
+        'Tienda no encontrada.',
       );
     }
   }
@@ -47,6 +64,7 @@ export function buildAssignmentService({ assignments, users }: AssignmentService
 
     async create(userId, input) {
       await ensureUserExistsAndIsStaff(userId);
+      await ensureStoreIsActive(input.storeId);
 
       const existing = await assignments.findActiveByUserStore(userId, input.storeId);
       if (existing) {

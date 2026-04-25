@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Field, Select } from '@/shared/ui';
-import { useStores } from '../../hooks/useStores';
+import { useStores } from '@/features/stores/hooks/useStores';
 import type { Role } from '../../types';
 
 interface AddAssignmentFormProps {
@@ -9,9 +9,17 @@ interface AddAssignmentFormProps {
 }
 
 export function AddAssignmentForm({ isPending, onAdd }: AddAssignmentFormProps) {
-  const stores = useStores();
-  const [storeId, setStoreId] = useState(stores.data[0]?.id ?? '');
+  const stores = useStores({ kind: 'branch' });
+  const items = stores.data?.items ?? [];
+  const firstStoreId = items[0]?.id ?? '';
+
+  const [storeId, setStoreId] = useState(firstStoreId);
   const [role, setRole] = useState<Role>('vendedora');
+
+  // Initialize selection once stores have loaded.
+  useEffect(() => {
+    if (firstStoreId && !storeId) setStoreId(firstStoreId);
+  }, [firstStoreId, storeId]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,9 +37,9 @@ export function AddAssignmentForm({ isPending, onAdd }: AddAssignmentFormProps) 
             onChange={(e) => setStoreId(e.target.value)}
             className="text-sm py-1"
           >
-            {stores.data.map((s) => (
+            {items.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.label}
+                {s.name}
               </option>
             ))}
           </Select>

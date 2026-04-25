@@ -10,9 +10,13 @@ export type AuditAction =
   | 'USER_PASSWORD_RESET_BY_ADMIN'
   | 'ASSIGNMENT_CREATED'
   | 'ASSIGNMENT_ROLE_CHANGED'
-  | 'ASSIGNMENT_REMOVED';
+  | 'ASSIGNMENT_REMOVED'
+  | 'STORE_CREATED'
+  | 'STORE_UPDATED'
+  | 'STORE_DEACTIVATED'
+  | 'STORE_REACTIVATED';
 
-export type AuditEntity = 'User' | 'UserStore' | 'RefreshToken';
+export type AuditEntity = 'User' | 'UserStore' | 'RefreshToken' | 'Store';
 
 export interface AuditWriteInput {
   userId?: string | null;
