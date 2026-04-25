@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+.next/
+out/
+
+# Test artifacts
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Env files (templates `*.env.example` ARE committed — only secrets are ignored)
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+!.vscode/settings.example.json
+.idea/
+
+# Prisma local artifacts
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+apps/api/prisma/migrations/dev.db*
+
+# TypeScript incremental build info
+*.tsbuildinfo
+.tsbuildinfo
+.tsbuildinfo.build
+
+# Caches
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.prettiercache
+
+.specify
+.claude
+specs
+CLAUDE.md

@@ -1,0 +1,97 @@
+// Prisma schema — feature 001-auth-roles
+// Conventions: PascalCase singular models, snake_case plural tables (@@map),
+//              camelCase fields, snake_case columns (@map), `Json` for jsonb.
+//
+// See: specs/001-auth-roles/data-model.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  encargada
+  vendedora
+
+  @@map("user_role")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String    @map("full_name")
+  isAdmin      Boolean   @default(false) @map("is_admin")
+  isActive     Boolean   @default(true) @map("is_active")
+
+  assignments   UserStore[]
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([email])
+  @@index([isActive, isAdmin])
+  @@map("users")
+}
+
+model UserStore {
+  id      String @id @default(cuid())
+  userId  String @map("user_id")
+  storeId String @map("store_id")
+  role    Role
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // store relation will be added by the stores feature
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([userId, storeId, deletedAt])
+  @@index([userId])
+  @@index([storeId])
+  @@map("user_stores")
+}
+
+model RefreshToken {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  tokenHash     String    @unique @map("token_hash")
+  parentTokenId String?   @map("parent_token_id")
+  expiresAt     DateTime  @map("expires_at")
+  revokedAt     DateTime? @map("revoked_at")
+  ip            String?
+  userAgent     String?   @map("user_agent")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   RefreshToken?  @relation("TokenFamily", fields: [parentTokenId], references: [id])
+  children RefreshToken[] @relation("TokenFamily")
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([parentTokenId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  payload   Json
+  ip        String?
+  userAgent String?  @map("user_agent")
+  timestamp DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([entity, entityId])
+  @@index([action, timestamp])
+  @@map("audit_logs")
+}

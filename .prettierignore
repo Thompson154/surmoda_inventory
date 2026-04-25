@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+.next
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+apps/api/prisma/migrations
