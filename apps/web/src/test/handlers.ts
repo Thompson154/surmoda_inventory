@@ -148,4 +148,171 @@ export const handlers = [
   http.post(`${BASE}/stores/:id/reactivate`, () =>
     HttpResponse.json({ ...STORE_FIXTURES[1], isActive: true }),
   ),
+
+  // Products
+  http.get(`${BASE}/products`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'prod-1',
+          code: 'JN001',
+          name: 'Jean Bota Recta',
+          isActive: true,
+          variantsCount: 3,
+          createdAt: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'prod-2',
+          code: 'CHQ001',
+          name: 'Chaqueta clásica',
+          isActive: true,
+          variantsCount: 2,
+          createdAt: '2024-01-02T00:00:00.000Z',
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    }),
+  ),
+
+  http.get(`${BASE}/products/:id`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      code: 'JN001',
+      name: 'Jean Bota Recta',
+      description: 'Producto de prueba',
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      variants: [
+        {
+          id: 'var-1',
+          productId: params.id,
+          size: '30',
+          color: 'azul',
+          barcode: 'ABC123ABC123',
+          priceCents: 25000,
+          imagePath: 'imagesTest/JeanAzulBotaRecta.png',
+          isActive: true,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/products`, () =>
+    HttpResponse.json(
+      {
+        id: 'new-prod',
+        code: 'NEW01',
+        name: 'Producto Nuevo',
+        description: null,
+        isActive: true,
+        createdAt: '2024-01-03T00:00:00.000Z',
+        updatedAt: '2024-01-03T00:00:00.000Z',
+      },
+      { status: 201 },
+    ),
+  ),
+
+  http.patch(`${BASE}/products/:id`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      code: 'JN001',
+      name: 'Renombrado',
+      description: null,
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    }),
+  ),
+
+  http.post(`${BASE}/products/:id/deactivate`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      code: 'JN001',
+      name: 'X',
+      description: null,
+      isActive: false,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    }),
+  ),
+
+  http.post(`${BASE}/products/:id/reactivate`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      code: 'JN001',
+      name: 'X',
+      description: null,
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    }),
+  ),
+
+  http.post(`${BASE}/products/:productId/variants`, ({ params }) =>
+    HttpResponse.json(
+      {
+        id: 'var-new',
+        productId: params.productId,
+        size: 'm',
+        color: 'negro',
+        barcode: 'ABCDEF123456',
+        priceCents: 25000,
+        imagePath: null,
+        isActive: true,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      },
+      { status: 201 },
+    ),
+  ),
+
+  http.patch(`${BASE}/variants/:id`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      productId: 'prod-1',
+      size: 'm',
+      color: 'negro',
+      barcode: 'ABCDEF123456',
+      priceCents: 30000,
+      imagePath: null,
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    }),
+  ),
+
+  http.post(`${BASE}/variants/:id/deactivate`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      productId: 'prod-1',
+      size: 'm',
+      color: 'negro',
+      barcode: 'ABCDEF123456',
+      priceCents: 25000,
+      imagePath: null,
+      isActive: false,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    }),
+  ),
+
+  http.post(`${BASE}/variants/:id/reactivate`, ({ params }) =>
+    HttpResponse.json({
+      id: params.id,
+      productId: 'prod-1',
+      size: 'm',
+      color: 'negro',
+      barcode: 'ABCDEF123456',
+      priceCents: 25000,
+      imagePath: null,
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    }),
+  ),
 ];

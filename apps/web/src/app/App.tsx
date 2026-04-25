@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
-import { ChevronRight, Building2, Store as StoreIcon } from 'lucide-react';
+import { ChevronRight, Building2, Store as StoreIcon, Package } from 'lucide-react';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { UsersListPage } from '@/features/users/pages/UsersListPage';
 import { UserCreatePage } from '@/features/users/pages/UserCreatePage';
@@ -7,6 +7,9 @@ import { UserDetailPage } from '@/features/users/pages/UserDetailPage';
 import { StoresListPage } from '@/features/stores/pages/StoresListPage';
 import { StoreCreatePage } from '@/features/stores/pages/StoreCreatePage';
 import { StoreDetailPage } from '@/features/stores/pages/StoreDetailPage';
+import { ProductsListPage } from '@/features/products/pages/ProductsListPage';
+import { ProductCreatePage } from '@/features/products/pages/ProductCreatePage';
+import { ProductDetailPage } from '@/features/products/pages/ProductDetailPage';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { LogoutButton } from '@/features/auth/components/LogoutButton';
 import { useStoreLabel } from '@/features/stores/hooks/useStores';
@@ -68,6 +71,30 @@ export function App() {
         element={
           <Authenticated requireAdmin>
             <StoreDetailPage />
+          </Authenticated>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <Authenticated requireAdmin>
+            <ProductsListPage />
+          </Authenticated>
+        }
+      />
+      <Route
+        path="/products/new"
+        element={
+          <Authenticated requireAdmin>
+            <ProductCreatePage />
+          </Authenticated>
+        }
+      />
+      <Route
+        path="/products/:id"
+        element={
+          <Authenticated requireAdmin>
+            <ProductDetailPage />
           </Authenticated>
         }
       />
@@ -145,6 +172,22 @@ function HomePage() {
                       <p className="text-sm font-semibold text-slate-900">Gestionar tiendas</p>
                       <p className="text-xs text-slate-500 mt-0.5">
                         Sucursales y almacén central
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-400 shrink-0" />
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/products" className="block">
+              <Card className="hover:bg-surface-sunken transition-colors duration-150">
+                <CardContent className="flex items-center justify-between py-4">
+                  <div className="flex items-start gap-3">
+                    <Package className="h-5 w-5 text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Gestionar catálogo</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Productos, variantes, precios e imágenes
                       </p>
                     </div>
                   </div>

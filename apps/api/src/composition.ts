@@ -17,6 +17,15 @@ import { buildStoreRepository } from './modules/stores/repository';
 import { buildStoreService } from './modules/stores/service';
 import { buildStoreController } from './modules/stores/controller';
 import { buildStoresRouter } from './modules/stores/routes';
+import { buildProductRepository } from './modules/products/repository.product';
+import { buildVariantRepository } from './modules/products/repository.variant';
+import { buildProductService } from './modules/products/service.product';
+import { buildVariantService } from './modules/products/service.variant';
+import { buildProductController } from './modules/products/controller.product';
+import { buildVariantController } from './modules/products/controller.variant';
+import { buildProductsRouter, buildVariantsRouter } from './modules/products/routes';
+import { buildImageStorage } from './modules/products/imageStorage';
+import { loadConfig } from './infrastructure/config';
 
 export interface Composition {
   db: Database;
@@ -25,6 +34,8 @@ export interface Composition {
   usersRouter: Router;
   assignmentsRouter: Router;
   storesRouter: Router;
+  productsRouter: Router;
+  variantsRouter: Router;
 }
 
 /**
@@ -65,5 +76,30 @@ export function buildComposition(): Composition {
   const storesController = buildStoreController(storesService);
   const storesRouter = buildStoresRouter(storesController);
 
-  return { db, auditService, authRouter, usersRouter, assignmentsRouter, storesRouter };
+  const productsRepo = buildProductRepository(db);
+  const variantsRepo = buildVariantRepository(db);
+  const imageStorage = buildImageStorage(loadConfig());
+
+  const productsService = buildProductService({ products: productsRepo, variants: variantsRepo });
+  const variantsService = buildVariantService({
+    products: productsRepo,
+    variants: variantsRepo,
+    imageStorage,
+  });
+
+  const productsController = buildProductController(productsService);
+  const variantsController = buildVariantController(variantsService);
+  const productsRouter = buildProductsRouter(productsController, variantsController);
+  const variantsRouter = buildVariantsRouter(variantsController);
+
+  return {
+    db,
+    auditService,
+    authRouter,
+    usersRouter,
+    assignmentsRouter,
+    storesRouter,
+    productsRouter,
+    variantsRouter,
+  };
 }
