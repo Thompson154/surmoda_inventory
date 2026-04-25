@@ -245,28 +245,118 @@ enum StoreKind {
 
 ---
 
+### 3.8 `Product` (Feature 003)
+
+Representa el "molde" de un artículo del catálogo. No tiene stock — el stock vive en feature 004 por sede.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | `String` (cuid) | Identificador único |
+| `code` | `String` (unique) | Código corto en MAYÚSCULAS, dígitos o `_` (ej. `JN001`, `CHQ002`); 2-15 caracteres |
+| `name` | `String` | Nombre legible (ej. `Jean Bota Recta`); 2-120 caracteres |
+| `description` | `String?` | Descripción opcional, hasta 500 caracteres |
+| `isActive` | `Boolean` | Estado operacional reversible |
+| `deletedAt` | `DateTime?` | Soft-delete |
+| `createdAt` / `updatedAt` | `DateTime` | Auditoría temporal |
+
+**Índices:**
+- `code` UNIQUE
+- `(isActive)` — para listados rápidos del catálogo activo
+
+**Relaciones:**
+- `variants: Variant[]` — variantes del producto
+
+**Invariantes de negocio:**
+- **Bloqueo en desactivación con variantes activas:** `deactivate(productId)` lanza `PRODUCT_HAS_ACTIVE_VARIANTS` si existen `Variant` con `isActive = true`. El admin debe desactivar variantes una a una primero.
+
+---
+
+### 3.9 `Variant` (Feature 003)
+
+Combinación concreta de un producto: talla + color + precio + imagen. El barcode es la clave operacional para el scanner del feature 008.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | `String` (cuid) | Identificador único |
+| `productId` | `String` (FK) | Referencia al `Product` (`ON DELETE RESTRICT, ON UPDATE CASCADE`) |
+| `size` | `Size` | Enum: `s, m, l, xl, xxl, 28, 30, 32, 34, standard` |
+| `color` | `String` | Free string, hasta 32 caracteres (case preservado, normalizado para hash) |
+| `barcode` | `String` (unique) | 12 hex uppercased, generado deterministicamente con SHA-256(`code|size|color`) |
+| `priceCents` | `Int` | Precio en centavos (entero, ≥ 1, ≤ 10_000_000) — sin floats |
+| `imagePath` | `String?` | Path relativo (`imagesTest/...`) o URL absoluta de Cloudinary |
+| `isActive` | `Boolean` | Estado operacional reversible |
+| `deletedAt` | `DateTime?` | Soft-delete |
+| `createdAt` / `updatedAt` | `DateTime` | Auditoría temporal |
+
+**Índices:**
+- `barcode` UNIQUE
+- `(productId, size, color, deletedAt)` UNIQUE compuesto — evita duplicados activos manteniendo soft-delete consistente
+- `(productId, isActive)` — para listar variantes activas de un producto
+- `(barcode)` — para búsquedas rápidas del scanner
+
+**Invariantes de negocio:**
+- **Tupla única activa:** no pueden coexistir dos `Variant` activas con la misma `(productId, size, color)`. Pre-check en el servicio antes del insert.
+- **Barcode determinístico:** `SHA-256(productCode | size | color.toLowerCase())[0..12].toUpperCase()`. Mismo input → mismo barcode. Útil para reproducibilidad y para que un mismo producto pueda referenciarse desde reportes históricos.
+- **`size` y `color` son inmutables:** una vez creada la variante, sólo `priceCents` e `imagePath` son mutables. Cambios de talla/color requieren desactivar y crear una nueva variante.
+- **`priceCents` obligatorio en alta:** decisión del feature 003 — el precio se setea al crear, no es nullable.
+
+---
+
+### 3.10 Enum `Size`
+
+```prisma
+enum Size {
+  s
+  m
+  l
+  xl
+  xxl
+  size_28  @map("28")
+  size_30  @map("30")
+  size_32  @map("32")
+  size_34  @map("34")
+  standard
+
+  @@map("variant_size")
+}
+```
+
+Combina tallas alfabéticas (S–XXL), tallas numéricas de pantalón (28-34) y un fallback `standard` para artículos sin talla definida. **Nota técnica:** Prisma no permite identificadores que empiecen con dígito; los valores numéricos se mapean al literal de la base con `@map("28")`. La capa de contratos expone los literales públicos `'28' | '30' | '32' | '34'`.
+
+---
+
+### 3.11 Almacenamiento de imágenes (estrategia)
+
+Configurable via `IMAGE_STORAGE` env:
+
+- **`local`** (dev/test default): los archivos se persisten en `<repo-root>/imagesTest/<filename>`. La DB guarda la ruta relativa (`imagesTest/<filename>`). El backend expone el directorio bajo `GET /static/images/*` SOLO en este modo.
+- **`cloudinary`** (prod target): los archivos se suben a Cloudinary y la DB guarda el `secure_url` resultante. Requiere `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
+
+La selección se hace en composition root, detrás de un puerto `ImageStorage` con dos adaptadores. Cambiar de modo no requiere migrar datos: ambos adaptadores leen lo que esté en `imagePath`.
+
+---
+
 ## 4. Estrategia de migraciones
 
 Prisma gestiona las migraciones en `apps/api/prisma/migrations/`. El flujo es:
 
 - **Desarrollo:** `prisma migrate dev` — genera una nueva migración SQL a partir del diff del schema y la aplica.
 - **Producción / CI:** `prisma migrate deploy` — aplica las migraciones pendientes sin interactividad.
-- **Estado actual:** dos migraciones registradas:
+- **Estado actual:** tres migraciones registradas:
   - `20260425035147_001_init_auth` — schema completo de Feature 001 (User, UserStore, RefreshToken, AuditLog).
-  - `20260425200000_002_init_stores` — Feature 002: enum `StoreKind`, tabla `stores`, FK `user_stores.store_id → stores.id` (`ON DELETE RESTRICT, ON UPDATE CASCADE`), seed idempotente de las 3 sedes preexistentes (`store-almacen-seed`, `store-prado-seed`, `store-zsur-seed`).
+  - `20260425200000_002_init_stores` — Feature 002: enum `StoreKind`, tabla `stores`, FK `user_stores.store_id → stores.id` (`ON DELETE RESTRICT, ON UPDATE CASCADE`), seed idempotente de las 3 sedes preexistentes.
+  - `20260425210000_003_init_products` — Feature 003: enum `Size`, tablas `products` y `variants`, FK `variants.product_id → products.id` (`ON DELETE RESTRICT, ON UPDATE CASCADE`), índices únicos en `code` y `barcode`, índice compuesto `(product_id, size, color, deleted_at)`.
 
 El archivo `migration_lock.toml` registra el proveedor de base de datos (`postgresql`) y actúa como checksum de integridad del historial de migraciones.
 
 ---
 
-## 5. Entidades planificadas — Features 003-009
+## 5. Entidades planificadas — Features 004-009
 
 Las siguientes entidades serán agregadas en futuras features. Se listan aquí para que el tribunal pueda evaluar la coherencia del modelo de dominio completo.
 
 | Entidad | Feature | Descripción |
 |---------|---------|-------------|
-| `Product` | 003 | Producto con código corto (ej. `MXS123DSA`) y nombre |
-| `Variant` | 003 | (producto + talla + color) con barcode único, precio opcional, imagen opcional |
 | `StockEntry` | 004 | Stock de una variante en una sede (quantity) |
 | `StockMovement` | 004 | Movimiento de inventario por sede (tipo, cantidad, motivo) |
 | `Delivery` | 005 | Transferencia de variantes del almacén a una tienda |

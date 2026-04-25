@@ -21,6 +21,25 @@ const EnvSchema = z.object({
   RATE_LIMIT_REFRESH_PER_MIN: z.coerce.number().int().positive().default(30),
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+  IMAGE_STORAGE: z.enum(['local', 'cloudinary']).default('local'),
+  IMAGE_STORAGE_LOCAL_DIR: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.IMAGE_STORAGE === 'cloudinary') {
+    const missing = (
+      ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'] as const
+    ).filter((k) => !data[k]);
+    if (missing.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['IMAGE_STORAGE'],
+        message: `IMAGE_STORAGE=cloudinary requires: ${missing.join(', ')}`,
+      });
+    }
+  }
 });
 
 export type AppConfig = z.infer<typeof EnvSchema>;

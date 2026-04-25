@@ -15,6 +15,7 @@
 - Usuarios: `USER_NOT_FOUND`, `USER_CREATE_DUPLICATE_EMAIL`, `USER_DEACTIVATE_LAST_ADMIN`, `USER_PASSWORD_TOO_SHORT`, `USER_PASSWORD_RESET_BY_ADMIN`
 - Asignaciones: `ASSIGNMENT_DUPLICATE`, `ASSIGNMENT_NOT_FOUND`, `ASSIGNMENT_LAST_REMOVAL_REQUIRES_CONFIRM`, `ASSIGNMENT_STORE_NOT_FOUND`, `ASSIGNMENT_INVALID_FOR_ADMIN`
 - Tiendas: `STORE_NOT_FOUND`, `STORE_DUPLICATE_CODE`, `STORE_HAS_ACTIVE_ASSIGNMENTS`, `STORE_WAREHOUSE_ALREADY_EXISTS`, `STORE_KIND_INVALID`
+- Productos / variantes: `PRODUCT_NOT_FOUND`, `PRODUCT_DUPLICATE_CODE`, `PRODUCT_HAS_ACTIVE_VARIANTS`, `VARIANT_NOT_FOUND`, `VARIANT_PRODUCT_NOT_FOUND`, `VARIANT_DUPLICATE_TUPLE`, `VARIANT_PRICE_REQUIRED`, `VARIANT_IMAGE_TOO_LARGE`, `VARIANT_IMAGE_INVALID_TYPE`, `VARIANT_IMMUTABLE_FIELD`, `BARCODE_COLLISION`
 
 ---
 
@@ -603,6 +604,193 @@ Reactiva una tienda previamente desactivada. Idempotente.
 | 409 | `STORE_WAREHOUSE_ALREADY_EXISTS` | Ya hay otro almacén central activo |
 
 **Auditoría emitida:** `STORE_REACTIVATED`.
+
+---
+
+## Catálogo — Productos y Variantes (Feature 003)
+
+Endpoints CRUD para `Product` y `Variant`. Las lecturas son accesibles a cualquier usuario autenticado (admin y staff). Las mutaciones requieren `isAdmin = true`. La creación y actualización de variantes acepta una imagen opcional vía `multipart/form-data` (≤ 5 MB, MIME `image/png|jpeg|webp`).
+
+### GET /api/v1/products
+
+Lista los productos del catálogo con paginación.
+
+**Query params:**
+| Parámetro | Tipo | Default | Descripción |
+|-----------|------|---------|-------------|
+| `q` | `string` | — | Búsqueda en `code` (uppercased) y `name` (case-insensitive) |
+| `isActive` | `boolean` | — | Filtra por estado |
+| `includeInactive` | `boolean` | `false` | Incluir productos inactivos |
+| `page` | `number` | `1` | Página (1-indexed) |
+| `pageSize` | `number` | `20` (máx. `100`) | Tamaño de página |
+
+**Respuesta exitosa — 200:**
+```typescript
+{
+  items: Array<{
+    id: string;
+    code: string;
+    name: string;
+    isActive: boolean;
+    variantsCount: number;
+    createdAt: string;
+  }>;
+  total: number;
+  page: number;
+  pageSize: number;
+}
+```
+
+---
+
+### GET /api/v1/products/:id
+
+Devuelve el producto con sus variantes embebidas. Por defecto sólo variantes activas; admin puede usar `?includeInactive=true` para ver todas.
+
+**Respuesta exitosa — 200:** `Product & { variants: Variant[] }`.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 404 | `PRODUCT_NOT_FOUND` | No existe o soft-deleted |
+
+---
+
+### POST /api/v1/products
+
+Crea un nuevo producto. Solo admin.
+
+**Request body (`application/json`):**
+```typescript
+{
+  code: string;          // 2-15, [A-Z0-9_]+ (autouppercased)
+  name: string;          // 2-120
+  description?: string;  // ≤ 500
+}
+```
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 400 | `VALIDATION_ERROR` | Patrón / longitud inválidos |
+| 403 | `AUTH_FORBIDDEN_ROLE` | No admin |
+| 409 | `PRODUCT_DUPLICATE_CODE` | Código en uso |
+
+**Auditoría emitida:** `PRODUCT_CREATED` (payload: `{ code, name }`).
+
+---
+
+### PATCH /api/v1/products/:id
+
+Actualiza `name`, `description` y opcionalmente `code`. El validador `.strict()` rechaza campos desconocidos con 400.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 400 | `VALIDATION_ERROR` | Body vacío o campos desconocidos |
+| 404 | `PRODUCT_NOT_FOUND` | Producto inexistente |
+| 409 | `PRODUCT_DUPLICATE_CODE` | Nuevo `code` colisiona con otro producto |
+
+**Auditoría emitida:** `PRODUCT_UPDATED`.
+
+---
+
+### POST /api/v1/products/:id/deactivate
+
+Desactiva el producto. Idempotente. Bloquea si existen variantes activas.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 404 | `PRODUCT_NOT_FOUND` | — |
+| 409 | `PRODUCT_HAS_ACTIVE_VARIANTS` | Hay variantes activas (ver `details.activeVariantsCount`) |
+
+**Auditoría emitida:** `PRODUCT_DEACTIVATED`.
+
+---
+
+### POST /api/v1/products/:id/reactivate
+
+Reactiva un producto inactivo. Idempotente.
+
+**Auditoría emitida:** `PRODUCT_REACTIVATED`.
+
+---
+
+### POST /api/v1/products/:productId/variants
+
+Crea una nueva variante. **Multipart/form-data** — campos del cuerpo van como text, la imagen como file.
+
+**Form fields:**
+| Campo | Tipo | Obligatorio | Descripción |
+|-------|------|-------------|-------------|
+| `size` | `'s' \| 'm' \| 'l' \| 'xl' \| 'xxl' \| '28' \| '30' \| '32' \| '34' \| 'standard'` | sí | Talla |
+| `color` | `string` | sí | Color free-form, 1-32 chars |
+| `priceCents` | `number` (entero) | sí | Precio en centavos, 1 ≤ x ≤ 10_000_000 |
+| `image` | `File` | no | PNG / JPEG / WebP, ≤ 5 MB |
+
+**Generación de barcode:** El servicio computa `SHA-256(code|size|color.toLowerCase())[0..12].toUpperCase()` automáticamente. El cliente NO envía barcode.
+
+**Respuesta exitosa — 201:** `Variant` completa con `barcode` e `imagePath` resueltos.
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 400 | `VALIDATION_ERROR` | Campos inválidos |
+| 400 | `VARIANT_IMAGE_TOO_LARGE` | Imagen > 5 MB |
+| 400 | `VARIANT_IMAGE_INVALID_TYPE` | MIME no soportado |
+| 403 | `AUTH_FORBIDDEN_ROLE` | No admin |
+| 404 | `VARIANT_PRODUCT_NOT_FOUND` | Producto inexistente o inactivo |
+| 409 | `VARIANT_DUPLICATE_TUPLE` | Ya existe variante activa con `(size, color)` para ese producto |
+| 409 | `BARCODE_COLLISION` | Conflicto residual de barcode (extremamente raro) |
+
+**Auditoría emitida:** `VARIANT_CREATED` (payload: `{ productId, size, color, barcode, priceCents }`).
+
+---
+
+### PATCH /api/v1/variants/:id
+
+Actualiza una variante. **Multipart/form-data** (sólo si re-uploadeás imagen) o JSON. Campos `size` y `color` son inmutables — el validador `.strict()` los rechaza si vienen en el body.
+
+**Form fields permitidos:**
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `priceCents` | `number` | Nuevo precio en centavos |
+| `image` | `File` | Nueva imagen (opcional) |
+
+**Errores posibles:**
+| Status | Código | Motivo |
+|--------|--------|--------|
+| 400 | `VALIDATION_ERROR` / `VARIANT_IMMUTABLE_FIELD` | Body vacío o intento de cambiar `size`/`color` |
+| 404 | `VARIANT_NOT_FOUND` | — |
+
+**Auditoría emitida:** `VARIANT_UPDATED`.
+
+---
+
+### POST /api/v1/variants/:id/deactivate
+
+Desactiva una variante. Idempotente.
+
+**Auditoría emitida:** `VARIANT_DEACTIVATED`.
+
+---
+
+### POST /api/v1/variants/:id/reactivate
+
+Reactiva una variante. Idempotente.
+
+**Auditoría emitida:** `VARIANT_REACTIVATED`.
+
+---
+
+### Acceso a imágenes locales
+
+Cuando `IMAGE_STORAGE=local`, el backend expone el directorio configurado bajo `GET /static/images/*`. Las URLs se construyen como:
+
+`${VITE_API_BASE_URL}/static/images/<filename>`
+
+Cuando el modo es `cloudinary`, los `imagePath` ya son URLs absolutas (`https://res.cloudinary.com/...`) y no se sirven desde el backend.
 
 ---
 

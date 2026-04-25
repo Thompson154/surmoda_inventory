@@ -39,6 +39,19 @@ const ERROR_MESSAGES: Record<string, string> = {
     'Reasigná o desactivá los usuarios asignados antes de desactivar la tienda.',
   [ERROR_CODES.STORE_WAREHOUSE_ALREADY_EXISTS]: 'Solo puede existir un almacén central activo.',
   [ERROR_CODES.STORE_KIND_INVALID]: 'Tipo de tienda inválido.',
+
+  [ERROR_CODES.PRODUCT_NOT_FOUND]: 'Producto no encontrado.',
+  [ERROR_CODES.PRODUCT_DUPLICATE_CODE]: 'Ese código de producto ya está en uso.',
+  [ERROR_CODES.PRODUCT_HAS_ACTIVE_VARIANTS]:
+    'Desactivá las variantes activas antes de desactivar el producto.',
+  [ERROR_CODES.VARIANT_NOT_FOUND]: 'Variante no encontrada.',
+  [ERROR_CODES.VARIANT_PRODUCT_NOT_FOUND]: 'El producto no existe o está inactivo.',
+  [ERROR_CODES.VARIANT_DUPLICATE_TUPLE]: 'Ya existe una variante con esa talla y color.',
+  [ERROR_CODES.VARIANT_PRICE_REQUIRED]: 'El precio es obligatorio.',
+  [ERROR_CODES.VARIANT_IMAGE_TOO_LARGE]: 'La imagen supera 5 MB.',
+  [ERROR_CODES.VARIANT_IMAGE_INVALID_TYPE]: 'Formato de imagen inválido (PNG, JPG o WebP).',
+  [ERROR_CODES.VARIANT_IMMUTABLE_FIELD]: 'No se puede cambiar talla ni color.',
+  [ERROR_CODES.BARCODE_COLLISION]: 'Conflicto de código de barras. Intentá de nuevo.',
 } satisfies Record<(typeof ERROR_CODES)[ErrorCodeKey], string>;
 
 const DEFAULT_MESSAGE = 'No pudimos completar la operación.';

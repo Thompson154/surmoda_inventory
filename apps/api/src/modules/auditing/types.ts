@@ -14,9 +14,17 @@ export type AuditAction =
   | 'STORE_CREATED'
   | 'STORE_UPDATED'
   | 'STORE_DEACTIVATED'
-  | 'STORE_REACTIVATED';
+  | 'STORE_REACTIVATED'
+  | 'PRODUCT_CREATED'
+  | 'PRODUCT_UPDATED'
+  | 'PRODUCT_DEACTIVATED'
+  | 'PRODUCT_REACTIVATED'
+  | 'VARIANT_CREATED'
+  | 'VARIANT_UPDATED'
+  | 'VARIANT_DEACTIVATED'
+  | 'VARIANT_REACTIVATED';
 
-export type AuditEntity = 'User' | 'UserStore' | 'RefreshToken' | 'Store';
+export type AuditEntity = 'User' | 'UserStore' | 'RefreshToken' | 'Store' | 'Product' | 'Variant';
 
 export interface AuditWriteInput {
   userId?: string | null;

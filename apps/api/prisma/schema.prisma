@@ -27,6 +27,21 @@ enum StoreKind {
   @@map("store_kind")
 }
 
+enum Size {
+  s
+  m
+  l
+  xl
+  xxl
+  size_28  @map("28")
+  size_30  @map("30")
+  size_32  @map("32")
+  size_34  @map("34")
+  standard
+
+  @@map("variant_size")
+}
+
 model Store {
   id        String    @id @default(cuid())
   code      String    @unique
@@ -42,6 +57,45 @@ model Store {
 
   @@index([isActive, kind])
   @@map("stores")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+
+  variants Variant[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([isActive])
+  @@map("products")
+}
+
+model Variant {
+  id         String  @id @default(cuid())
+  productId  String  @map("product_id")
+  size       Size
+  color      String
+  barcode    String  @unique
+  priceCents Int     @map("price_cents")
+  imagePath  String? @map("image_path")
+  isActive   Boolean @default(true) @map("is_active")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([productId, size, color, deletedAt])
+  @@index([productId, isActive])
+  @@index([barcode])
+  @@map("variants")
 }
 
 model User {
