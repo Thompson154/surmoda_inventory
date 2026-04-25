@@ -2,6 +2,36 @@ import { http, HttpResponse } from 'msw';
 
 const BASE = 'http://localhost:3000/api/v1';
 
+const STORE_FIXTURES = [
+  {
+    id: 'store-almacen-seed',
+    code: 'ALMACEN',
+    name: 'Almacén Central',
+    kind: 'warehouse' as const,
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'store-prado-seed',
+    code: 'PRADO',
+    name: 'Sucursal Prado',
+    kind: 'branch' as const,
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'store-zsur-seed',
+    code: 'ZSUR',
+    name: 'Sucursal Zona Sur',
+    kind: 'branch' as const,
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+  },
+];
+
 const fakeUser = {
   id: 'user-1',
   email: 'test@test.local',
@@ -91,5 +121,31 @@ export const handlers = [
 
   http.delete(`${BASE}/users/:userId/assignments/:id`, () =>
     new HttpResponse(null, { status: 204 }),
+  ),
+
+  // Stores
+  http.get(`${BASE}/stores`, ({ request }) => {
+    const url = new URL(request.url);
+    const kind = url.searchParams.get('kind');
+    const items = kind ? STORE_FIXTURES.filter((s) => s.kind === kind) : STORE_FIXTURES;
+    return HttpResponse.json({ items, total: items.length, page: 1, pageSize: 20 });
+  }),
+
+  http.get(`${BASE}/stores/:id`, ({ params }) => {
+    const store = STORE_FIXTURES.find((s) => s.id === params.id);
+    if (!store) return HttpResponse.json({ code: 'STORE_NOT_FOUND' }, { status: 404 });
+    return HttpResponse.json(store);
+  }),
+
+  http.post(`${BASE}/stores`, () => HttpResponse.json(STORE_FIXTURES[0], { status: 201 })),
+
+  http.patch(`${BASE}/stores/:id`, () => HttpResponse.json(STORE_FIXTURES[0])),
+
+  http.post(`${BASE}/stores/:id/deactivate`, () =>
+    HttpResponse.json({ ...STORE_FIXTURES[1], isActive: false }),
+  ),
+
+  http.post(`${BASE}/stores/:id/reactivate`, () =>
+    HttpResponse.json({ ...STORE_FIXTURES[1], isActive: true }),
   ),
 ];

@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateUser } from '../../hooks/useUsers';
-import { useStores } from '../../hooks/useStores';
+import { useStores } from '@/features/stores/hooks/useStores';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { Alert, Button } from '@/shared/ui';
 import type { CreateUserPayload } from '../../types';
@@ -17,16 +17,26 @@ export function UserForm() {
   const create = useCreateUser({
     onSuccess: (user) => navigate(`/users/${user.id}`, { replace: true }),
   });
-  const stores = useStores();
-  const firstStoreId = stores.data[0]?.id ?? '';
+  // WHY: only branches receive user assignments — warehouse is admin-internal.
+  const stores = useStores({ kind: 'branch' });
+  const firstStoreId = stores.data?.items[0]?.id ?? '';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [assignments, setAssignments] = useState<AssignmentDraft[]>([
-    { storeId: firstStoreId, role: 'vendedora' },
+    { storeId: '', role: 'vendedora' },
   ]);
+
+  // Sync the first draft assignment once stores load.
+  useEffect(() => {
+    if (firstStoreId && assignments[0]?.storeId === '') {
+      setAssignments((prev) =>
+        prev.map((a, idx) => (idx === 0 ? { ...a, storeId: firstStoreId } : a)),
+      );
+    }
+  }, [firstStoreId, assignments]);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

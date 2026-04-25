@@ -1,6 +1,7 @@
 import { buildAssignmentService, type AssignmentService } from '../service';
 import type { UserStoreRepository } from '../repository';
 import type { UserRepository } from '../../users/repository';
+import type { StoreRepository } from '../../stores/repository';
 
 interface MockAssignmentsRepo {
   listActiveByUser: jest.Mock;
@@ -23,9 +24,24 @@ interface MockUsersRepo {
   isAdminById: jest.Mock;
 }
 
+interface MockStoresRepo {
+  findById: jest.Mock;
+}
+
 let assignments: MockAssignmentsRepo;
 let users: MockUsersRepo;
+let stores: MockStoresRepo;
 let service: AssignmentService;
+
+const activeStore = (id = 's1') => ({
+  id,
+  code: 'PRADO',
+  name: 'Sucursal Prado',
+  kind: 'branch' as const,
+  isActive: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
 
 beforeEach(() => {
   assignments = {
@@ -47,9 +63,13 @@ beforeEach(() => {
     countActiveAdmins: jest.fn(),
     isAdminById: jest.fn(),
   };
+  stores = {
+    findById: jest.fn().mockResolvedValue(activeStore()),
+  };
   service = buildAssignmentService({
     assignments: assignments as unknown as UserStoreRepository,
     users: users as unknown as UserRepository,
+    stores: stores as unknown as StoreRepository,
   });
 });
 

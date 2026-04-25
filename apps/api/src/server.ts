@@ -25,6 +25,7 @@ export function buildServer(): Express {
   app.use('/api/v1/auth', composition.authRouter);
   app.use('/api/v1/users', composition.usersRouter);
   app.use('/api/v1/users/:userId/assignments', composition.assignmentsRouter);
+  app.use('/api/v1/stores', composition.storesRouter);
 
   app.use(errorHandler);
 

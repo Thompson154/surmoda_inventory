@@ -1,5 +1,5 @@
 import { Button, IconButton, Select } from '@/shared/ui';
-import { useStores } from '../../hooks/useStores';
+import { useStores } from '@/features/stores/hooks/useStores';
 import type { Role } from '../../types';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -21,7 +21,9 @@ export function AssignmentsDraftList({
   onAdd,
   onRemove,
 }: AssignmentsDraftListProps) {
-  const stores = useStores();
+  // WHY: only branches accept assignments (warehouse is admin-only).
+  const stores = useStores({ kind: 'branch' });
+  const items = stores.data?.items ?? [];
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-lg border border-surface-border p-3">
@@ -33,9 +35,9 @@ export function AssignmentsDraftList({
             onChange={(e) => onUpdate(idx, { storeId: e.target.value })}
             className="flex-1 text-sm py-1"
           >
-            {stores.data.map((s) => (
+            {items.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.label}
+                {s.name}
               </option>
             ))}
           </Select>

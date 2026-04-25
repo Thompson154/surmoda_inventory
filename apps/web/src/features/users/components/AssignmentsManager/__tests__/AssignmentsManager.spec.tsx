@@ -39,8 +39,8 @@ describe('AssignmentsManager', () => {
     renderWithProviders(<AssignmentsManager userId={USER_ID} isUserAdmin={false} />);
 
     // Wait for the assignment row to appear — the row shows a "Quitar" button with aria-label
-    await screen.findByRole('button', { name: /quitar prado/i });
-    expect(screen.getByRole('combobox', { name: /rol para prado/i })).toHaveValue('vendedora');
+    await screen.findByRole('button', { name: /quitar sucursal prado/i });
+    expect(screen.getByRole('combobox', { name: /rol para sucursal prado/i })).toHaveValue('vendedora');
   });
 
   it('adding a new assignment calls POST and the list shows add form', async () => {
@@ -107,7 +107,7 @@ describe('AssignmentsManager', () => {
     const user = userEvent.setup();
     renderWithProviders(<AssignmentsManager userId={USER_ID} isUserAdmin={false} />);
 
-    const roleSelect = await screen.findByRole('combobox', { name: /rol para prado/i });
+    const roleSelect = await screen.findByRole('combobox', { name: /rol para sucursal prado/i });
     await user.selectOptions(roleSelect, 'encargada');
 
     await waitFor(() => {
@@ -141,7 +141,7 @@ describe('AssignmentsManager', () => {
     const user = userEvent.setup();
     renderWithProviders(<AssignmentsManager userId={USER_ID} isUserAdmin={false} />);
 
-    const quitarBtn = await screen.findByRole('button', { name: /quitar prado/i });
+    const quitarBtn = await screen.findByRole('button', { name: /quitar sucursal prado/i });
     await user.click(quitarBtn);
 
     // Confirm UI should appear
