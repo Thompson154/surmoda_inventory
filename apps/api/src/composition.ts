@@ -1,5 +1,6 @@
 import type { Router } from 'express';
 import { getPrisma, type Database } from './infrastructure/database';
+import { buildAuditService, type AuditService } from './modules/auditing';
 import { buildRefreshTokenRepository } from './modules/auth/repository';
 import { buildAuthService } from './modules/auth/service';
 import { buildAuthController } from './modules/auth/controller';
@@ -15,6 +16,7 @@ import { buildAssignmentsRouter } from './modules/assignments/routes';
 
 export interface Composition {
   db: Database;
+  auditService: AuditService;
   authRouter: Router;
   usersRouter: Router;
   assignmentsRouter: Router;
@@ -27,6 +29,8 @@ export interface Composition {
  */
 export function buildComposition(): Composition {
   const db = getPrisma();
+
+  const auditService = buildAuditService(db);
 
   const refreshTokens = buildRefreshTokenRepository(db);
   const authService = buildAuthService({ db, refreshTokens });
@@ -43,5 +47,5 @@ export function buildComposition(): Composition {
   const assignmentsController = buildAssignmentController(assignmentsService);
   const assignmentsRouter = buildAssignmentsRouter(assignmentsController);
 
-  return { db, authRouter, usersRouter, assignmentsRouter };
+  return { db, auditService, authRouter, usersRouter, assignmentsRouter };
 }

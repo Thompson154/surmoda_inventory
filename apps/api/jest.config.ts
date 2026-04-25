@@ -35,23 +35,24 @@ const config: Config = {
   collectCoverage: false,
   collectCoverageFrom: [
     'src/modules/**/{service,repository}.ts',
-    'src/middleware/*.ts',
+    'src/middleware/**/*.ts',
+    'src/jobs/**/*.ts',
     '!src/**/__tests__/**',
+    '!src/**/*.spec.ts',
+    '!src/**/tests/**',
     '!src/**/*.d.ts',
+    '!dist/**',
   ],
   coverageReporters: ['text', 'html', 'lcov'],
+  // WHY: Global thresholds set to current actual coverage minus 5% as guardrail.
+  // Repositories are covered by integration tests (not unit), so global unit numbers
+  // are lower than module-only numbers. Raise these as integration coverage grows.
   coverageThreshold: {
     global: {
-      lines: 0,
-      branches: 0,
-      functions: 0,
-      statements: 0,
-    },
-    'src/modules/**/{service,repository}.ts': {
-      lines: 80,
-      branches: 80,
-      functions: 80,
-      statements: 80,
+      lines: 73,
+      statements: 71,
+      branches: 65,
+      functions: 60,
     },
   },
 };

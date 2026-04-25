@@ -15,13 +15,13 @@ export function buildServer(): Express {
   app.use(cors({ origin: config.FE_ORIGIN, credentials: true }));
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
-  app.use(attachAuditEmitter());
+  const composition = buildComposition();
+  app.use(attachAuditEmitter(composition.auditService));
 
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
   });
 
-  const composition = buildComposition();
   app.use('/api/v1/auth', composition.authRouter);
   app.use('/api/v1/users', composition.usersRouter);
   app.use('/api/v1/users/:userId/assignments', composition.assignmentsRouter);

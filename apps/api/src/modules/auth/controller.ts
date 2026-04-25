@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { CookieOptions } from 'express';
 import { loadConfig, cookieSecure } from '../../infrastructure/config';
-import { TokenInvalidError } from '../../shared/errors/authErrors';
+import { TokenInvalidError, TokenReplayError } from '../../shared/errors/authErrors';
 import { emitAudit } from '../../middleware/auditLogger';
 import type { AuthService } from './service';
 
@@ -70,6 +70,13 @@ export function buildAuthController(service: AuthService): AuthController {
         res.cookie(REFRESH_COOKIE_NAME, result.refreshToken.plaintext, refreshCookieOptions(ttlMs));
         res.status(200).json({ accessToken: result.accessToken });
       } catch (err) {
+        if (err instanceof TokenReplayError) {
+          emitAudit(req, {
+            action: 'AUTH_REFRESH_TOKEN_REPLAY',
+            entity: 'RefreshToken',
+            payload: { reason: 'replay detected — family revoked' },
+          });
+        }
         next(err);
       }
     },
