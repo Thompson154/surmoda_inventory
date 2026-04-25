@@ -315,4 +315,113 @@ export const handlers = [
       updatedAt: '2024-01-01T00:00:00.000Z',
     }),
   ),
+
+  // Inventory
+  http.get(`${BASE}/stores/:storeId/inventory`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          variantId: 'var-1',
+          productId: 'prod-1',
+          productCode: 'JN001',
+          productName: 'Jean Bota Recta',
+          size: '30',
+          color: 'azul',
+          barcode: 'ABC123ABC123',
+          priceCents: 25000,
+          imagePath: 'imagesTest/JeanAzulBotaRecta.png',
+          quantity: 12,
+        },
+        {
+          variantId: 'var-2',
+          productId: 'prod-2',
+          productCode: 'CHQ001',
+          productName: 'Chaqueta clásica',
+          size: 'm',
+          color: 'negro',
+          barcode: 'XYZ987XYZ987',
+          priceCents: 45000,
+          imagePath: 'imagesTest/chaqueta.png',
+          quantity: 5,
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    }),
+  ),
+
+  http.patch(`${BASE}/stores/:storeId/inventory/:variantId`, async ({ request, params }) => {
+    const body = (await request.json()) as { quantity: number; reason?: string };
+    return HttpResponse.json({
+      variantId: params.variantId,
+      productId: 'prod-1',
+      productCode: 'JN001',
+      productName: 'Jean Bota Recta',
+      size: '30',
+      color: 'azul',
+      barcode: 'ABC123ABC123',
+      priceCents: 25000,
+      imagePath: null,
+      quantity: body.quantity,
+      previous: 0,
+      delta: body.quantity,
+    });
+  }),
+
+  http.get(`${BASE}/stores/:storeId/inventory/by-barcode/:barcode`, ({ params }) =>
+    HttpResponse.json({
+      variantId: 'var-1',
+      productId: 'prod-1',
+      productCode: 'JN001',
+      productName: 'Jean Bota Recta',
+      size: '30',
+      color: 'azul',
+      barcode: params.barcode,
+      priceCents: 25000,
+      imagePath: null,
+      quantity: 10,
+    }),
+  ),
+
+  http.get(`${BASE}/stores/:storeId/movements`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'mv-1',
+          storeId: 'store-prado-seed',
+          variantId: 'var-1',
+          userId: 'admin-1',
+          userFullName: 'Admin Demo',
+          type: 'adjusted',
+          payload: { delta: 50, previous: 0, next: 50, reason: 'recepción' },
+          productCode: 'JN001',
+          barcode: 'ABC123ABC123',
+          createdAt: '2024-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
+  ),
+
+  http.get(`${BASE}/stores/:storeId/edit-permission`, ({ params }) =>
+    HttpResponse.json({
+      storeId: params.storeId,
+      isEnabled: false,
+      toggledByUserId: null,
+      toggledAt: null,
+    }),
+  ),
+
+  http.post(`${BASE}/stores/:storeId/edit-permission`, async ({ request, params }) => {
+    const body = (await request.json()) as { isEnabled: boolean };
+    return HttpResponse.json({
+      storeId: params.storeId,
+      isEnabled: body.isEnabled,
+      toggledByUserId: 'user-1',
+      toggledAt: new Date().toISOString(),
+    });
+  }),
 ];

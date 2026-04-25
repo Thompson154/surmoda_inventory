@@ -1,0 +1,178 @@
+import { useEffect, useState } from 'react';
+import { Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
+import type { InventoryRow } from '@surmoda/contracts';
+import { Alert, Badge, Button, IconButton, Input, Modal, Skeleton } from '@/shared/ui';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import type { HttpError } from '@/shared/services/httpClient';
+import { useAdjustQuantity } from '../hooks/useInventory';
+import { useInventoryProductVariants } from '../hooks/useInventoryGrouped';
+import { getImageUrl } from '@/features/products/services/productsService';
+
+interface ProductDetailDrawerProps {
+  storeId: string;
+  productId: string | null;
+  productName?: string;
+  productCode?: string;
+  canEdit: boolean;
+  onClose: () => void;
+}
+
+const SIZE_LABEL: Record<string, string> = {
+  s: 'S',
+  m: 'M',
+  l: 'L',
+  xl: 'XL',
+  xxl: 'XXL',
+  standard: 'Estándar',
+};
+
+function formatPrice(cents: number): string {
+  return `Bs. ${(cents / 100).toFixed(2)}`;
+}
+
+export function ProductDetailDrawer({
+  storeId,
+  productId,
+  productName,
+  productCode,
+  canEdit,
+  onClose,
+}: ProductDetailDrawerProps) {
+  const open = productId !== null;
+  const query = useInventoryProductVariants(open ? storeId : undefined, productId ?? undefined);
+
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title={productName ? `${productCode ?? ''} · ${productName}` : 'Variantes'}
+    >
+      <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
+        {query.isLoading && (
+          <>
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </>
+        )}
+
+        {query.isError && <Alert variant="error">No pudimos cargar las variantes.</Alert>}
+
+        {query.data?.items.map((row) => (
+          <VariantEditableRow
+            key={row.variantId}
+            storeId={storeId}
+            row={row}
+            canEdit={canEdit}
+          />
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+interface VariantEditableRowProps {
+  storeId: string;
+  row: InventoryRow;
+  canEdit: boolean;
+}
+
+function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) {
+  const adjust = useAdjustQuantity(storeId);
+  const [draft, setDraft] = useState(row.quantity);
+  const [reason, setReason] = useState('');
+  const errorMessage = useErrorMessage(adjust.error as HttpError | null | undefined);
+
+  useEffect(() => {
+    setDraft(row.quantity);
+  }, [row.quantity]);
+
+  const isDirty = draft !== row.quantity;
+
+  const submit = () => {
+    if (!canEdit || !isDirty) return;
+    adjust.mutate(
+      { variantId: row.variantId, payload: { quantity: draft, reason: reason || undefined } },
+      { onSuccess: () => setReason('') },
+    );
+  };
+
+  const imageUrl = getImageUrl(row.imagePath);
+  const sizeLabel = SIZE_LABEL[row.size] ?? row.size;
+
+  return (
+    <div className="rounded-lg border border-surface-border p-3 flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <div className="h-12 w-12 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
+          {imageUrl ? (
+            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <ImageIcon className="h-5 w-5 text-slate-400" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-900">
+            {sizeLabel} <span className="text-slate-400">·</span>{' '}
+            <span className="capitalize">{row.color}</span>
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5 font-mono">{row.barcode}</p>
+          <p className="text-xs text-slate-600 mt-0.5">{formatPrice(row.priceCents)}</p>
+        </div>
+        {!canEdit && <Badge variant="default">Solo lectura</Badge>}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <IconButton
+          icon={<Minus className="h-4 w-4" />}
+          label="Restar uno"
+          variant="secondary"
+          size="sm"
+          onClick={() => setDraft((v) => Math.max(0, v - 1))}
+          disabled={!canEdit}
+        />
+        <Input
+          type="number"
+          min={0}
+          value={String(draft)}
+          onChange={(e) => setDraft(Math.max(0, Number(e.target.value) || 0))}
+          disabled={!canEdit}
+          className="w-20 text-center text-sm py-1"
+          aria-label="Cantidad"
+        />
+        <IconButton
+          icon={<Plus className="h-4 w-4" />}
+          label="Sumar uno"
+          variant="secondary"
+          size="sm"
+          onClick={() => setDraft((v) => v + 1)}
+          disabled={!canEdit}
+        />
+        {canEdit && isDirty && (
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            leftIcon={<Save className="h-3.5 w-3.5" />}
+            onClick={submit}
+            isLoading={adjust.isPending}
+            disabled={adjust.isPending}
+          >
+            Guardar
+          </Button>
+        )}
+      </div>
+
+      {canEdit && isDirty && (
+        <Input
+          type="text"
+          placeholder="Motivo (opcional)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          maxLength={200}
+          className="text-xs py-1"
+        />
+      )}
+      {errorMessage && <p className="text-xs text-status-danger">{errorMessage}</p>}
+    </div>
+  );
+}

@@ -16,6 +16,7 @@
 - Asignaciones: `ASSIGNMENT_DUPLICATE`, `ASSIGNMENT_NOT_FOUND`, `ASSIGNMENT_LAST_REMOVAL_REQUIRES_CONFIRM`, `ASSIGNMENT_STORE_NOT_FOUND`, `ASSIGNMENT_INVALID_FOR_ADMIN`
 - Tiendas: `STORE_NOT_FOUND`, `STORE_DUPLICATE_CODE`, `STORE_HAS_ACTIVE_ASSIGNMENTS`, `STORE_WAREHOUSE_ALREADY_EXISTS`, `STORE_KIND_INVALID`
 - Productos / variantes: `PRODUCT_NOT_FOUND`, `PRODUCT_DUPLICATE_CODE`, `PRODUCT_HAS_ACTIVE_VARIANTS`, `VARIANT_NOT_FOUND`, `VARIANT_PRODUCT_NOT_FOUND`, `VARIANT_DUPLICATE_TUPLE`, `VARIANT_PRICE_REQUIRED`, `VARIANT_IMAGE_TOO_LARGE`, `VARIANT_IMAGE_INVALID_TYPE`, `VARIANT_IMMUTABLE_FIELD`, `BARCODE_COLLISION`
+- Inventario: `STOCK_NOT_FOUND`, `STOCK_BARCODE_NOT_FOUND`, `STOCK_VENDEDORA_EDIT_DISABLED`, `STOCK_NEGATIVE_NOT_ALLOWED`, `STORE_EDIT_PERMISSION_FORBIDDEN`
 
 ---
 
@@ -781,6 +782,96 @@ Desactiva una variante. Idempotente.
 Reactiva una variante. Idempotente.
 
 **Auditoría emitida:** `VARIANT_REACTIVATED`.
+
+---
+
+## Inventario (Feature 004)
+
+Endpoints CRUD per-sede para `StockBySite`, `StockMovement` y `StoreEditPermission`. Las lecturas requieren que el usuario tenga la sede asignada (admin bypassea); las mutaciones siguen RBAC adicional. Out-of-scope = 404 (sin leak).
+
+### GET /api/v1/stores/:storeId/inventory
+
+Lista el inventario de una sede.
+
+**Query params:** `q` (busca por code/name/barcode), `page`, `pageSize` (max 100).
+
+**Respuesta — 200:**
+```typescript
+{
+  items: Array<{
+    variantId: string; productId: string;
+    productCode: string; productName: string;
+    size: Size; color: string;
+    barcode: string; priceCents: number;
+    imagePath?: string | null;
+    quantity: number;
+  }>;
+  total: number; page: number; pageSize: number;
+}
+```
+
+**Errores:** `404 STOCK_NOT_FOUND` si el usuario no tiene la sede asignada.
+
+---
+
+### PATCH /api/v1/stores/:storeId/inventory/:variantId
+
+Ajusta la cantidad. Atómico (Serializable tx + escribe `StockMovement`).
+
+**Body:**
+```typescript
+{ quantity: number; reason?: string }
+```
+
+**RBAC:** admin/encargada siempre. Vendedora sólo cuando `StoreEditPermission.isEnabled = true` para esa sede.
+
+**Errores:**
+| Status | Código | Motivo |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Body inválido / `quantity` < 0 |
+| 400 | `STOCK_NEGATIVE_NOT_ALLOWED` | Defensivo |
+| 403 | `STOCK_VENDEDORA_EDIT_DISABLED` | Toggle apagado y usuario es vendedora |
+| 404 | `STOCK_NOT_FOUND` | Out-of-scope |
+
+**Auditoría:** `INVENTORY_QUANTITY_ADJUSTED` con `{ storeId, variantId, previous, next, delta, reason }` + fila en `StockMovement` con `type=adjusted`.
+
+---
+
+### GET /api/v1/stores/:storeId/inventory/by-barcode/:barcode
+
+Busca una variante por barcode dentro de la sede. Sirve para el scanner del feature 008.
+
+**Errores:** `404 STOCK_BARCODE_NOT_FOUND`.
+
+---
+
+### GET /api/v1/stores/:storeId/movements
+
+Lista el log per-sede de movimientos. Ordenado por `createdAt desc`.
+
+**Query params:** `page`, `pageSize` (max 100).
+
+**RBAC:** admin/encargada. Vendedora → `403 STORE_EDIT_PERMISSION_FORBIDDEN`.
+
+---
+
+### GET /api/v1/stores/:storeId/edit-permission
+
+Devuelve el estado actual del toggle para esa sede. Cuando no hay fila, devuelve `{ isEnabled: false, toggledByUserId: null, toggledAt: null }`.
+
+**RBAC:** cualquier usuario asignado a la sede.
+
+---
+
+### POST /api/v1/stores/:storeId/edit-permission
+
+Actualiza el toggle. Idempotente. Escribe un `StockMovement` con `type=edit_permission_toggled`.
+
+**Body:** `{ isEnabled: boolean }`
+
+**RBAC:** admin/encargada. Vendedora → `403`.
+
+**Auditoría:** `STORE_EDIT_PERMISSION_TOGGLED` con `{ storeId, isEnabled }`.
 
 ---
 

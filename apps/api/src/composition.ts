@@ -26,6 +26,10 @@ import { buildVariantController } from './modules/products/controller.variant';
 import { buildProductsRouter, buildVariantsRouter } from './modules/products/routes';
 import { buildImageStorage } from './modules/products/imageStorage';
 import { loadConfig } from './infrastructure/config';
+import { buildInventoryRepository } from './modules/inventory/repository';
+import { buildInventoryService } from './modules/inventory/service';
+import { buildInventoryController } from './modules/inventory/controller';
+import { buildInventoryRouter } from './modules/inventory/routes';
 
 export interface Composition {
   db: Database;
@@ -36,6 +40,7 @@ export interface Composition {
   storesRouter: Router;
   productsRouter: Router;
   variantsRouter: Router;
+  inventoryRouter: Router;
 }
 
 /**
@@ -92,6 +97,11 @@ export function buildComposition(): Composition {
   const productsRouter = buildProductsRouter(productsController, variantsController);
   const variantsRouter = buildVariantsRouter(variantsController);
 
+  const inventoryRepo = buildInventoryRepository(db);
+  const inventoryService = buildInventoryService({ inventory: inventoryRepo });
+  const inventoryController = buildInventoryController(inventoryService);
+  const inventoryRouter = buildInventoryRouter(inventoryController);
+
   return {
     db,
     auditService,
@@ -101,5 +111,6 @@ export function buildComposition(): Composition {
     storesRouter,
     productsRouter,
     variantsRouter,
+    inventoryRouter,
   };
 }

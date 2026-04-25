@@ -12,7 +12,7 @@ import type {
 } from './types';
 
 export interface AssignmentScopeRepository {
-  listActiveByUser(userId: string): Promise<Array<{ storeId: string }>>;
+  listActiveByUser(userId: string): Promise<Array<{ storeId: string; role: 'encargada' | 'vendedora' }>>;
 }
 
 export interface StoreServiceDeps {
@@ -66,7 +66,13 @@ export function buildStoreService({ stores, assignments }: StoreServiceDeps): St
     },
 
     async list(query, auth) {
-      if (auth.isAdmin) {
+      // WHY: encargada con cualquier asignación de role=encargada se trata como
+      // operadora global — ve todas las sedes (incluido el almacén). Vendedora
+      // mantiene scope estricto a sus assignments.
+      const userAssignments = auth.isAdmin ? [] : await assignments.listActiveByUser(auth.userId);
+      const isGlobalOperator = auth.isAdmin || userAssignments.some((a) => a.role === 'encargada');
+
+      if (isGlobalOperator) {
         const adminQuery: ListStoresQuery = { ...query };
         if (!adminQuery.includeInactive && adminQuery.isActive === undefined) {
           adminQuery.isActive = true;
@@ -75,8 +81,7 @@ export function buildStoreService({ stores, assignments }: StoreServiceDeps): St
       }
 
       const staffQuery: ListStoresQuery = { ...query, isActive: true };
-      const allowed = await assignments.listActiveByUser(auth.userId);
-      const allowedIds = Array.from(new Set(allowed.map((a) => a.storeId)));
+      const allowedIds = Array.from(new Set(userAssignments.map((a) => a.storeId)));
       return stores.list(staffQuery, allowedIds);
     },
 
@@ -88,8 +93,9 @@ export function buildStoreService({ stores, assignments }: StoreServiceDeps): St
 
       if (!auth.isAdmin) {
         const userAssignments = await assignments.listActiveByUser(auth.userId);
-        const hasAccess = userAssignments.some((a) => a.storeId === id);
-        if (!hasAccess) {
+        const isGlobalOperator = userAssignments.some((a) => a.role === 'encargada');
+        const hasDirectAccess = userAssignments.some((a) => a.storeId === id);
+        if (!isGlobalOperator && !hasDirectAccess) {
           // WHY: same 404 as not-found avoids leaking existence (matches User.getById pattern).
           throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Tienda no encontrada.');
         }

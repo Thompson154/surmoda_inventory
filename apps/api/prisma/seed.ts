@@ -241,11 +241,38 @@ async function main(): Promise<void> {
     }
   }
 
+  // Pre-create StockBySite rows for every (variant × active store) combination,
+  // so adjustments are simple updates. Idempotent.
+  const allVariants = await prisma.variant.findMany({
+    where: { deletedAt: null },
+    select: { id: true },
+  });
+  const allStores = await prisma.store.findMany({
+    where: { deletedAt: null, isActive: true },
+    select: { id: true },
+  });
+
+  let stockRowsCreated = 0;
+  for (const v of allVariants) {
+    for (const s of allStores) {
+      const existing = await prisma.stockBySite.findUnique({
+        where: { variantId_storeId: { variantId: v.id, storeId: s.id } },
+      });
+      if (!existing) {
+        await prisma.stockBySite.create({
+          data: { variantId: v.id, storeId: s.id, quantity: 0 },
+        });
+        stockRowsCreated += 1;
+      }
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.info(
     `Seed OK — admin: ${admin.email}; staff: 4 users; assignments: ${assignments.length}; ` +
       `placeholder stores: ${STORE_PRADO}, ${STORE_ZSUR}, ${STORE_ALMACEN}; ` +
-      `products: ${productCount}; variants created: ${variantCount}`,
+      `products: ${productCount}; variants created: ${variantCount}; ` +
+      `stock rows created: ${stockRowsCreated}`,
   );
 }
 
