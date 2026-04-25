@@ -54,3 +54,4 @@ apps/api/prisma/migrations/dev.db*
 .claude
 specs
 CLAUDE.md
+docs

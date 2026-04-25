@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { cn } from './cn';
 
 export interface FieldProps {
   label: string;
@@ -6,18 +7,24 @@ export interface FieldProps {
   hint?: string;
   htmlFor?: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function Field({ label, error, hint, htmlFor, children }: FieldProps) {
+export function Field({ label, error, hint, htmlFor, children, className }: FieldProps) {
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={htmlFor} className="text-sm text-slate-700 font-medium">
+    <div className={cn('flex flex-col gap-1', className)}>
+      <label
+        htmlFor={htmlFor}
+        className="text-sm font-medium text-slate-700"
+      >
         {label}
       </label>
       {children}
-      {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
+      {hint && !error && (
+        <p className="text-xs text-slate-500 mt-1">{hint}</p>
+      )}
       {error && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-status-danger mt-1.5">
           {error}
         </p>
       )}
