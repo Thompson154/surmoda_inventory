@@ -3,7 +3,14 @@ import { Prisma } from '@prisma/client';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import { bcryptSaltRounds } from '../../shared/constants/tokenConfig';
-import type { CreateUserDTO, ListUsersQuery, PaginatedUsers, UpdateUserDTO, UserDTO } from './types';
+import type {
+  CreateUserDTO,
+  ListUsersQuery,
+  PaginatedUsers,
+  ResetPasswordDTO,
+  UpdateUserDTO,
+  UserDTO,
+} from './types';
 import type { UserRepository } from './repository';
 import type { RefreshTokenRepository } from '../auth/repository';
 
@@ -19,6 +26,7 @@ export interface UserService {
   update(id: string, input: UpdateUserDTO): Promise<UserDTO>;
   deactivate(id: string): Promise<UserDTO>;
   reactivate(id: string): Promise<UserDTO>;
+  adminResetPassword(id: string, input: ResetPasswordDTO): Promise<void>;
 }
 
 export function buildUserService({ users, refreshTokens }: UserServiceDeps): UserService {
@@ -113,6 +121,18 @@ export function buildUserService({ users, refreshTokens }: UserServiceDeps): Use
       }
       if (current.isActive) return current; // idempotent
       return users.setActive(id, true);
+    },
+
+    async adminResetPassword(id, input) {
+      const current = await users.findById(id);
+      if (!current) {
+        throw new AppError(404, ERROR_CODES.USER_NOT_FOUND, 'User not found');
+      }
+
+      const passwordHash = await bcrypt.hash(input.newPassword, bcryptSaltRounds());
+      await users.setPasswordHash(id, passwordHash);
+      // WHY: invalidate ALL refresh tokens — every device must re-authenticate.
+      await refreshTokens.revokeAllForUser(id);
     },
   };
 }

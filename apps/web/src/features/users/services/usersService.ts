@@ -26,4 +26,6 @@ export const usersService = {
   update: (id: string, payload: UpdateUserPayload) => httpClient.patch<User>(`/users/${id}`, payload),
   deactivate: (id: string) => httpClient.post<User>(`/users/${id}/deactivate`, undefined),
   reactivate: (id: string) => httpClient.post<User>(`/users/${id}/reactivate`, undefined),
+  resetPassword: (id: string, newPassword: string) =>
+    httpClient.post<void>(`/users/${id}/password-reset`, { newPassword }),
 };

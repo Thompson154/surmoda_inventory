@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authGuard } from '../../middleware/authGuard';
 import { roleGuard } from '../../middleware/roleGuard';
 import { validateBody } from '../../middleware/validateBody';
-import { CreateUserSchema, UpdateUserSchema } from './validators';
+import { CreateUserSchema, ResetPasswordSchema, UpdateUserSchema } from './validators';
 import { ADMIN_FLAG } from '../../shared/constants/roles';
 import type { UserController } from './controller';
 
@@ -22,6 +22,9 @@ export function buildUsersRouter(controller: UserController): Router {
   );
   router.post('/:id/deactivate', (req, res, next) => controller.deactivate(req, res, next));
   router.post('/:id/reactivate', (req, res, next) => controller.reactivate(req, res, next));
+  router.post('/:id/password-reset', validateBody(ResetPasswordSchema), (req, res, next) =>
+    controller.resetPassword(req, res, next),
+  );
 
   return router;
 }

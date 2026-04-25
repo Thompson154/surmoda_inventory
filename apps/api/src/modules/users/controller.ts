@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { emitAudit } from '../../middleware/auditLogger';
 import { ListUsersQuerySchema } from './validators';
 import type { UserService } from './service';
-import type { CreateUserDTO, UpdateUserDTO } from './types';
+import type { CreateUserDTO, ResetPasswordDTO, UpdateUserDTO } from './types';
 
 export interface UserController {
   create(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -11,6 +11,7 @@ export interface UserController {
   update(req: Request, res: Response, next: NextFunction): Promise<void>;
   deactivate(req: Request, res: Response, next: NextFunction): Promise<void>;
   reactivate(req: Request, res: Response, next: NextFunction): Promise<void>;
+  resetPassword(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 
 export function buildUserController(service: UserService): UserController {
@@ -115,6 +116,29 @@ export function buildUserController(service: UserService): UserController {
           payload: {},
         });
         res.status(200).json(user);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async resetPassword(req, res, next) {
+      try {
+        const id = req.params.id;
+        if (!id) {
+          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'id required' });
+          return;
+        }
+        const input = req.body as ResetPasswordDTO;
+        await service.adminResetPassword(id, input);
+        // WHY: NEVER include the plaintext in the audit payload.
+        emitAudit(req, {
+          userId: req.auth?.userId ?? null,
+          action: 'USER_PASSWORD_RESET_BY_ADMIN',
+          entity: 'User',
+          entityId: id,
+          payload: { resetByAdminId: req.auth?.userId ?? null },
+        });
+        res.status(204).end();
       } catch (err) {
         next(err);
       }

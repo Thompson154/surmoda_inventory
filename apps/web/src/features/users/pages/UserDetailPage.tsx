@@ -7,6 +7,7 @@ import {
   useUser,
 } from '../hooks/useUsers';
 import { AssignmentsManager } from '../components/AssignmentsManager';
+import { ResetPasswordModal } from '../components/ResetPasswordModal';
 import type { HttpError } from '@/shared/services/httpClient';
 
 export function UserDetailPage() {
@@ -20,6 +21,7 @@ export function UserDetailPage() {
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
 
   // Sync local edit state with fetched data
   useEffect(() => {
@@ -183,7 +185,33 @@ export function UserDetailPage() {
           <hr className="border-slate-200" />
 
           <AssignmentsManager userId={userId} isUserAdmin={query.data.isAdmin} />
+
+          <hr className="border-slate-200" />
+
+          <section className="flex flex-col gap-2">
+            <h2 className="text-base font-semibold text-slate-800">Acciones de seguridad</h2>
+            <div>
+              <button
+                type="button"
+                onClick={() => setResetOpen(true)}
+                className="rounded border border-amber-400 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+              >
+                Resetear contraseña
+              </button>
+              <p className="mt-1 text-xs text-slate-500">
+                Genera una nueva contraseña y cierra todas las sesiones del usuario.
+              </p>
+            </div>
+          </section>
         </article>
+      )}
+
+      {resetOpen && query.data && (
+        <ResetPasswordModal
+          userId={userId}
+          userEmail={query.data.email}
+          onClose={() => setResetOpen(false)}
+        />
       )}
     </main>
   );

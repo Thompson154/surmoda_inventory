@@ -22,6 +22,7 @@ export interface UserRepository {
   list(query: ListUsersQuery): Promise<PaginatedUsers>;
   update(id: string, input: UpdateUserPersistInput): Promise<UserDTO>;
   setActive(id: string, isActive: boolean): Promise<UserDTO>;
+  setPasswordHash(id: string, passwordHash: string): Promise<void>;
   countActiveAdmins(): Promise<number>;
   isAdminById(id: string): Promise<boolean>;
 }
@@ -123,6 +124,13 @@ export function buildUserRepository(db: Database): UserRepository {
         include: userInclude,
       });
       return toUserDTO(updated);
+    },
+
+    async setPasswordHash(id, passwordHash) {
+      await db.user.update({
+        where: { id },
+        data: { passwordHash },
+      });
     },
 
     async countActiveAdmins() {

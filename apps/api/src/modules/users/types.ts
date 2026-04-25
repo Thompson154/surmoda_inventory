@@ -54,3 +54,7 @@ export interface UpdateUserDTO {
   fullName?: string;
   isAdmin?: boolean;
 }
+
+export interface ResetPasswordDTO {
+  newPassword: string;
+}

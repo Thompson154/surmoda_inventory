@@ -66,3 +66,9 @@ export function useReactivateUser(id: string) {
     },
   });
 }
+
+export function useResetPassword(id: string) {
+  return useMutation({
+    mutationFn: (newPassword: string) => usersService.resetPassword(id, newPassword),
+  });
+}
