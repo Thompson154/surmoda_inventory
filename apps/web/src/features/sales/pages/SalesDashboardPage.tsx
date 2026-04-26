@@ -161,6 +161,7 @@ export function SalesDashboardPage() {
   const dashboard = useSalesDashboard(storeId);
   const closures = useDailyReports(storeId, { page: 1, pageSize: 10 });
   const [selectedReport, setSelectedReport] = useState<DailyReportDTO | null>(null);
+  const [weekPopover, setWeekPopover] = useState<number | null>(null);
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [
@@ -256,7 +257,6 @@ export function SalesDashboardPage() {
                     <thead className="bg-surface-sunken text-slate-600">
                       <tr>
                         <th className="text-left px-2 py-2">Semana</th>
-                        <th className="text-left px-2 py-2 text-slate-400 font-normal">Rango</th>
                         <th className="text-right px-2 py-2">QR</th>
                         <th className="text-right px-2 py-2">Tarjeta</th>
                         <th className="text-right px-2 py-2">Efectivo</th>
@@ -266,8 +266,21 @@ export function SalesDashboardPage() {
                     <tbody>
                       {dashboard.data.weeklyBreakdown.map((row, idx) => (
                         <tr key={row.weekStart} className="border-t border-surface-border">
-                          <td className="px-2 py-2 font-semibold">{weekLabel(idx)}</td>
-                          <td className="px-2 py-2 text-slate-500">{weekRange(row.weekStart, row.weekEnd)}</td>
+                          <td className="px-2 py-2">
+                            <button
+                              type="button"
+                              onClick={() => setWeekPopover(weekPopover === idx ? null : idx)}
+                              className="font-semibold text-left hover:text-brand-strong"
+                              aria-label={`Ver rango de fechas de ${weekLabel(idx)}`}
+                            >
+                              {weekLabel(idx)}
+                            </button>
+                            {weekPopover === idx && (
+                              <div className="mt-1 inline-block rounded-md bg-slate-900 text-white text-[10px] font-mono px-2 py-1 shadow">
+                                {weekRange(row.weekStart, row.weekEnd)}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-2 py-2 text-right font-mono">{formatBs(row.qrCents)}</td>
                           <td className="px-2 py-2 text-right font-mono">{formatBs(row.cardCents)}</td>
                           <td className="px-2 py-2 text-right font-mono">{formatBs(row.cashCents)}</td>
@@ -298,7 +311,6 @@ export function SalesDashboardPage() {
                       <thead className="bg-surface-sunken text-slate-600">
                         <tr>
                           <th className="text-left px-2 py-2">Fecha</th>
-                          <th className="text-right px-2 py-2">Trans.</th>
                           <th className="text-right px-2 py-2">Ítems</th>
                           <th className="text-right px-2 py-2">Total</th>
                           <th className="text-left px-2 py-2">Cierre</th>
@@ -314,7 +326,6 @@ export function SalesDashboardPage() {
                             <td className="px-2 py-2 font-mono text-brand-strong underline-offset-2 hover:underline">
                               {row.date}
                             </td>
-                            <td className="px-2 py-2 text-right">{row.transactionsCount}</td>
                             <td className="px-2 py-2 text-right">{row.itemCount}</td>
                             <td className="px-2 py-2 text-right font-mono font-semibold">
                               {formatBs(row.totalCents)}

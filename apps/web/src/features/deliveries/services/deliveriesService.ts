@@ -1,15 +1,22 @@
 import { httpClient } from '@/shared/services/httpClient';
 import type {
+  ConfirmDraftPayload,
   CreateDeliveryPayload,
   DeliveryWithItems,
   ListDeliveriesFilters,
   PaginatedDeliveries,
   PaginatedDeliveryGroups,
+  ReceiveDeliveryPayload,
+  UpdateDraftDeliveryPayload,
 } from '@surmoda/contracts';
 
 function buildQS(filters: ListDeliveriesFilters): string {
   const params = new URLSearchParams();
   if (filters.q) params.set('q', filters.q);
+  if (filters.status) {
+    const arr = Array.isArray(filters.status) ? filters.status : [filters.status];
+    for (const s of arr) params.append('status', s);
+  }
   if (filters.page) params.set('page', String(filters.page));
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
   const qs = params.toString();
@@ -29,6 +36,12 @@ export const deliveriesService = {
     httpClient.get<DeliveryWithItems>(`/deliveries/${deliveryId}`),
   create: (storeId: string, payload: CreateDeliveryPayload) =>
     httpClient.post<DeliveryWithItems>(`/stores/${storeId}/deliveries`, payload),
+  updateDraft: (deliveryId: string, payload: UpdateDraftDeliveryPayload) =>
+    httpClient.patch<DeliveryWithItems>(`/deliveries/${deliveryId}/draft`, payload),
+  confirmDraft: (deliveryId: string, payload: ConfirmDraftPayload = {}) =>
+    httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/confirm`, payload),
+  receive: (deliveryId: string, payload: ReceiveDeliveryPayload) =>
+    httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/receive`, payload),
 };
 
 export const deliveriesQueryKeys = {

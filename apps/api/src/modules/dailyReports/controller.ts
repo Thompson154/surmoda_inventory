@@ -33,7 +33,7 @@ export function buildDailyReportController(service: DailyReportService): DailyRe
         const storeId = requireParam(req, 'storeId');
         // Body is optional for backwards-compat with older clients — defaults to [].
         const body = CloseDayPayloadSchema.parse(req.body ?? {});
-        const report = await service.closeToday(storeId, auth, body.attendedUserIds);
+        const report = await service.closeToday(storeId, auth, body.attendedNames);
         emitAudit(req, {
           userId: auth.userId,
           action: 'DAILY_REPORT_CLOSED',

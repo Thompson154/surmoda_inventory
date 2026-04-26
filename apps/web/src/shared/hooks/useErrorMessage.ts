@@ -67,6 +67,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.DELIVERY_EMPTY_ITEMS]: 'Agregá al menos un ítem.',
   [ERROR_CODES.DELIVERY_VARIANT_NOT_FOUND]: 'Una de las variantes no existe o está inactiva.',
   [ERROR_CODES.DELIVERY_FORBIDDEN]: 'Sólo encargada/admin puede crear entregas.',
+  [ERROR_CODES.DELIVERY_INVALID_STATE]: 'No se puede aplicar esa acción al estado actual de la entrega.',
 
   [ERROR_CODES.SALE_NOT_FOUND]: 'Venta no encontrada.',
   [ERROR_CODES.SALE_EMPTY_ITEMS]: 'Agregá al menos un ítem.',

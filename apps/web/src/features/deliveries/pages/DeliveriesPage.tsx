@@ -1,11 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import {
-  ChevronRight,
-  Image as ImageIcon,
-  Package,
-  Search,
-} from 'lucide-react';
+import { ChevronRight, Search, Truck } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -15,53 +9,71 @@ import {
   Input,
   Skeleton,
 } from '@/shared/ui';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useStores } from '@/features/stores/hooks/useStores';
-import { useDeliveriesGrouped } from '../hooks/useDeliveries';
-import { deliveriesService, deliveriesQueryKeys } from '../services/deliveriesService';
-import { useQuery } from '@tanstack/react-query';
+import { useStoreParam } from '@/shared/hooks/useStoreParam';
+import { useStoreScope } from '@/shared/hooks/useStoreScope';
+import { useDeliveriesList } from '../hooks/useDeliveries';
 import { DeliveryDetailDrawer } from '../components/DeliveryDetailDrawer';
 import { NewDeliveryModal } from '../components/NewDeliveryModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
-import { getImageUrl } from '@/features/products/services/productsService';
+import type { DeliveryStatus } from '@surmoda/contracts';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 30;
+
+type Filter = 'all' | 'pending' | 'partial' | 'received';
+
+const FILTER_TO_STATUS: Record<Filter, DeliveryStatus[] | undefined> = {
+  all: undefined,
+  pending: ['draft', 'sent'],
+  partial: ['partial'],
+  received: ['received'],
+};
+
+const STATUS_LABEL: Record<DeliveryStatus, string> = {
+  draft: 'Borrador',
+  sent: 'Enviada',
+  received: 'Recibida',
+  partial: 'Parcial',
+};
+
+const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
+  draft: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  sent: { bg: 'bg-amber-100', text: 'text-amber-700' },
+  received: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  partial: { bg: 'bg-orange-100', text: 'text-orange-700' },
+};
+
+const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTH_ABBR[d.getMonth()]}`;
+}
+
+function formatNumber(n: number): string {
+  return `EN-${n.toString().padStart(4, '0')}`;
+}
 
 export function DeliveriesPage() {
-  const params = useParams<{ storeId: string }>();
-  const storeId = params.storeId ?? '';
-  const user = useAuthStore((s) => s.user);
-
+  const storeId = useStoreParam() ?? '';
   const stores = useStores();
   const store = stores.data?.items.find((s) => s.id === storeId);
   const isWarehouse = store?.kind === 'warehouse';
-
-  const hasEncargadaRole = (user?.assignments ?? []).some((a) => a.role === 'encargada');
-  const isAdmin = user?.isAdmin ?? false;
-  const directRole = user?.assignments.find((a) => a.storeId === storeId)?.role;
-  const isVendedoraHere = !isAdmin && !hasEncargadaRole && directRole === 'vendedora';
-  const canCreate = isAdmin || hasEncargadaRole;
+  const { canManage, isVendedoraHere } = useStoreScope(storeId);
+  const canCreate = canManage;
 
   const [q, setQ] = useState('');
-  const grouped = useDeliveriesGrouped(storeId, { q: q || undefined, page: 1, pageSize: PAGE_SIZE });
-
+  const [filter, setFilter] = useState<Filter>('all');
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
-  const [openProductId, setOpenProductId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
-  // For the product-specific list, we re-use the deliveries list endpoint and filter
-  // by product code locally — simple given a product detail typically has 1-2 deliveries.
-  const productDeliveries = useQuery({
-    queryKey: openProductId ? deliveriesQueryKeys.list(storeId, { q: openProductId }) : ['deliveries', 'product-noop'],
-    queryFn: () => deliveriesService.list(storeId, { page: 1, pageSize: 50 }),
-    enabled: Boolean(openProductId),
+  const list = useDeliveriesList(storeId, {
+    q: q || undefined,
+    status: FILTER_TO_STATUS[filter],
+    page: 1,
+    pageSize: PAGE_SIZE,
   });
-
-  const filteredProductDeliveries = useMemo(() => {
-    if (!openProductId || !productDeliveries.data) return [];
-    return productDeliveries.data.items;
-  }, [openProductId, productDeliveries.data]);
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [
@@ -77,6 +89,13 @@ export function DeliveriesPage() {
     return tabs;
   }, [storeId, isWarehouse, isVendedoraHere]);
 
+  const filterTabs: Array<{ value: Filter; label: string }> = [
+    { value: 'all', label: 'Todas' },
+    { value: 'pending', label: 'Pendientes' },
+    { value: 'partial', label: 'Parciales' },
+    { value: 'received', label: 'Recibidas' },
+  ];
+
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
@@ -91,13 +110,11 @@ export function DeliveriesPage() {
           </div>
         </header>
 
-        <p className="text-xs text-slate-500">Historial</p>
-
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <Input
             type="search"
-            placeholder="Buscar por código, nombre o barcode..."
+            placeholder="Buscar por título, código o barcode..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
@@ -105,110 +122,89 @@ export function DeliveriesPage() {
           />
         </div>
 
-        {grouped.isLoading && (
+        <div className="flex flex-wrap items-center gap-2">
+          {filterTabs.map((t) => {
+            const active = filter === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setFilter(t.value)}
+                className={
+                  active
+                    ? 'rounded-full bg-slate-900 text-white text-xs font-semibold px-4 py-1.5'
+                    : 'rounded-full border border-surface-border bg-white text-slate-600 text-xs px-4 py-1.5 hover:bg-surface-sunken'
+                }
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {list.isLoading && (
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            ))}
+          </div>
+        )}
+
+        {list.isError && <Alert variant="error">No pudimos cargar las entregas.</Alert>}
+
+        {list.data && list.data.items.length === 0 && (
           <Card>
-            <CardContent className="p-0">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-surface-border last:border-b-0"
-                >
-                  <Skeleton className="h-12 w-12 rounded-md shrink-0" />
-                  <div className="flex-1 flex flex-col gap-2">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
-                </div>
-              ))}
+            <CardContent>
+              <EmptyState
+                icon={<Truck className="h-6 w-6" />}
+                title="Sin entregas en este filtro"
+                description={
+                  canCreate
+                    ? 'Tocá "Nueva entrega" para registrar una.'
+                    : 'No hay entregas en este filtro para esta sede.'
+                }
+              />
             </CardContent>
           </Card>
         )}
 
-        {grouped.isError && <Alert variant="error">No pudimos cargar el historial.</Alert>}
-
-        {grouped.data && (
-          <>
-            {grouped.data.items.length === 0 ? (
-              <Card>
-                <CardContent>
-                  <EmptyState
-                    icon={<Package className="h-6 w-6" />}
-                    title="Sin entregas todavía"
-                    description={
-                      canCreate
-                        ? 'Tocá "Entregar" para registrar la primera.'
-                        : 'Aún no se ha registrado ninguna entrega para esta sede.'
-                    }
-                  />
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <ul>
-                    {grouped.data.items.map((g) => {
-                      const url = getImageUrl(g.imagePath);
-                      return (
-                        <li
-                          key={g.productId}
-                          className="border-b border-surface-border last:border-b-0"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setOpenProductId(g.productId)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors text-left"
-                          >
-                            <div className="h-14 w-14 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
-                              {url ? (
-                                <img src={url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <ImageIcon className="h-5 w-5 text-slate-400" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">
-                                {g.productName}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-0.5 font-mono">
-                                {g.productCode}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                {g.deliveryCount === 1
-                                  ? '1 entrega'
-                                  : `${g.deliveryCount} entregas`}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end shrink-0">
-                              <span className="text-base font-semibold text-slate-900">
-                                {g.totalUnits}
-                              </span>
-                              <span className="text-[10px] text-slate-400 uppercase tracking-wide">
-                                Total
-                              </span>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-slate-400" />
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
-
-        {/* Product-deliveries inline list rendered as a modal */}
-        {openProductId && (
-          <ProductDeliveriesModal
-            open
-            onClose={() => setOpenProductId(null)}
-            deliveries={filteredProductDeliveries}
-            onPickDelivery={(id) => {
-              setOpenProductId(null);
-              setOpenDeliveryId(id);
-            }}
-          />
+        {list.data && list.data.items.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {list.data.items.map((d) => {
+              const palette = STATUS_PALETTE[d.status];
+              return (
+                <li key={d.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenDeliveryId(d.id)}
+                    className="w-full flex items-center gap-3 rounded-lg border border-surface-border bg-white px-3 py-3 hover:bg-surface-sunken transition-colors text-left"
+                  >
+                    <div className="h-11 w-11 shrink-0 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center">
+                      <Truck className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-slate-500 font-mono">
+                        {shortDate(d.createdAt)} · {formatNumber(d.number)}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {d.title ?? 'Entrega sin título'}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {d.fromStoreName ?? 'Almacén'} · {d.totalUnits}{' '}
+                        {d.totalUnits === 1 ? 'prenda' : 'prendas'}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full ${palette.bg} ${palette.text} text-xs font-semibold px-2.5 py-0.5`}
+                    >
+                      {STATUS_LABEL[d.status]}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         )}
 
         <DeliveryDetailDrawer
@@ -225,9 +221,7 @@ export function DeliveriesPage() {
         )}
       </main>
 
-      {/* Floating action button — primary entrypoint for the only mutation on
-          this page. Sits above the BottomNav (bottom: 80px) on mobile and
-          inside the main column on desktop. */}
+      {/* FAB Nueva entrega — visible solo a admin/encargada. */}
       {canCreate && (
         <button
           type="button"
@@ -240,62 +234,5 @@ export function DeliveriesPage() {
         </button>
       )}
     </AppShell>
-  );
-}
-
-interface ProductDeliveriesModalProps {
-  open: boolean;
-  onClose: () => void;
-  deliveries: Array<{
-    id: string;
-    createdAt: string;
-    createdByFullName: string;
-    totalUnits: number;
-    kind: 'reception' | 'distribution';
-  }>;
-  onPickDelivery: (id: string) => void;
-}
-
-import { Modal } from '@/shared/ui';
-
-function ProductDeliveriesModal({
-  open,
-  onClose,
-  deliveries,
-  onPickDelivery,
-}: ProductDeliveriesModalProps) {
-  return (
-    <Modal isOpen={open} onClose={onClose} title="Entregas del producto">
-      <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
-        {deliveries.length === 0 ? (
-          <p className="text-sm text-slate-500">Sin entregas.</p>
-        ) : (
-          deliveries.map((d) => (
-            <button
-              type="button"
-              key={d.id}
-              onClick={() => onPickDelivery(d.id)}
-              className="text-left flex items-center justify-between rounded-lg border border-surface-border px-3 py-2 hover:bg-surface-sunken transition-colors"
-            >
-              <div className="min-w-0">
-                <p className="text-sm text-slate-900">
-                  {new Date(d.createdAt).toLocaleString('es-BO', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  })}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {d.kind === 'reception' ? 'Recepción' : 'Distribución'} · por{' '}
-                  {d.createdByFullName}
-                </p>
-              </div>
-              <span className="text-sm font-semibold text-slate-900 shrink-0">
-                {d.totalUnits} u.
-              </span>
-            </button>
-          ))
-        )}
-      </div>
-    </Modal>
   );
 }

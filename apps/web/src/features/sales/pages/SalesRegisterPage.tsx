@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Banknote, Check, ChevronRight, CreditCard, QrCode, ScanLine } from 'lucide-react';
+import { Banknote, Check, CreditCard, QrCode, ScanLine } from 'lucide-react';
 import type { SaleItemDTO, SaleWithItems } from '@surmoda/contracts';
 import { Alert, Button, Card, CardContent, Modal, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
@@ -165,6 +165,14 @@ export function SalesRegisterPage() {
   const [showAll, setShowAll] = useState(false);
   const [lastSale, setLastSale] = useState<SaleWithItems | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  // Local-only "view reset" the day was closed — wipes the visible totals and
+  // the today list without persisting a sales-blocking lock. Holds the timestamp
+  // of the cierre; sales recorded BEFORE this moment get filtered out.
+  //
+  // FUTURE: replace with a server-side daily-open/close flag so 22:00 auto-locks
+  // new sales registration and 00:00 wipes the in-memory cache for everyone.
+  // For now the reset is per-tab/per-session.
+  const [closedAt, setClosedAt] = useState<Date | null>(null);
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [
@@ -181,13 +189,24 @@ export function SalesRegisterPage() {
   }, [storeId, isWarehouse, isVendedoraHere]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayItems = useMemo(
-    () => todayList.data?.items.filter((s) => s.createdAt.startsWith(todayStr)) ?? [],
-    [todayList.data, todayStr],
-  );
+  const todayItems = useMemo(() => {
+    const all = todayList.data?.items.filter((s) => s.createdAt.startsWith(todayStr)) ?? [];
+    // Once the encargada cierra el día, the page should look "fresh" — hide the
+    // sales that fell into the closed window. The data still lives in DailyReport
+    // and the sales API; we only filter visually.
+    if (!closedAt) return all;
+    return all.filter((s) => new Date(s.createdAt) > closedAt);
+  }, [todayList.data, todayStr, closedAt]);
 
   // Derive day stats. Encargada/admin uses the dashboard endpoint; vendedora
   // falls back to client-side aggregation of her own visible sales.
+  // Count items (prendas), not transactions — the user wants the headline to
+  // reflect "how many garments left the store today" not "how many tickets".
+  const itemsSoldToday = useMemo(
+    () => todayItems.reduce((sum, s) => sum + s.totalUnits, 0),
+    [todayItems],
+  );
+
   const stats = useMemo(() => {
     if (canSeeDashboard && dashboard.data) {
       const breakdown = dashboard.data.dailyBreakdown[0] ?? {
@@ -199,7 +218,7 @@ export function SalesRegisterPage() {
         qr: breakdown.qrCents,
         cash: breakdown.cashCents,
         card: breakdown.cardCents,
-        count: todayItems.length,
+        count: itemsSoldToday,
       };
     }
     let total = 0;
@@ -212,8 +231,8 @@ export function SalesRegisterPage() {
       else if (s.paymentMethod === 'cash') cash += s.totalCents;
       else if (s.paymentMethod === 'card') card += s.totalCents;
     }
-    return { total, qr, cash, card, count: todayItems.length };
-  }, [canSeeDashboard, dashboard.data, todayItems]);
+    return { total, qr, cash, card, count: itemsSoldToday };
+  }, [canSeeDashboard, dashboard.data, todayItems, itemsSoldToday]);
 
   const flatItems = useMemo(() => flattenSales(todayItems), [todayItems]);
   const visibleItems = showAll ? flatItems : flatItems.slice(0, 3);
@@ -242,7 +261,7 @@ export function SalesRegisterPage() {
             </p>
             <p className="mt-1 text-3xl font-bold tracking-tight">{formatBsBig(stats.total)}</p>
             <p className="mt-0.5 text-xs text-slate-500">
-              {stats.count} {stats.count === 1 ? 'transacción' : 'transacciones'}
+              {stats.count} {stats.count === 1 ? 'prenda vendida' : 'prendas vendidas'}
             </p>
 
             <div className="mt-4 flex flex-col gap-3">
@@ -253,21 +272,10 @@ export function SalesRegisterPage() {
           </CardContent>
         </Card>
 
-        {/* Big violet "Escanear venta" CTA */}
-        <button
-          type="button"
-          onClick={() => setCashierOpen(true)}
-          className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white p-4 shadow-md hover:shadow-lg active:scale-[0.99] transition"
-        >
-          <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <ScanLine className="h-6 w-6" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-semibold">Escanear venta</p>
-            <p className="text-xs text-white/80">Apuntá al código de barras del producto</p>
-          </div>
-          <ChevronRight className="h-5 w-5 opacity-80 shrink-0" />
-        </button>
+        {/* "Escanear venta" moved to a floating bubble in the lower-right
+            corner, above the BottomNav — saves the full-width card real
+            estate for actual content. The bubble is rendered outside <main>
+            so it stays fixed on scroll. */}
 
         {/* Today's sales list */}
         <section className="flex flex-col gap-2">
@@ -318,6 +326,15 @@ export function SalesRegisterPage() {
           storeId={storeId}
           open={closeDayOpen}
           onClose={() => setCloseDayOpen(false)}
+          onClosedToday={() => {
+            setClosedAt(new Date());
+            // FUTURE flow once the daily lock + auto-cleanup ships:
+            //   - 22:00 Bolivia: server flips a `salesLockedAt` flag on the store
+            //     so /sales POST returns 423. CashierModal greys out + tooltips why.
+            //   - 00:00 Bolivia: server-driven reset — closedAt is irrelevant
+            //     because the new day's sales list is empty by definition.
+            //   - Until then, this client-side wipe is enough.
+          }}
         />
 
         <Modal
@@ -358,6 +375,18 @@ export function SalesRegisterPage() {
           </div>
         </Modal>
       </main>
+
+      {/* Floating scan FAB — sits above the BottomNav (bottom: 80px) on the
+          lower-right corner. Acts as the primary action so the page scroll
+          always has it within reach. */}
+      <button
+        type="button"
+        onClick={() => setCashierOpen(true)}
+        className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition flex items-center justify-center"
+        aria-label="Escanear venta"
+      >
+        <ScanLine className="h-6 w-6" />
+      </button>
     </AppShell>
   );
 }

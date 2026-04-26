@@ -57,6 +57,8 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [note, setNote] = useState('');
+  const [title, setTitle] = useState('');
+  const [asDraft, setAsDraft] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const create = useCreateDelivery(storeId);
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
@@ -132,10 +134,17 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
     const toSend = cart.filter((i) => i.quantity > 0);
     if (toSend.length === 0) return;
     create.mutate(
-      { items: toSend.map((i) => ({ variantId: i.variantId, quantity: i.quantity })), note: note || undefined },
+      {
+        items: toSend.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+        note: note || undefined,
+        title: title.trim() || undefined,
+        asDraft: !isReception ? asDraft : undefined,
+      },
       {
         onSuccess: () => {
           reset();
+          setTitle('');
+          setAsDraft(false);
           onClose();
         },
       },
@@ -260,6 +269,17 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
             )}
           </div>
 
+          {!isReception && (
+            <Input
+              type="text"
+              placeholder='Título — ej: "Reposición urgente", "Colección invierno"'
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={80}
+              className="text-sm"
+            />
+          )}
+
           <Input
             type="text"
             placeholder="Nota (opcional): lote, observaciones..."
@@ -268,6 +288,18 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
             maxLength={500}
             className="text-sm"
           />
+
+          {!isReception && (
+            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={asDraft}
+                onChange={(e) => setAsDraft(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Guardar como borrador (lo confirmás después)
+            </label>
+          )}
 
           {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
 

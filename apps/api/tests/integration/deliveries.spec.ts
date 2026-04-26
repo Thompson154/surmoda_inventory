@@ -155,15 +155,36 @@ describe('POST /api/v1/stores/:storeId/deliveries (distribution)', () => {
       data: { quantity: 100 },
     });
 
-    const res = await request(app)
+    // Feature 011: distribution now follows draft → sent → received. Stock is
+    // applied at reception, not at creation. The full flow is: encargada
+    // creates (sent) → vendedora at PRADO marks received → stock moves.
+    const created = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
       .set(bearer(encargadaToken))
       .send({ items: [{ variantId: testVariantA, quantity: 25 }] });
 
-    expect(res.status).toBe(201);
-    expect(res.body.kind).toBe('distribution');
-    expect(res.body.fromStoreId).toBe(warehouseId);
-    expect(res.body.toStoreId).toBe(pradoStoreId);
+    expect(created.status).toBe(201);
+    expect(created.body.kind).toBe('distribution');
+    expect(created.body.status).toBe('sent');
+    expect(created.body.fromStoreId).toBe(warehouseId);
+    expect(created.body.toStoreId).toBe(pradoStoreId);
+
+    // Stock NOT yet applied while in `sent`.
+    const whSent = await db.stockBySite.findUnique({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+    });
+    expect(whSent?.quantity).toBe(100);
+
+    // Vendedora confirms reception with the original quantities.
+    const itemId = (created.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantA,
+    )!.id;
+    const received = await request(app)
+      .post(`/api/v1/deliveries/${created.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 25 }] });
+    expect(received.status).toBe(200);
+    expect(received.body.status).toBe('received');
 
     const wh = await db.stockBySite.findUnique({
       where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
@@ -184,19 +205,30 @@ describe('POST /api/v1/stores/:storeId/deliveries (distribution)', () => {
     expect(inMov.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('rejects when warehouse has insufficient stock (409 DELIVERY_INSUFFICIENT_STOCK)', async () => {
+  it('rejects when warehouse has insufficient stock at reception (409 DELIVERY_INSUFFICIENT_STOCK)', async () => {
+    // Feature 011: stock validation moved from "create" to "receive". Create
+    // succeeds because stock isn't reserved yet; only at reception time, when
+    // the actual movement happens, do we re-check warehouse balance.
     await db.stockBySite.update({
       where: { variantId_storeId: { variantId: testVariantB, storeId: warehouseId } },
       data: { quantity: 5 },
     });
-    const res = await request(app)
+    const created = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
       .set(bearer(adminToken))
       .send({ items: [{ variantId: testVariantB, quantity: 10 }] });
+    expect(created.status).toBe(201);
 
-    expect(res.status).toBe(409);
-    expect(res.body.code).toBe('DELIVERY_INSUFFICIENT_STOCK');
-    expect(res.body.details).toMatchObject({ available: 5, requested: 10 });
+    const itemId = (created.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantB,
+    )!.id;
+    const recv = await request(app)
+      .post(`/api/v1/deliveries/${created.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 10 }] });
+    expect(recv.status).toBe(409);
+    expect(recv.body.code).toBe('DELIVERY_INSUFFICIENT_STOCK');
+    expect(recv.body.details).toMatchObject({ available: 5, requested: 10 });
   });
 });
 
@@ -254,5 +286,159 @@ describe('GET /api/v1/deliveries/:id', () => {
       .set(bearer(adminToken));
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('DELIVERY_NOT_FOUND');
+  });
+});
+
+
+describe("Distribution flow: draft → confirm → receive (full + partial)", () => {
+  it("draft can be edited, confirmed, then received without adjustments", async () => {
+    await db.stockBySite.update({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+      data: { quantity: 200 },
+    });
+
+    // 1. Encargada creates a draft.
+    const draft = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({
+        items: [{ variantId: testVariantA, quantity: 5 }],
+        title: "Reposición lunes",
+        asDraft: true,
+      });
+    expect(draft.status).toBe(201);
+    expect(draft.body.status).toBe("draft");
+
+    // 2. Encargada updates the draft items (changed mind).
+    const patched = await request(app)
+      .patch(`/api/v1/deliveries/${draft.body.id as string}/draft`)
+      .set(bearer(encargadaToken))
+      .send({ items: [{ variantId: testVariantA, quantity: 7 }] });
+    expect(patched.status).toBe(200);
+    expect(patched.body.items[0].quantity).toBe(7);
+
+    // 3. Encargada confirms → sent.
+    const confirmed = await request(app)
+      .post(`/api/v1/deliveries/${draft.body.id as string}/confirm`)
+      .set(bearer(encargadaToken))
+      .send({});
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.status).toBe("sent");
+    expect(confirmed.body.sentAt).not.toBeNull();
+
+    // Stock NOT applied yet.
+    const whSent = await db.stockBySite.findUnique({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+    });
+    expect(whSent?.quantity).toBe(200);
+
+    // 4. Vendedora receives with original quantities → received (no partial).
+    const itemId = (confirmed.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantA,
+    )!.id;
+    const received = await request(app)
+      .post(`/api/v1/deliveries/${draft.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 7 }] });
+    expect(received.status).toBe(200);
+    expect(received.body.status).toBe("received");
+    expect(received.body.adjustments).toHaveLength(0);
+
+    // Stock now applied.
+    const whAfter = await db.stockBySite.findUnique({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+    });
+    expect(whAfter?.quantity).toBe(193);
+    expect(await waitForAudit("DELIVERY_RECEIVED")).toBe(true);
+  });
+
+  it("partial reception records adjustments + emits delivery_received_adjusted movement", async () => {
+    await db.stockBySite.update({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+      data: { quantity: 200 },
+    });
+
+    const sent = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({
+        items: [{ variantId: testVariantA, quantity: 10 }],
+        title: "Mock partial",
+      });
+    expect(sent.body.status).toBe("sent");
+
+    const itemId = (sent.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantA,
+    )!.id;
+    const recv = await request(app)
+      .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({
+        items: [
+          { deliveryItemId: itemId, receivedQuantity: 8, reason: "2 dañadas" },
+        ],
+      });
+    expect(recv.status).toBe(200);
+    expect(recv.body.status).toBe("partial");
+    expect(recv.body.adjustments).toHaveLength(1);
+    expect(recv.body.adjustments[0]).toMatchObject({
+      expectedQty: 10,
+      actualQty: 8,
+      reason: "2 dañadas",
+    });
+
+    const adjMovement = await db.stockMovement.findFirst({
+      where: {
+        storeId: pradoStoreId,
+        type: "delivery_received_adjusted",
+        variantId: testVariantA,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(adjMovement).not.toBeNull();
+    expect(await waitForAudit("DELIVERY_RECEIVED_PARTIAL")).toBe(true);
+  });
+
+  it("rejects receive when received quantity exceeds sent quantity", async () => {
+    await db.stockBySite.update({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+      data: { quantity: 100 },
+    });
+    const sent = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({ items: [{ variantId: testVariantA, quantity: 5 }], title: "test" });
+    const itemId = (sent.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantA,
+    )!.id;
+    const recv = await request(app)
+      .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 999 }] });
+    expect(recv.status).toBe(400);
+  });
+
+  it("rejects double reception (received → sent transition not allowed)", async () => {
+    await db.stockBySite.update({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+      data: { quantity: 100 },
+    });
+    const sent = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({ items: [{ variantId: testVariantA, quantity: 1 }], title: "x" });
+    const itemId = (sent.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantA,
+    )!.id;
+    await request(app)
+      .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 1 }] });
+    const second = await request(app)
+      .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 1 }] });
+    expect(second.status).toBe(409);
+    expect(second.body.code).toBe("DELIVERY_INVALID_STATE");
   });
 });

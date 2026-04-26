@@ -20,6 +20,7 @@ const MOVEMENT_TYPE_FROM_PRISMA: Record<PrismaStockMovementType, StockMovementTy
   edit_permission_toggled: 'edit_permission_toggled',
   delivery_in: 'delivery_in',
   delivery_out: 'delivery_out',
+  delivery_received_adjusted: 'delivery_received_adjusted',
   sale_out: 'sale_out',
 };
 
@@ -28,6 +29,7 @@ const MOVEMENT_TYPE_TO_PRISMA: Record<StockMovementType, PrismaStockMovementType
   edit_permission_toggled: 'edit_permission_toggled',
   delivery_in: 'delivery_in',
   delivery_out: 'delivery_out',
+  delivery_received_adjusted: 'delivery_received_adjusted',
   sale_out: 'sale_out',
 };
 
@@ -166,12 +168,17 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
           imagePath: string | null;
           totalQuantity: number;
           variantsCount: number;
+          lowVariantsCount: number;
+          zeroVariantsCount: number;
           representativeBarcode: string | null;
         }
       >();
 
+      const LOW_THRESHOLD = 5;
       for (const row of rows) {
         const productId = row.variant.productId;
+        const isZero = row.quantity === 0;
+        const isLow = !isZero && row.quantity <= LOW_THRESHOLD;
         const existing = groupedMap.get(productId);
         if (!existing) {
           groupedMap.set(productId, {
@@ -181,11 +188,15 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
             imagePath: row.variant.imagePath,
             totalQuantity: row.quantity,
             variantsCount: 1,
+            lowVariantsCount: isLow ? 1 : 0,
+            zeroVariantsCount: isZero ? 1 : 0,
             representativeBarcode: row.variant.barcode,
           });
         } else {
           existing.totalQuantity += row.quantity;
           existing.variantsCount += 1;
+          if (isLow) existing.lowVariantsCount += 1;
+          if (isZero) existing.zeroVariantsCount += 1;
           if (!existing.imagePath && row.variant.imagePath) {
             existing.imagePath = row.variant.imagePath;
           }
@@ -195,14 +206,13 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
       let items = Array.from(groupedMap.values()).sort((a, b) =>
         a.productCode.localeCompare(b.productCode),
       );
-      // Stock-status filter is applied AFTER aggregation because "low" / "zero"
-      // are product-level concepts (sum of variant quantities), not variant-level.
+      // Filter at the GROUP level by checking the per-variant counters: a model
+      // with three variants 100/100/1 should show up in "Stock bajo" because one
+      // of its variants is at 1, even though the aggregate total is 201.
       if (query.stockStatus === 'zero') {
-        items = items.filter((it) => it.totalQuantity === 0);
+        items = items.filter((it) => it.zeroVariantsCount > 0);
       } else if (query.stockStatus === 'low') {
-        // "Low" = at least one unit but ≤5. Tunable threshold; aligns with
-        // the "requiere reposición" banner on the inventory dashboard.
-        items = items.filter((it) => it.totalQuantity > 0 && it.totalQuantity <= 5);
+        items = items.filter((it) => it.lowVariantsCount > 0);
       }
       const total = items.length;
       const start = (query.page - 1) * query.pageSize;

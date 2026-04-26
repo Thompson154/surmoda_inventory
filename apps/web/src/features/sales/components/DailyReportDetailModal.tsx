@@ -16,38 +16,52 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
     <Modal isOpen={Boolean(report)} onClose={onClose} title={report ? `Cierre ${report.date}` : ''}>
       {report && (
         <div className="flex flex-col gap-3">
+          {/* Hero row: Total + Trans/Items full-width side by side. */}
           <ul className="grid grid-cols-2 gap-2 text-xs">
-            <li className="rounded border border-surface-border px-2 py-1.5">
+            <li className="rounded border border-surface-border px-3 py-2">
               <p className="text-slate-500">Total</p>
-              <p className="font-mono font-semibold">{formatBs(report.totalCents)}</p>
+              <p className="font-mono font-semibold text-base mt-0.5">{formatBs(report.totalCents)}</p>
             </li>
-            <li className="rounded border border-surface-border px-2 py-1.5">
+            <li className="rounded border border-surface-border px-3 py-2">
               <p className="text-slate-500">Trans. / Ítems</p>
-              <p className="font-mono font-semibold">
+              <p className="font-mono font-semibold text-base mt-0.5">
                 {report.transactionsCount} / {report.itemCount}
               </p>
             </li>
+          </ul>
+
+          {/* Payment-method row: each method gets its own card so the long
+              numbers don't collide on mobile. The closer ("Cierre") was
+              dropped from this grid — it lives in the modal title now. */}
+          <ul className="grid grid-cols-3 gap-2 text-xs">
             <li className="rounded border border-surface-border px-2 py-1.5">
-              <p className="text-slate-500">QR · Tarjeta · Efectivo</p>
-              <p className="font-mono">
-                {formatBs(report.qrCents)} · {formatBs(report.cardCents)} · {formatBs(report.cashCents)}
-              </p>
+              <p className="text-slate-500">QR</p>
+              <p className="font-mono">{formatBs(report.qrCents)}</p>
             </li>
             <li className="rounded border border-surface-border px-2 py-1.5">
-              <p className="text-slate-500">Cierre</p>
-              <p className="font-mono">
-                {report.autoClosed ? 'Auto' : (report.closedByFullName ?? 'Manual')}
-              </p>
+              <p className="text-slate-500">Tarjeta</p>
+              <p className="font-mono">{formatBs(report.cardCents)}</p>
+            </li>
+            <li className="rounded border border-surface-border px-2 py-1.5">
+              <p className="text-slate-500">Efectivo</p>
+              <p className="font-mono">{formatBs(report.cashCents)}</p>
             </li>
           </ul>
+
+          <p className="text-[11px] text-slate-500">
+            Cerrado por:{' '}
+            <span className="font-medium text-slate-700">
+              {report.autoClosed ? 'Auto-close' : (report.closedByFullName ?? 'Manual')}
+            </span>
+          </p>
 
           {report.attendees.length > 0 && (
             <div>
               <p className="text-sm font-semibold mb-1">Atendieron ese día</p>
               <ul className="flex flex-wrap gap-1.5">
-                {report.attendees.map((a) => (
+                {report.attendees.map((a, i) => (
                   <li
-                    key={a.userId}
+                    key={`${a.fullName}-${i}`}
                     className="rounded-full bg-violet-100 text-violet-700 text-xs px-2 py-0.5"
                   >
                     {a.fullName}

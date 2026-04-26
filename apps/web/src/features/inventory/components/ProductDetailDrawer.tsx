@@ -30,6 +30,12 @@ export function ProductDetailDrawer({
   const open = productId !== null;
   const query = useInventoryProductVariants(open ? storeId : undefined, productId ?? undefined);
 
+  // Derive a header from the first variant — every row of `items` shares
+  // productCode/productName/imagePath/priceCents (the variants only differ on
+  // size + color + stock), so showing them once at the top reduces noise.
+  const head = query.data?.items[0] ?? null;
+  const headerImage = head ? getImageUrl(head.imagePath) : null;
+
   return (
     <Modal
       isOpen={open}
@@ -46,6 +52,29 @@ export function ProductDetailDrawer({
         )}
 
         {query.isError && <Alert variant="error">No pudimos cargar las variantes.</Alert>}
+
+        {head && (
+          <div className="flex items-start gap-3 rounded-lg border border-surface-border bg-surface-sunken p-3">
+            <div className="h-16 w-16 shrink-0 rounded-md border border-surface-border bg-white flex items-center justify-center overflow-hidden">
+              {headerImage ? (
+                <img src={headerImage} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <ImageIcon className="h-6 w-6 text-slate-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-mono text-slate-500">{head.productCode}</p>
+              <p className="text-base font-semibold text-slate-900 truncate">
+                {formatPrice(head.priceCents)}
+              </p>
+              <p className="text-sm text-slate-600 truncate">{head.productName}</p>
+            </div>
+          </div>
+        )}
+
+        {head && (
+          <p className="text-sm font-semibold text-slate-700 mt-1">Variantes</p>
+        )}
 
         {query.data?.items.map((row) => (
           <VariantEditableRow
@@ -86,30 +115,19 @@ function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) 
     );
   };
 
-  const imageUrl = getImageUrl(row.imagePath);
   const label = sizeLabel(row.size);
 
   return (
     <div className="rounded-lg border border-surface-border p-3 flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
-          {imageUrl ? (
-            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <ImageIcon className="h-5 w-5 text-slate-400" />
-          )}
-        </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-slate-900">
-            {label} <span className="text-slate-400">·</span>{' '}
+            Talla {label} <span className="text-slate-400">·</span>{' '}
             <span className="capitalize">{row.color}</span>
           </p>
-          <p className="text-xs mt-0.5 font-mono flex items-center gap-1 flex-wrap">
-            <span className="text-slate-700">{row.productCode}</span>
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-500 break-all">{row.barcode}</span>
+          <p className="text-xs text-slate-500 mt-0.5">
+            <span className="font-semibold">{row.quantity}</span> disponibles
           </p>
-          <p className="text-xs text-slate-600 mt-0.5">{formatPrice(row.priceCents)}</p>
         </div>
         {!canEdit && <Badge variant="default">Solo lectura</Badge>}
       </div>

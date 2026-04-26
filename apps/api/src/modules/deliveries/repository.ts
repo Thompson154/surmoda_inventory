@@ -1,12 +1,14 @@
 import {
   Prisma,
   type DeliveryKind as PrismaDeliveryKind,
+  type DeliveryStatus as PrismaDeliveryStatus,
 } from '@prisma/client';
 import type { Database } from '../../infrastructure/database';
 import { SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
 import type {
   DeliveryGroupedItem,
   DeliveryKind,
+  DeliveryStatus,
   DeliveryWithItems,
   ListDeliveriesQuery,
   PaginatedDeliveries,
@@ -25,12 +27,30 @@ const KIND_TO_PRISMA: Record<DeliveryKind, PrismaDeliveryKind> = {
   distribution: 'distribution',
 };
 
+const STATUS_FROM_PRISMA: Record<PrismaDeliveryStatus, DeliveryStatus> = {
+  draft: 'draft',
+  sent: 'sent',
+  received: 'received',
+  partial: 'partial',
+};
+
+const STATUS_TO_PRISMA: Record<DeliveryStatus, PrismaDeliveryStatus> = {
+  draft: 'draft',
+  sent: 'sent',
+  received: 'received',
+  partial: 'partial',
+};
+
 export interface CreateDeliveryHeaderInput {
   kind: DeliveryKind;
+  status: DeliveryStatus;
+  title: string | null;
   fromStoreId: string | null;
   toStoreId: string;
   createdByUserId: string;
   note: string | null;
+  /** When status === 'received' on creation (legacy reception flow), set sent/received timestamps to now. */
+  receivedAtNow?: boolean;
 }
 
 export interface CreateDeliveryItemRow {
@@ -38,9 +58,12 @@ export interface CreateDeliveryItemRow {
   quantity: number;
 }
 
-export interface VariantStockRow {
-  variantId: string;
-  quantity: number;
+export interface DeliveryAdjustmentInput {
+  deliveryItemId: string;
+  expectedQty: number;
+  actualQty: number;
+  reason: string | null;
+  adjustedByUserId: string;
 }
 
 export interface DeliveryRepository {
@@ -58,12 +81,48 @@ export interface DeliveryRepository {
       storeId: string;
       variantId: string;
       userId: string;
-      type: 'delivery_in' | 'delivery_out';
+      type: 'delivery_in' | 'delivery_out' | 'delivery_received_adjusted';
       payload: Record<string, unknown>;
     },
     tx: DeliveryTx,
   ): Promise<void>;
   createDelivery(header: CreateDeliveryHeaderInput, items: CreateDeliveryItemRow[], tx: DeliveryTx): Promise<{ id: string }>;
+  loadForUpdate(deliveryId: string, tx: DeliveryTx): Promise<{
+    id: string;
+    status: DeliveryStatus;
+    kind: DeliveryKind;
+    title: string | null;
+    fromStoreId: string | null;
+    toStoreId: string;
+    items: Array<{ id: string; variantId: string; quantity: number; receivedQuantity: number | null }>;
+  } | null>;
+  updateDraftHeader(
+    deliveryId: string,
+    patch: { title?: string | null; note?: string | null },
+    tx: DeliveryTx,
+  ): Promise<void>;
+  replaceDraftItems(
+    deliveryId: string,
+    items: CreateDeliveryItemRow[],
+    tx: DeliveryTx,
+  ): Promise<void>;
+  setStatus(
+    deliveryId: string,
+    status: DeliveryStatus,
+    timestamps: { sentAt?: Date; receivedAt?: Date },
+    receivedByUserId: string | null,
+    tx: DeliveryTx,
+  ): Promise<void>;
+  setReceivedQuantity(
+    deliveryItemId: string,
+    receivedQuantity: number,
+    tx: DeliveryTx,
+  ): Promise<void>;
+  recordAdjustments(
+    deliveryId: string,
+    rows: DeliveryAdjustmentInput[],
+    tx: DeliveryTx,
+  ): Promise<void>;
   findDelivery(deliveryId: string): Promise<DeliveryWithItems | null>;
   list(storeId: string, query: ListDeliveriesQuery): Promise<PaginatedDeliveries>;
   listGroupedByProduct(
@@ -74,6 +133,68 @@ export interface DeliveryRepository {
 }
 
 export function buildDeliveryRepository(db: Database): DeliveryRepository {
+  // Single shape used everywhere a full DeliveryWithItems is reconstructed.
+  const fullInclude = {
+    fromStore: { select: { id: true, name: true } },
+    toStore: { select: { id: true, name: true } },
+    user: { select: { fullName: true } },
+    receivedBy: { select: { fullName: true } },
+    items: { include: { variant: { include: { product: true } } } },
+    adjustments: {
+      include: { adjustedBy: { select: { fullName: true } } },
+      orderBy: { adjustedAt: 'asc' as const },
+    },
+  } as const;
+
+  type FullRow = Prisma.DeliveryGetPayload<{ include: typeof fullInclude }>;
+
+  function rowToDTO(row: FullRow): DeliveryWithItems {
+    return {
+      id: row.id,
+      number: row.number,
+      kind: KIND_FROM_PRISMA[row.kind],
+      status: STATUS_FROM_PRISMA[row.status],
+      title: row.title,
+      fromStoreId: row.fromStoreId,
+      fromStoreName: row.fromStore?.name ?? null,
+      toStoreId: row.toStoreId,
+      toStoreName: row.toStore.name,
+      createdByUserId: row.createdByUserId,
+      createdByFullName: row.user.fullName,
+      receivedByUserId: row.receivedByUserId,
+      receivedByFullName: row.receivedBy?.fullName ?? null,
+      note: row.note,
+      createdAt: row.createdAt.toISOString(),
+      sentAt: row.sentAt?.toISOString() ?? null,
+      receivedAt: row.receivedAt?.toISOString() ?? null,
+      itemCount: row.items.length,
+      totalUnits: row.items.reduce((sum, i) => sum + i.quantity, 0),
+      items: row.items.map((i) => ({
+        id: i.id,
+        variantId: i.variantId,
+        quantity: i.quantity,
+        receivedQuantity: i.receivedQuantity,
+        productId: i.variant.productId,
+        productCode: i.variant.product.code,
+        productName: i.variant.product.name,
+        size: SIZE_FROM_PRISMA[i.variant.size],
+        color: i.variant.color,
+        barcode: i.variant.barcode,
+        imagePath: i.variant.imagePath,
+      })),
+      adjustments: row.adjustments.map((a) => ({
+        id: a.id,
+        deliveryItemId: a.deliveryItemId,
+        expectedQty: a.expectedQty,
+        actualQty: a.actualQty,
+        reason: a.reason,
+        adjustedByUserId: a.adjustedByUserId,
+        adjustedByFullName: a.adjustedBy.fullName,
+        adjustedAt: a.adjustedAt.toISOString(),
+      })),
+    };
+  }
+
   return {
     async findActiveWarehouse(tx) {
       const c = tx ?? db;
@@ -136,80 +257,149 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
     },
 
     async createDelivery(header, items, tx) {
+      const now = header.receivedAtNow ? new Date() : null;
       const created = await tx.delivery.create({
         data: {
           kind: KIND_TO_PRISMA[header.kind],
+          status: STATUS_TO_PRISMA[header.status],
+          title: header.title,
           fromStoreId: header.fromStoreId,
           toStoreId: header.toStoreId,
           createdByUserId: header.createdByUserId,
           note: header.note,
-          items: { create: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })) },
+          sentAt: now,
+          receivedAt: now,
+          // Lines created at first save get receivedQuantity matching quantity
+          // *only* when the delivery is born `received` (legacy reception flow).
+          // For draft/sent flows, receivedQuantity stays null until reception.
+          items: {
+            create: items.map((i) => ({
+              variantId: i.variantId,
+              quantity: i.quantity,
+              receivedQuantity: header.status === 'received' ? i.quantity : null,
+            })),
+          },
         },
         select: { id: true },
       });
       return { id: created.id };
     },
 
-    async findDelivery(deliveryId) {
-      const row = await db.delivery.findUnique({
+    async loadForUpdate(deliveryId, tx) {
+      const row = await tx.delivery.findUnique({
         where: { id: deliveryId },
-        include: {
-          fromStore: { select: { id: true, name: true } },
-          toStore: { select: { id: true, name: true } },
-          user: { select: { fullName: true } },
+        select: {
+          id: true,
+          status: true,
+          kind: true,
+          title: true,
+          fromStoreId: true,
+          toStoreId: true,
           items: {
-            include: {
-              variant: { include: { product: true } },
-            },
+            select: { id: true, variantId: true, quantity: true, receivedQuantity: true },
           },
         },
       });
       if (!row) return null;
-      const totalUnits = row.items.reduce((sum, i) => sum + i.quantity, 0);
       return {
         id: row.id,
+        status: STATUS_FROM_PRISMA[row.status],
         kind: KIND_FROM_PRISMA[row.kind],
+        title: row.title,
         fromStoreId: row.fromStoreId,
-        fromStoreName: row.fromStore?.name ?? null,
         toStoreId: row.toStoreId,
-        toStoreName: row.toStore.name,
-        createdByUserId: row.createdByUserId,
-        createdByFullName: row.user.fullName,
-        note: row.note,
-        createdAt: row.createdAt.toISOString(),
-        itemCount: row.items.length,
-        totalUnits,
-        items: row.items.map((i) => ({
-          id: i.id,
+        items: row.items,
+      };
+    },
+
+    async updateDraftHeader(deliveryId, patch, tx) {
+      await tx.delivery.update({
+        where: { id: deliveryId },
+        data: {
+          ...(patch.title !== undefined ? { title: patch.title } : {}),
+          ...(patch.note !== undefined ? { note: patch.note } : {}),
+        },
+      });
+    },
+
+    async replaceDraftItems(deliveryId, items, tx) {
+      await tx.deliveryItem.deleteMany({ where: { deliveryId } });
+      if (items.length === 0) return;
+      await tx.deliveryItem.createMany({
+        data: items.map((i) => ({
+          deliveryId,
           variantId: i.variantId,
           quantity: i.quantity,
-          productId: i.variant.productId,
-          productCode: i.variant.product.code,
-          productName: i.variant.product.name,
-          size: SIZE_FROM_PRISMA[i.variant.size],
-          color: i.variant.color,
-          barcode: i.variant.barcode,
-          imagePath: i.variant.imagePath,
+          receivedQuantity: null,
         })),
-      };
+      });
+    },
+
+    async setStatus(deliveryId, status, timestamps, receivedByUserId, tx) {
+      await tx.delivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: STATUS_TO_PRISMA[status],
+          ...(timestamps.sentAt ? { sentAt: timestamps.sentAt } : {}),
+          ...(timestamps.receivedAt ? { receivedAt: timestamps.receivedAt } : {}),
+          ...(receivedByUserId !== null ? { receivedByUserId } : {}),
+        },
+      });
+    },
+
+    async setReceivedQuantity(deliveryItemId, receivedQuantity, tx) {
+      await tx.deliveryItem.update({
+        where: { id: deliveryItemId },
+        data: { receivedQuantity },
+      });
+    },
+
+    async recordAdjustments(deliveryId, rows, tx) {
+      if (rows.length === 0) return;
+      await tx.deliveryItemAdjustment.createMany({
+        data: rows.map((r) => ({
+          deliveryId,
+          deliveryItemId: r.deliveryItemId,
+          expectedQty: r.expectedQty,
+          actualQty: r.actualQty,
+          reason: r.reason,
+          adjustedByUserId: r.adjustedByUserId,
+        })),
+      });
+    },
+
+    async findDelivery(deliveryId) {
+      const row = await db.delivery.findUnique({
+        where: { id: deliveryId },
+        include: fullInclude,
+      });
+      return row ? rowToDTO(row) : null;
     },
 
     async list(storeId, query) {
       const where: Prisma.DeliveryWhereInput = { toStoreId: storeId };
+      if (query.status && query.status.length > 0) {
+        where.status = { in: query.status.map((s) => STATUS_TO_PRISMA[s]) };
+      }
       if (query.q) {
         const upper = query.q.toUpperCase();
         const ci = query.q;
-        where.items = {
-          some: {
-            variant: {
-              OR: [
-                { product: { code: { contains: upper } } },
-                { product: { name: { contains: ci, mode: 'insensitive' } } },
-                { barcode: { contains: upper } },
-              ],
+        where.OR = [
+          { title: { contains: ci, mode: 'insensitive' } },
+          {
+            items: {
+              some: {
+                variant: {
+                  OR: [
+                    { product: { code: { contains: upper } } },
+                    { product: { name: { contains: ci, mode: 'insensitive' } } },
+                    { barcode: { contains: upper } },
+                  ],
+                },
+              },
             },
           },
-        };
+        ];
       }
 
       const skip = (query.page - 1) * query.pageSize;
@@ -220,6 +410,7 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
             fromStore: { select: { name: true } },
             toStore: { select: { name: true } },
             user: { select: { fullName: true } },
+            receivedBy: { select: { fullName: true } },
             items: { select: { quantity: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -232,15 +423,22 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
       return {
         items: rows.map((row) => ({
           id: row.id,
+          number: row.number,
           kind: KIND_FROM_PRISMA[row.kind],
+          status: STATUS_FROM_PRISMA[row.status],
+          title: row.title,
           fromStoreId: row.fromStoreId,
           fromStoreName: row.fromStore?.name ?? null,
           toStoreId: row.toStoreId,
           toStoreName: row.toStore.name,
           createdByUserId: row.createdByUserId,
           createdByFullName: row.user.fullName,
+          receivedByUserId: row.receivedByUserId,
+          receivedByFullName: row.receivedBy?.fullName ?? null,
           note: row.note,
           createdAt: row.createdAt.toISOString(),
+          sentAt: row.sentAt?.toISOString() ?? null,
+          receivedAt: row.receivedAt?.toISOString() ?? null,
           itemCount: row.items.length,
           totalUnits: row.items.reduce((sum, i) => sum + i.quantity, 0),
         })),
@@ -336,4 +534,3 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
     },
   };
 }
-

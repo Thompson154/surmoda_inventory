@@ -47,6 +47,9 @@ enum StockMovementType {
   edit_permission_toggled
   delivery_in
   delivery_out
+  /// Vendedora confirmed reception with a quantity lower (or higher) than the
+  /// originally sent line. Always paired with a DeliveryItemAdjustment row.
+  delivery_received_adjusted
   sale_out
 
   @@map("stock_movement_type")
@@ -57,6 +60,26 @@ enum DeliveryKind {
   distribution
 
   @@map("delivery_kind")
+}
+
+/// Lifecycle of a distribution-kind Delivery.
+///   draft     → encargada is still composing the items, stock untouched
+///   sent      → encargada confirmed; awaiting physical reception at the branch.
+///                Stock still untouched at this stage.
+///   received  → vendedora confirmed reception with the originally requested
+///                quantities. Stock applied: -warehouse, +branch.
+///   partial   → vendedora confirmed reception but adjusted at least one line's
+///                quantity. Stock applied with the adjusted numbers. Original
+///                vs. adjusted is recorded in DeliveryItemAdjustment for audit.
+/// Reception-kind deliveries (warehouse intake from supplier) skip draft/sent
+/// and live in `received` from creation.
+enum DeliveryStatus {
+  draft
+  sent
+  received
+  partial
+
+  @@map("delivery_status")
 }
 
 enum PaymentMethod {
@@ -150,6 +173,8 @@ model User {
   salesRecorded     Sale[]
   dailyReportsClosed DailyReport[]
   dailyReportAttendance DailyReportAttendance[]
+  deliveriesReceived Delivery[]                 @relation("DeliveryReceiver")
+  deliveryAdjustments DeliveryItemAdjustment[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -264,19 +289,36 @@ model StoreEditPermission {
 }
 
 model Delivery {
-  id              String       @id @default(cuid())
-  kind            DeliveryKind
-  fromStoreId     String?      @map("from_store_id")
-  toStoreId       String       @map("to_store_id")
-  createdByUserId String       @map("created_by_user_id")
-  note            String?
-  createdAt       DateTime     @default(now()) @map("created_at")
+  id               String         @id @default(cuid())
+  /// Sequential, human-friendly id rendered as "EN-{n.padStart(4)}" on the FE.
+  /// Postgres-managed sequence, globally unique across all kinds and stores.
+  number           Int            @unique @default(autoincrement())
+  kind             DeliveryKind
+  /// Free-text label set by the encargada to identify the shipment
+  /// ("Colección invierno", "Reposición urgente", etc.). Optional in `draft`,
+  /// required to leave draft on distribution kind. Reception kind uses null.
+  title            String?
+  status           DeliveryStatus @default(received)
+  fromStoreId      String?        @map("from_store_id")
+  toStoreId        String         @map("to_store_id")
+  createdByUserId  String         @map("created_by_user_id")
+  /// Set when the encargada confirms the draft (draft → sent).
+  sentAt           DateTime?      @map("sent_at")
+  /// Set when the vendedora confirms reception (sent → received|partial).
+  receivedAt       DateTime?      @map("received_at")
+  receivedByUserId String?        @map("received_by_user_id")
+  note             String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
-  fromStore Store?         @relation("DeliveryOrigin", fields: [fromStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  toStore   Store          @relation("DeliveryDest", fields: [toStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user      User           @relation(fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  items     DeliveryItem[]
+  fromStore   Store?                    @relation("DeliveryOrigin", fields: [fromStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  toStore     Store                     @relation("DeliveryDest", fields: [toStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user        User                      @relation(fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  receivedBy  User?                     @relation("DeliveryReceiver", fields: [receivedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  items       DeliveryItem[]
+  adjustments DeliveryItemAdjustment[]
 
+  @@index([status, toStoreId])
   @@index([toStoreId, createdAt])
   @@index([fromStoreId, createdAt])
   @@map("deliveries")
@@ -286,14 +328,43 @@ model DeliveryItem {
   id         String @id @default(cuid())
   deliveryId String @map("delivery_id")
   variantId  String @map("variant_id")
+  /// Quantity sent by the encargada (== quantity at the moment of sent → received
+  /// when no adjustment was made). Frozen once status leaves draft.
   quantity   Int
+  /// Quantity actually confirmed at the destination. Equals `quantity` for
+  /// non-adjusted lines. Differs only on `partial` deliveries; the diff is
+  /// captured in DeliveryItemAdjustment for audit.
+  receivedQuantity Int? @map("received_quantity")
 
-  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  variant  Variant  @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  delivery    Delivery                  @relation(fields: [deliveryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant     Variant                   @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  adjustments DeliveryItemAdjustment[]
 
   @@index([deliveryId])
   @@index([variantId])
   @@map("delivery_items")
+}
+
+/// Audit record of a vendedora adjusting a sent line at reception time. One
+/// row per quantity change. Drives the anti-fraud signal: "vendedora X has
+/// adjusted Y deliveries down by Z units this month".
+model DeliveryItemAdjustment {
+  id              String   @id @default(cuid())
+  deliveryId      String   @map("delivery_id")
+  deliveryItemId  String   @map("delivery_item_id")
+  expectedQty     Int      @map("expected_qty")
+  actualQty       Int      @map("actual_qty")
+  reason          String?
+  adjustedByUserId String  @map("adjusted_by_user_id")
+  adjustedAt      DateTime @default(now()) @map("adjusted_at")
+
+  delivery     Delivery     @relation(fields: [deliveryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  deliveryItem DeliveryItem @relation(fields: [deliveryItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  adjustedBy   User         @relation(fields: [adjustedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([deliveryId])
+  @@index([adjustedByUserId, adjustedAt])
+  @@map("delivery_item_adjustments")
 }
 
 model Sale {
@@ -354,19 +425,20 @@ model DailyReport {
   @@map("daily_reports")
 }
 
-/// Roster of staff (vendedora/encargada) who worked the store on the closed day.
-/// Manually marked by the encargada on close — distinct from `recordedByUserId`
-/// on Sale (the cashier who registered the transaction). One closure can have
-/// helpers who never typed a sale themselves.
+/// Roster of staff who worked the store on the closed day. Free-text names
+/// because helpers may not have a system account (occasional support staff,
+/// family member helping out, etc.). `userId` stays as an optional FK in case
+/// we later wire it back to real accounts for analytics.
 model DailyReportAttendance {
-  id            String @id @default(cuid())
-  dailyReportId String @map("daily_report_id")
-  userId        String @map("user_id")
+  id            String  @id @default(cuid())
+  dailyReportId String  @map("daily_report_id")
+  fullName      String  @map("full_name")
+  userId        String? @map("user_id")
 
   dailyReport DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  @@unique([dailyReportId, userId])
+  @@index([dailyReportId])
   @@index([userId])
   @@map("daily_report_attendance")
 }

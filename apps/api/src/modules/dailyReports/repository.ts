@@ -28,7 +28,7 @@ export interface DailyReportRepository {
     closedByUserId: string | null;
     closedAt: Date;
     autoClosed: boolean;
-    attendedUserIds: string[];
+    attendedNames: string[];
   }, tx?: DailyReportTx): Promise<DailyReportDTO>;
   findByDate(storeId: string, day: Date): Promise<DailyReportDTO | null>;
   getDayItems(storeId: string, day: Date): Promise<DailyReportItemDTO[]>;
@@ -58,7 +58,7 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
     closedAt: Date;
     autoClosed: boolean;
     user?: { fullName: string } | null;
-    attendees?: Array<{ user: { id: string; fullName: string } }>;
+    attendees?: Array<{ fullName: string; userId: string | null }>;
   }): DailyReportDTO {
     // The DB column is `DATE` so Prisma returns 00:00 UTC for the stored day —
     // slicing the ISO string is timezone-agnostic and keeps the YYYY-MM-DD
@@ -78,15 +78,15 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
       closedAt: row.closedAt.toISOString(),
       autoClosed: row.autoClosed,
       attendees: (row.attendees ?? []).map((a) => ({
-        userId: a.user.id,
-        fullName: a.user.fullName,
+        fullName: a.fullName,
+        userId: a.userId,
       })),
     };
   }
 
   const dtoInclude = {
     user: { select: { fullName: true } },
-    attendees: { include: { user: { select: { id: true, fullName: true } } } },
+    attendees: { select: { fullName: true, userId: true } },
   } as const;
 
   return {
@@ -155,14 +155,29 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
       // Reset attendance roster: cierre is idempotent so any prior list for
       // the same day is replaced. Skipped on auto-close (empty list).
       await c.dailyReportAttendance.deleteMany({ where: { dailyReportId: upserted.id } });
-      if (input.attendedUserIds.length > 0) {
-        await c.dailyReportAttendance.createMany({
-          data: input.attendedUserIds.map((userId) => ({
-            dailyReportId: upserted.id,
-            userId,
-          })),
-          skipDuplicates: true,
-        });
+      if (input.attendedNames.length > 0) {
+        // Dedup by lowercased trimmed name so duplicate chips don't create rows.
+        const seen = new Set<string>();
+        const unique = input.attendedNames
+          .map((n) => n.trim())
+          .filter((n) => {
+            if (!n) return false;
+            const key = n.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        if (unique.length > 0) {
+          await c.dailyReportAttendance.createMany({
+            data: unique.map((fullName) => ({
+              dailyReportId: upserted.id,
+              fullName,
+              // Try to link to a real account if the name matches exactly — purely
+              // a convenience for analytics, not enforced.
+              userId: null,
+            })),
+          });
+        }
       }
 
       const full = await c.dailyReport.findUniqueOrThrow({
