@@ -43,11 +43,11 @@ export function StoresListPage() {
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
             <Link
-              to="/"
+              to="/admin"
               className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
             >
               <ArrowLeft className="h-4 w-4" />
-              Volver al inicio
+              Volver al panel admin
             </Link>
             <h1 className="text-xl font-semibold">Tiendas</h1>
           </div>
