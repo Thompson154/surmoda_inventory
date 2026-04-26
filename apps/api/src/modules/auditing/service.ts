@@ -2,6 +2,7 @@ import type { Database } from '../../infrastructure/database';
 import { Prisma } from '../../infrastructure/database';
 import { logger } from '../../infrastructure/logger';
 import type { AuditWriteInput } from './types';
+import { sanitizeAuditPayload } from './sanitize';
 
 export interface AuditService {
   write(input: AuditWriteInput): void;
@@ -20,7 +21,9 @@ export function buildAuditService(db: Database): AuditService {
               action: input.action,
               entity: input.entity,
               entityId: input.entityId ?? null,
-              payload: (input.payload ?? {}) as Prisma.InputJsonValue,
+              // Defense-in-depth: redact any accidentally-included secrets
+              // BEFORE the row is persisted. See sanitize.ts for the rule set.
+              payload: sanitizeAuditPayload(input.payload) as Prisma.InputJsonValue,
               ip: input.ip ?? null,
               userAgent: input.userAgent ?? null,
             },

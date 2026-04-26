@@ -5,7 +5,9 @@ import { emitAudit } from '../../middleware/auditLogger';
 import { CreateVariantSchema, UpdateVariantSchema } from './validators';
 import type { VariantService } from './service.variant';
 import type { ImageMimeType, UploadInput } from './imageStorage';
-import { ALLOWED_MIME_TYPES, MAX_IMAGE_BYTES } from './imageStorage';
+import { ALLOWED_MIME_TYPES, MAX_IMAGE_BYTES, sniffImageFormat } from './imageStorage';
+
+const ORIGINAL_NAME_MAX_LENGTH = 255;
 
 export interface VariantController {
   create(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -45,6 +47,25 @@ function readImage(req: Request): UploadInput | undefined {
       400,
       ERROR_CODES.VARIANT_IMAGE_INVALID_TYPE,
       'Formato de imagen inválido (PNG, JPG o WebP).',
+    );
+  }
+  // Defense in depth: the multer-reported MIME type comes from the client and
+  // is forgeable. Re-derive the format from the buffer's magic bytes and
+  // reject any mismatch — protects against renamed-extension uploads
+  // (e.g. shell.php → shell.jpg).
+  const sniffed = sniffImageFormat(file.buffer);
+  if (sniffed === 'unknown' || sniffed !== file.mimetype) {
+    throw new AppError(
+      400,
+      ERROR_CODES.VARIANT_IMAGE_INVALID_TYPE,
+      'El contenido del archivo no coincide con un formato de imagen soportado.',
+    );
+  }
+  if (file.originalname.length > ORIGINAL_NAME_MAX_LENGTH) {
+    throw new AppError(
+      400,
+      ERROR_CODES.VALIDATION_ERROR,
+      'Nombre del archivo demasiado largo.',
     );
   }
 

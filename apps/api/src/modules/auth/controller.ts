@@ -6,6 +6,16 @@ import { emitAudit } from '../../middleware/auditLogger';
 import type { AuthService } from './service';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
+
+// Path covers /api/v1/auth/refresh AND /api/v1/auth/logout. Both endpoints
+// need the cookie:
+//   - /refresh  → reads it to issue a new access+refresh pair.
+//   - /logout   → reads it to revoke THIS device's token specifically.
+// Narrowing further (e.g. /api/v1/auth/refresh only) would force /logout to
+// fall back to userId-based revocation, killing every active session of the
+// user instead of just this device. We keep the per-device revocation
+// semantics on purpose. Cookie has httpOnly + sameSite=strict + secure(prod),
+// so the marginally-broader path does not increase attack surface.
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 function refreshCookieOptions(maxAgeMs: number): CookieOptions {

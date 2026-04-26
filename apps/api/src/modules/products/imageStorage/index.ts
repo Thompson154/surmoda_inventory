@@ -6,6 +6,8 @@ import type { ImageStorage } from './types';
 
 export type { ImageMimeType, ImageStorage, UploadContext, UploadInput } from './types';
 export { ALLOWED_MIME_TYPES, MAX_IMAGE_BYTES, extensionFromMime } from './types';
+export { sniffImageFormat } from './sniff';
+export type { SniffedFormat } from './sniff';
 
 /**
  * Builds the image storage adapter from app config.
