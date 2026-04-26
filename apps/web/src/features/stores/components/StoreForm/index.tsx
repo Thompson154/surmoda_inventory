@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import type { CreateStorePayload, Store, StoreKind } from '@surmoda/contracts';
-import { Alert, Button } from '@/shared/ui';
 import { CodeField } from './CodeField';
 import { NameField } from './NameField';
 import { KindSelect } from './KindSelect';
+import { Alert, Button } from '@/shared/ui';
 
 interface StoreFormProps {
   initialValues?: Partial<Pick<Store, 'code' | 'name' | 'kind'>>;
@@ -32,7 +32,11 @@ export function StoreForm({
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onSubmit({ code: code.trim().toUpperCase(), name: name.trim(), kind } satisfies CreateStorePayload);
+    onSubmit({
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      kind,
+    } satisfies CreateStorePayload);
   };
 
   const submitLabel = mode === 'create' ? 'Crear tienda' : 'Guardar cambios';

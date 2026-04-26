@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
 import { errorHandler } from '../errorHandler';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
-import { ZodError } from 'zod';
 
 interface ResMock {
   statusCode?: number;
@@ -44,14 +44,10 @@ describe('errorHandler', () => {
 
   it('maps ZodError to 400 VALIDATION_ERROR with issues', () => {
     const res = buildResMock();
-    const err = new ZodError([
-      { code: 'custom', path: ['email'], message: 'Required' } as never,
-    ]);
+    const err = new ZodError([{ code: 'custom', path: ['email'], message: 'Required' } as never]);
     errorHandler(err, req, asRes(res), next);
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual(
-      expect.objectContaining({ code: 'VALIDATION_ERROR' }),
-    );
+    expect(res.body).toEqual(expect.objectContaining({ code: 'VALIDATION_ERROR' }));
   });
 
   it('maps unknown errors to 500 INTERNAL_ERROR without leaking the message', () => {
@@ -59,9 +55,7 @@ describe('errorHandler', () => {
     const err = new Error('database exploded with secret leaking');
     errorHandler(err, req, asRes(res), next);
     expect(res.statusCode).toBe(500);
-    expect(res.body).toEqual(
-      expect.objectContaining({ code: 'INTERNAL_ERROR' }),
-    );
+    expect(res.body).toEqual(expect.objectContaining({ code: 'INTERNAL_ERROR' }));
     expect(JSON.stringify(res.body)).not.toContain('secret leaking');
   });
 });

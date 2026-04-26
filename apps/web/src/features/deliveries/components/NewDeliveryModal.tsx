@@ -1,18 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
-import {
-  Alert,
-  Button,
-  IconButton,
-  Input,
-  Modal,
-} from '@/shared/ui';
+import { useCreateDelivery } from '../hooks/useDeliveries';
+import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useInventory } from '@/features/inventory/hooks/useInventory';
-import { useCreateDelivery } from '../hooks/useDeliveries';
 import { getImageUrl } from '@/features/products/services/productsService';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 
@@ -44,9 +38,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
   // - Reception → list of all variants from any store (we use the warehouse listing
   //   too because every variant has a stockBySite row with quantity ≥ 0)
   const warehouseStore = stores.data?.items.find((s) => s.kind === 'warehouse');
-  const sourceStoreId = isReception
-    ? warehouseStore?.id ?? storeId
-    : warehouseStore?.id;
+  const sourceStoreId = isReception ? (warehouseStore?.id ?? storeId) : warehouseStore?.id;
 
   const [q, setQ] = useState('');
   const inventory = useInventory(open ? sourceStoreId : undefined, {
@@ -114,10 +106,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
         i.variantId === variantId
           ? {
               ...i,
-              quantity: Math.max(
-                0,
-                isReception ? qty : Math.min(qty, i.available),
-              ),
+              quantity: Math.max(0, isReception ? qty : Math.min(qty, i.available)),
             }
           : i,
       ),
@@ -158,7 +147,11 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
 
   return (
     <>
-      <Modal isOpen={open && !confirmOpen} onClose={handleClose} title={isReception ? 'Nueva recepción' : 'Nueva entrega'}>
+      <Modal
+        isOpen={open && !confirmOpen}
+        onClose={handleClose}
+        title={isReception ? 'Nueva recepción' : 'Nueva entrega'}
+      >
         <div className="flex flex-col gap-3 max-h-[75vh] overflow-y-auto">
           <p className="text-xs text-slate-500">
             {isReception
@@ -204,8 +197,8 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                           row.quantity === 0
                             ? 'text-status-danger'
                             : row.quantity < 5
-                            ? 'text-status-warning'
-                            : 'text-slate-500'
+                              ? 'text-status-warning'
+                              : 'text-slate-500'
                         }`}
                       >
                         Stock: {row.quantity}
@@ -216,9 +209,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                 );
               })}
               {inventory.data.items.length === 0 && (
-                <li className="px-3 py-3 text-center text-xs text-slate-500">
-                  Sin resultados.
-                </li>
+                <li className="px-3 py-3 text-center text-xs text-slate-500">Sin resultados.</li>
               )}
             </ul>
           )}
@@ -236,8 +227,8 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-900 truncate">
-                        <span className="font-mono">{i.productCode}</span> ·{' '}
-                        {sizeLabel(i.size)} · <span className="capitalize">{i.color}</span>
+                        <span className="font-mono">{i.productCode}</span> · {sizeLabel(i.size)} ·{' '}
+                        <span className="capitalize">{i.color}</span>
                       </p>
                       {!isReception && (
                         <p className="text-[10px] text-slate-400 mt-0.5">
@@ -322,17 +313,15 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
       >
         <div className="flex flex-col gap-3">
           <p className="text-sm text-slate-700">
-            Vas a {isReception ? 'recibir' : 'entregar'} <strong>{submittableUnits}</strong>{' '}
-            unidad{submittableUnits === 1 ? '' : 'es'} en{' '}
-            <strong>{targetStore?.name ?? '—'}</strong>.
+            Vas a {isReception ? 'recibir' : 'entregar'} <strong>{submittableUnits}</strong> unidad
+            {submittableUnits === 1 ? '' : 'es'} en <strong>{targetStore?.name ?? '—'}</strong>.
           </p>
           <ul className="text-xs text-slate-600 max-h-40 overflow-y-auto">
             {cart
               .filter((i) => i.quantity > 0)
               .map((i) => (
                 <li key={i.variantId} className="py-0.5">
-                  · {i.productCode} {sizeLabel(i.size)} {i.color} ×{' '}
-                  <strong>{i.quantity}</strong>
+                  · {i.productCode} {sizeLabel(i.size)} {i.color} × <strong>{i.quantity}</strong>
                 </li>
               ))}
           </ul>

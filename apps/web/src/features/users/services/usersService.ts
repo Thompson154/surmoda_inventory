@@ -1,4 +1,3 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   CreateUserPayload,
   ListUsersFilters,
@@ -6,6 +5,7 @@ import type {
   UpdateUserPayload,
   User,
 } from '../types';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQueryString(filters: ListUsersFilters): string {
   const params = new URLSearchParams();
@@ -23,7 +23,8 @@ export const usersService = {
     httpClient.get<PaginatedUsers>(`/users${buildQueryString(filters)}`),
   create: (payload: CreateUserPayload) => httpClient.post<User>('/users', payload),
   getById: (id: string) => httpClient.get<User>(`/users/${id}`),
-  update: (id: string, payload: UpdateUserPayload) => httpClient.patch<User>(`/users/${id}`, payload),
+  update: (id: string, payload: UpdateUserPayload) =>
+    httpClient.patch<User>(`/users/${id}`, payload),
   deactivate: (id: string) => httpClient.post<User>(`/users/${id}/deactivate`, undefined),
   reactivate: (id: string) => httpClient.post<User>(`/users/${id}/reactivate`, undefined),
   resetPassword: (id: string, newPassword: string) =>

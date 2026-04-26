@@ -1,8 +1,8 @@
 import { Power, RotateCcw } from 'lucide-react';
-import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
 import { useDeactivateUser, useReactivateUser } from '../../hooks/useUsers';
 import type { User } from '../../types';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { Alert, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
 import type { HttpError } from '@/shared/services/httpClient';
 
 interface UserStatusActionsProps {

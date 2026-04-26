@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Bell, CalendarX, PackageX } from 'lucide-react';
 import type { AlertDTO, AlertKind } from '@surmoda/contracts';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useAlerts } from '../hooks/useAlerts';
+import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
 const ICON_FOR: Record<AlertKind, typeof Bell> = {
   STOCK_LOW: AlertTriangle,
@@ -20,8 +20,7 @@ const PALETTE_FOR: Record<AlertDTO['severity'], { bg: string; text: string }> = 
 export function BellMenu() {
   const user = useAuthStore((s) => s.user);
   const canSee =
-    Boolean(user) &&
-    (user!.isAdmin || user!.assignments.some((a) => a.role === 'encargada'));
+    Boolean(user) && (user!.isAdmin || user!.assignments.some((a) => a.role === 'encargada'));
 
   const alerts = useAlerts(canSee);
   const [open, setOpen] = useState(false);
@@ -68,9 +67,7 @@ export function BellMenu() {
           </div>
 
           <div className="max-h-[60vh] overflow-y-auto">
-            {alerts.isLoading && (
-              <p className="text-xs text-slate-500 px-3 py-4">Cargando…</p>
-            )}
+            {alerts.isLoading && <p className="text-xs text-slate-500 px-3 py-4">Cargando…</p>}
             {!alerts.isLoading && items.length === 0 && (
               <p className="text-sm text-slate-500 px-3 py-6 text-center">
                 Todo en orden — no hay alertas activas.
@@ -89,7 +86,9 @@ export function BellMenu() {
                   }}
                   className="w-full text-left px-3 py-2.5 border-b border-surface-border last:border-b-0 hover:bg-surface-sunken flex items-start gap-2.5"
                 >
-                  <div className={`h-7 w-7 rounded ${palette.bg} ${palette.text} flex items-center justify-center shrink-0 mt-0.5`}>
+                  <div
+                    className={`h-7 w-7 rounded ${palette.bg} ${palette.text} flex items-center justify-center shrink-0 mt-0.5`}
+                  >
                     <Icon className="h-3.5 w-3.5" />
                   </div>
                   <p className="text-xs text-slate-700 flex-1">{a.message}</p>

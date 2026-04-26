@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image as ImageIcon, Upload, X } from 'lucide-react';
-import { Field, IconButton } from '@/shared/ui';
 import { getImageUrl } from '../../services/productsService';
+import { Field, IconButton } from '@/shared/ui';
 
 interface ImageUploaderProps {
   /** Existing image path (relative or absolute) shown as the initial preview. */

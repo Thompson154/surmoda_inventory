@@ -1,9 +1,6 @@
-import {
-  assertEncargadaOrAdmin,
-  type StoreScopeRepo,
-} from '../../shared/auth/storeScope';
-import type { AlertsRepository } from './repository';
 import type { AlertsResponse } from '@surmoda/contracts';
+import { assertEncargadaOrAdmin, type StoreScopeRepo } from '../../shared/auth/storeScope';
+import type { AlertsRepository } from './repository';
 
 export interface AuthContext {
   userId: string;

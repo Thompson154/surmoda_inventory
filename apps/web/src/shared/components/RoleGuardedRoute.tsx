@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useCurrentRole } from '../hooks/useCurrentRole';
+import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
 type AllowedRole = 'admin' | 'encargada' | 'vendedora';
 

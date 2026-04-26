@@ -24,7 +24,10 @@ export interface AuthContext {
   isAdmin: boolean;
 }
 
+// `namespace Express` is the canonical way Express types are augmented; the
+// no-namespace lint rule doesn't have an ES-module equivalent for this case.
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       auth?: AuthContext;

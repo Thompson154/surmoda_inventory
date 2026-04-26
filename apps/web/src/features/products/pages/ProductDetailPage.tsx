@@ -1,17 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Power, RotateCcw } from 'lucide-react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui';
-import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import type { HttpError } from '@/shared/services/httpClient';
 import { useProduct } from '../hooks/useProducts';
 import {
   useCreateVariant,
@@ -22,6 +11,9 @@ import {
 import { ProductForm } from '../components/ProductForm';
 import { VariantForm } from '../components/VariantForm';
 import { VariantList } from '../components/VariantList';
+import type { HttpError } from '@/shared/services/httpClient';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
 
 export function ProductDetailPage() {
   const params = useParams<{ id: string }>();

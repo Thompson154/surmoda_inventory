@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import type { Role } from '../../types';
 import { Button, Field, Select } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
-import type { Role } from '../../types';
 
 interface AddAssignmentFormProps {
   isPending: boolean;
@@ -28,7 +28,10 @@ export function AddAssignmentForm({ isPending, onAdd }: AddAssignmentFormProps) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2 rounded border border-dashed border-slate-300 p-3">
+    <form
+      onSubmit={handleSubmit}
+      className="flex items-end gap-2 rounded border border-dashed border-slate-300 p-3"
+    >
       <div className="flex flex-1 flex-col gap-1">
         <Field label="Tienda" htmlFor="add-assignment-store">
           <Select

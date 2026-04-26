@@ -1,23 +1,11 @@
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Power, RotateCcw } from 'lucide-react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/shared/ui';
+import { useStore } from '../hooks/useStores';
+import { useDeactivateStore, useReactivateStore, useUpdateStore } from '../hooks/useStoresAdmin';
+import { StoreForm } from '../components/StoreForm';
+import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import { useStore } from '../hooks/useStores';
-import {
-  useDeactivateStore,
-  useReactivateStore,
-  useUpdateStore,
-} from '../hooks/useStoresAdmin';
-import { StoreForm } from '../components/StoreForm';
 
 export function StoreDetailPage() {
   const params = useParams<{ id: string }>();

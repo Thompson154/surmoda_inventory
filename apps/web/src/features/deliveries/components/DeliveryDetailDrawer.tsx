@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { History } from 'lucide-react';
-import type { DeliveryStatus, DeliveryWithItems, ReceiveDeliveryItemAdjustment } from '@surmoda/contracts';
+import type {
+  DeliveryStatus,
+  DeliveryWithItems,
+  ReceiveDeliveryItemAdjustment,
+} from '@surmoda/contracts';
+import { useConfirmDraftDelivery, useDelivery, useReceiveDelivery } from '../hooks/useDeliveries';
 import { Alert, Button, Modal, Skeleton } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import type { HttpError } from '@/shared/services/httpClient';
-import {
-  useConfirmDraftDelivery,
-  useDelivery,
-  useReceiveDelivery,
-} from '../hooks/useDeliveries';
 
 interface DeliveryDetailDrawerProps {
   deliveryId: string | null;
@@ -30,7 +30,20 @@ const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
   partial: { bg: 'bg-orange-100', text: 'text-orange-700' },
 };
 
-const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MONTH_ABBR = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
 
 function shortDate(iso: string): string {
   const d = new Date(iso);
@@ -43,7 +56,7 @@ function formatNumber(n: number): string {
 
 export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDrawerProps) {
   const open = deliveryId !== null;
-  const query = useDelivery(open ? deliveryId ?? undefined : undefined);
+  const query = useDelivery(open ? (deliveryId ?? undefined) : undefined);
   const data: DeliveryWithItems | undefined = query.data;
 
   // Receive form state — keyed by deliveryItemId, defaults to "received as expected".
@@ -99,11 +112,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   };
 
   return (
-    <Modal
-      isOpen={open}
-      onClose={onClose}
-      title={data ? formatNumber(data.number) : 'Entrega'}
-    >
+    <Modal isOpen={open} onClose={onClose} title={data ? formatNumber(data.number) : 'Entrega'}>
       <div className="flex flex-col gap-3 max-h-[75vh] overflow-y-auto">
         {query.isLoading && (
           <>
@@ -159,9 +168,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                           <p className="text-sm font-semibold text-slate-900 truncate">
                             {it.productName}
                           </p>
-                          <p className="text-xs font-mono text-slate-500">
-                            {it.productCode}
-                          </p>
+                          <p className="text-xs font-mono text-slate-500">{it.productCode}</p>
                         </div>
                         {editable ? (
                           <div className="flex items-center gap-2 shrink-0">
@@ -172,7 +179,10 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                               max={it.quantity}
                               value={value}
                               onChange={(e) => {
-                                const v = Math.max(0, Math.min(it.quantity, Number(e.target.value) || 0));
+                                const v = Math.max(
+                                  0,
+                                  Math.min(it.quantity, Number(e.target.value) || 0),
+                                );
                                 setReceivedQty((prev) => ({ ...prev, [it.id]: v }));
                               }}
                               className="w-16 rounded border border-surface-border text-sm text-right px-2 py-1 font-mono"
@@ -234,8 +244,8 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
               <div className="flex flex-col gap-2">
                 {isPartialPreview && (
                   <Alert variant="info">
-                    Vas a confirmar como <strong>parcial</strong>: las cantidades ajustadas
-                    quedan en auditoría con tu nombre.
+                    Vas a confirmar como <strong>parcial</strong>: las cantidades ajustadas quedan
+                    en auditoría con tu nombre.
                   </Alert>
                 )}
                 <Button
@@ -270,7 +280,10 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                 {data.adjustments.map((a) => (
                   <li key={a.id}>
                     <span className="font-mono text-slate-500">
-                      {new Date(a.adjustedAt).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(a.adjustedAt).toLocaleString('es-BO', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })}
                     </span>
                     {' · '}
                     <span className="font-semibold">{a.adjustedByFullName}</span>

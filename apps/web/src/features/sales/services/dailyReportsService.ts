@@ -1,4 +1,3 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   CloseDayPayload,
   DailyReportDTO,
@@ -7,6 +6,7 @@ import type {
   PaginatedDailyReports,
   StoreStaffMember,
 } from '@surmoda/contracts';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQS(filters: ListDailyReportsFilters): string {
   const params = new URLSearchParams();
@@ -26,23 +26,16 @@ export const dailyReportsService = {
   getItemsByDate: (storeId: string, isoDay: string) =>
     httpClient.get<DailyReportItemsDTO>(`/stores/${storeId}/daily-reports/${isoDay}/items`),
   closeToday: (storeId: string, payload: CloseDayPayload = { attendedNames: [] }) =>
-    httpClient.post<DailyReportDTO>(
-      `/stores/${storeId}/daily-reports/close-today`,
-      payload,
-    ),
+    httpClient.post<DailyReportDTO>(`/stores/${storeId}/daily-reports/close-today`, payload),
   listStaff: (storeId: string) =>
-    httpClient.get<{ items: StoreStaffMember[] }>(
-      `/stores/${storeId}/daily-reports/staff`,
-    ),
+    httpClient.get<{ items: StoreStaffMember[] }>(`/stores/${storeId}/daily-reports/staff`),
 };
 
 export const dailyReportsQueryKeys = {
   all: ['dailyReports'] as const,
   list: (storeId: string, filters: ListDailyReportsFilters) =>
     ['dailyReports', 'list', storeId, filters] as const,
-  detail: (storeId: string, isoDay: string) =>
-    ['dailyReports', 'detail', storeId, isoDay] as const,
-  items: (storeId: string, isoDay: string) =>
-    ['dailyReports', 'items', storeId, isoDay] as const,
+  detail: (storeId: string, isoDay: string) => ['dailyReports', 'detail', storeId, isoDay] as const,
+  items: (storeId: string, isoDay: string) => ['dailyReports', 'items', storeId, isoDay] as const,
   staff: (storeId: string) => ['dailyReports', 'staff', storeId] as const,
 };

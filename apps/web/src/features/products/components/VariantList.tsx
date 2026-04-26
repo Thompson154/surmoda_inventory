@@ -1,8 +1,8 @@
 import { Image as ImageIcon, Power, RotateCcw } from 'lucide-react';
 import type { Variant } from '@surmoda/contracts';
-import { Badge, Button, Card, CardContent } from '@/shared/ui';
 import { useDeactivateVariant, useReactivateVariant } from '../hooks/useProductsAdmin';
 import { getImageUrl } from '../services/productsService';
+import { Badge, Button, Card, CardContent } from '@/shared/ui';
 import { formatBs as formatPrice } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 
@@ -36,7 +36,11 @@ function VariantRow({ variant }: { variant: Variant }) {
         <CardContent className="flex items-center gap-3 py-3">
           <div className="h-14 w-14 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
             {imageUrl ? (
-              <img src={imageUrl} alt={`${label} ${variant.color}`} className="h-full w-full object-cover" />
+              <img
+                src={imageUrl}
+                alt={`${label} ${variant.color}`}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <ImageIcon className="h-5 w-5 text-slate-400" />
             )}

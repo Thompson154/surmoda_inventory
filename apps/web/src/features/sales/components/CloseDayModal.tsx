@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import type { DailyReportDTO } from '@surmoda/contracts';
+import { useCloseToday, useDailyReportByDate } from '../hooks/useDailyReports';
 import { Alert, Button, Input, Modal, Skeleton } from '@/shared/ui';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { formatBs } from '@/shared/format/currency';
 import type { HttpError } from '@/shared/services/httpClient';
-import {
-  useCloseToday,
-  useDailyReportByDate,
-} from '../hooks/useDailyReports';
 
 interface CloseDayModalProps {
   storeId: string;
@@ -72,8 +69,7 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
     setExtraInput('');
   };
 
-  const removeExtra = (idx: number) =>
-    setExtras((prev) => prev.filter((_, i) => i !== idx));
+  const removeExtra = (idx: number) => setExtras((prev) => prev.filter((_, i) => i !== idx));
 
   const submit = () => {
     setConfirmed(true);
@@ -99,9 +95,8 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
           <>
             {isAlreadyClosed && (
               <Alert variant="info">
-                Este día ya fue cerrado{closedReport.autoClosed ? ' automáticamente' : ''}.
-                Volvé a cerrarlo solo si registraste ventas nuevas o necesitás corregir el
-                personal del día.
+                Este día ya fue cerrado{closedReport.autoClosed ? ' automáticamente' : ''}. Volvé a
+                cerrarlo solo si registraste ventas nuevas o necesitás corregir el personal del día.
               </Alert>
             )}
             {confirmed && closeMutation.isSuccess && (

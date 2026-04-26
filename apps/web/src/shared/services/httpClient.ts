@@ -20,7 +20,10 @@ async function ensureAccessToken(): Promise<boolean> {
   if (refreshInflight) return refreshInflight;
   refreshInflight = (async () => {
     try {
-      const res = await fetch(`${BASE_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
       if (!res.ok) return false;
       const data = (await res.json()) as { accessToken?: string };
       if (!data.accessToken) return false;
@@ -30,7 +33,7 @@ async function ensureAccessToken(): Promise<boolean> {
       // Network error or CORS preflight rejection. Surface to console so devtools
       // shows *why* the silent auto-logout happened — production telemetry can
       // hook in here later (Sentry, etc.).
-      // eslint-disable-next-line no-console
+
       console.warn('[httpClient] refresh failed:', err);
       return false;
     } finally {
@@ -78,13 +81,15 @@ async function rawRequest<T>(method: string, path: string, opts: RequestOptions 
   return (await res.json()) as T;
 }
 
-async function safeJson(res: Response): Promise<{ code?: string; message?: string; details?: unknown } | null> {
+async function safeJson(
+  res: Response,
+): Promise<{ code?: string; message?: string; details?: unknown } | null> {
   try {
     return (await res.json()) as { code?: string; message?: string; details?: unknown };
   } catch (err) {
     // Non-JSON error response (HTML 502 page, empty body, etc.). Logging keeps
     // this from being a debug black hole when the BE returns something unexpected.
-    // eslint-disable-next-line no-console
+
     console.warn('[httpClient] non-JSON error response:', res.status, err);
     return null;
   }

@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image as ImageIcon, Plus, Trash2, X } from 'lucide-react';
 import type { WarehouseIntakeVariantPayload } from '@surmoda/contracts';
-import {
-  Alert,
-  Button,
-  IconButton,
-  Input,
-  Modal,
-} from '@/shared/ui';
+import { useWarehouseIntake, useWarehouseIntakeLookup } from '../hooks/useDeliveries';
+import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import {
-  useWarehouseIntake,
-  useWarehouseIntakeLookup,
-} from '../hooks/useDeliveries';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { formatBsShort } from '@/shared/format/currency';
 import { getImageUrl } from '@/features/products/services/productsService';
@@ -183,8 +174,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
     const nonZero = variants.filter((v) => v.quantity > 0);
     if (nonZero.length === 0) return;
     const valid = nonZero.every(
-      (v) =>
-        v.color.trim().length > 0 && (v.matchesExisting || v.priceCents > 0),
+      (v) => v.color.trim().length > 0 && (v.matchesExisting || v.priceCents > 0),
     );
     if (!valid) return;
     if (!upperCode) return;
@@ -289,9 +279,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
         {/* Variants */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold">
-              Variantes · {variants.length}
-            </p>
+            <p className="text-sm font-semibold">Variantes · {variants.length}</p>
             <button
               type="button"
               onClick={addVariant}
@@ -331,9 +319,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       <p className="text-[10px] uppercase tracking-wider text-slate-500">Talla</p>
                       <select
                         value={v.size}
-                        onChange={(e) =>
-                          updateVariant(idx, { size: e.target.value as SizeKey })
-                        }
+                        onChange={(e) => updateVariant(idx, { size: e.target.value as SizeKey })}
                         disabled={v.matchesExisting}
                         className="mt-0.5 w-full rounded-md border border-surface-border bg-white text-sm py-1 px-2 disabled:bg-surface-sunken"
                       >
@@ -455,8 +441,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
               variants.some(
                 (v) =>
                   v.quantity > 0 &&
-                  (v.color.trim().length === 0 ||
-                    (!v.matchesExisting && v.priceCents <= 0)),
+                  (v.color.trim().length === 0 || (!v.matchesExisting && v.priceCents <= 0)),
               )
             }
           >

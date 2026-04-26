@@ -1,20 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, ScrollText, Search } from 'lucide-react';
-import {
-  Alert,
-  Card,
-  CardContent,
-  CardFooter,
-  IconButton,
-  Select,
-  Skeleton,
-} from '@/shared/ui';
+import { useAuditLogs } from '../hooks/useAudit';
+import { Alert, Card, CardContent, CardFooter, IconButton, Select, Skeleton } from '@/shared/ui';
 import { AppShell } from '@/shared/layout/AppShell';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { useStores } from '@/features/stores/hooks/useStores';
-import { useAuditLogs } from '../hooks/useAudit';
 
 const PAGE_SIZE = 50;
 
@@ -78,9 +70,7 @@ export function AuditLogsPage() {
   const usersQuery = useUsers({ pageSize: 200 });
   const storesQuery = useStores({ pageSize: 100 });
 
-  const totalPages = query.data
-    ? Math.max(1, Math.ceil(query.data.total / PAGE_SIZE))
-    : 1;
+  const totalPages = query.data ? Math.max(1, Math.ceil(query.data.total / PAGE_SIZE)) : 1;
 
   return (
     <AppShell>
@@ -162,10 +152,7 @@ export function AuditLogsPage() {
           <Card>
             <CardContent className="p-0">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="border-b border-surface-border last:border-b-0 px-3 py-2"
-                >
+                <div key={i} className="border-b border-surface-border last:border-b-0 px-3 py-2">
                   <Skeleton className="h-3 w-48 mb-2" />
                   <Skeleton className="h-3 w-72" />
                 </div>

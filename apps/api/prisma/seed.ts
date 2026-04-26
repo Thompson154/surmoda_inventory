@@ -97,9 +97,7 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     name: 'Pantalón tela beish',
     description: 'Pantalón de tela formal color beish.',
     imageFileName: 'PantalonTelaBeish.png',
-    variants: [
-      { size: Size.standard, color: 'beish', priceCents: 35000 },
-    ],
+    variants: [{ size: Size.standard, color: 'beish', priceCents: 35000 }],
   },
 ];
 
@@ -115,7 +113,12 @@ async function main(): Promise<void> {
   await prisma.store.upsert({
     where: { code: 'ALMACEN' },
     update: {},
-    create: { id: STORE_ALMACEN, code: 'ALMACEN', name: 'Almacén Central', kind: StoreKind.warehouse },
+    create: {
+      id: STORE_ALMACEN,
+      code: 'ALMACEN',
+      name: 'Almacén Central',
+      kind: StoreKind.warehouse,
+    },
   });
   await prisma.store.upsert({
     where: { code: 'PRADO' },
@@ -404,7 +407,6 @@ async function main(): Promise<void> {
 
 main()
   .catch((err: unknown) => {
-    // eslint-disable-next-line no-console
     console.error(err);
     process.exit(1);
   })

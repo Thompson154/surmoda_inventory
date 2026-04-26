@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Alert, Badge, Card, CardContent, IconButton, Modal, Skeleton } from '@/shared/ui';
 import { useStockMovements } from '../hooks/useInventory';
+import { Alert, Badge, Card, CardContent, IconButton, Modal, Skeleton } from '@/shared/ui';
 
 interface MovementsDrawerProps {
   storeId: string;
@@ -50,14 +50,19 @@ export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps
                       {isAdjustment ? 'Stock' : 'Permiso'}
                     </Badge>
                     {isAdjustment && (
-                      <span className={`text-sm font-mono ${delta >= 0 ? 'text-status-success' : 'text-status-danger'}`}>
+                      <span
+                        className={`text-sm font-mono ${delta >= 0 ? 'text-status-success' : 'text-status-danger'}`}
+                      >
                         {delta >= 0 ? '+' : ''}
                         {delta}
                       </span>
                     )}
                   </div>
                   <span className="text-xs text-slate-500">
-                    {new Date(m.createdAt).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })}
+                    {new Date(m.createdAt).toLocaleString('es-BO', {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    })}
                   </span>
                 </div>
                 {isAdjustment ? (

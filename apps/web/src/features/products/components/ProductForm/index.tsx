@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import type { Product } from '@surmoda/contracts';
-import { Alert, Button } from '@/shared/ui';
 import { CodeField } from './CodeField';
 import { NameField } from './NameField';
 import { DescriptionField } from './DescriptionField';
+import { Alert, Button } from '@/shared/ui';
 
 interface ProductFormProps {
   initialValues?: Partial<Pick<Product, 'code' | 'name' | 'description'>>;

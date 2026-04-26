@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Image as ImageIcon, Minus, Plus, Printer as PrinterIcon, Save } from 'lucide-react';
-import { BarcodePrintModal } from './BarcodePrintModal';
 import type { InventoryRow } from '@surmoda/contracts';
+import { BarcodePrintModal } from './BarcodePrintModal';
+import { useAdjustQuantity } from '../hooks/useInventory';
+import { useInventoryProductVariants } from '../hooks/useInventoryGrouped';
 import { Alert, Badge, Button, IconButton, Input, Modal, Skeleton } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import { useAdjustQuantity } from '../hooks/useInventory';
-import { useInventoryProductVariants } from '../hooks/useInventoryGrouped';
 import { getImageUrl } from '@/features/products/services/productsService';
 import { formatBs as formatPrice } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
@@ -94,17 +94,10 @@ export function ProductDetailDrawer({
           )}
         </Modal>
 
-        {head && (
-          <p className="text-sm font-semibold text-slate-700 mt-1">Variantes</p>
-        )}
+        {head && <p className="text-sm font-semibold text-slate-700 mt-1">Variantes</p>}
 
         {query.data?.items.map((row) => (
-          <VariantEditableRow
-            key={row.variantId}
-            storeId={storeId}
-            row={row}
-            canEdit={canEdit}
-          />
+          <VariantEditableRow key={row.variantId} storeId={storeId} row={row} canEdit={canEdit} />
         ))}
       </div>
     </Modal>
@@ -149,7 +142,7 @@ function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) 
             <span className="capitalize">{row.color}</span>
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
-            <span className="font-semibold">{row.quantity}</span> disponibles · {' '}
+            <span className="font-semibold">{row.quantity}</span> disponibles ·{' '}
             <span className="font-mono text-[10px] text-slate-400">{row.barcode}</span>
           </p>
         </div>

@@ -5,11 +5,16 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, it, expect } from 'vitest';
-import { useAssignments, useAddAssignment, useChangeAssignmentRole, useRemoveAssignment } from '../useAssignments';
-import { server } from '@/test/server';
-import { makeQueryClient } from '@/test/utils';
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import {
+  useAssignments,
+  useAddAssignment,
+  useChangeAssignmentRole,
+  useRemoveAssignment,
+} from '../useAssignments';
+import { server } from '@/test/server';
+import { makeQueryClient } from '@/test/utils';
 
 const USER_ID = 'user-1';
 
@@ -77,20 +82,17 @@ describe('useAssignments', () => {
   it('useChangeAssignmentRole PATCHes the correct assignment', async () => {
     let patchedAssignmentId = '';
     server.use(
-      http.patch(
-        'http://localhost:3000/api/v1/users/:userId/assignments/:id',
-        ({ params }) => {
-          patchedAssignmentId = params.id as string;
-          return HttpResponse.json({
-            id: params.id,
-            userId: USER_ID,
-            storeId: 'store-prado-seed',
-            role: 'encargada',
-            createdAt: '2024-01-01T00:00:00.000Z',
-            updatedAt: '2024-01-01T00:00:00.000Z',
-          });
-        },
-      ),
+      http.patch('http://localhost:3000/api/v1/users/:userId/assignments/:id', ({ params }) => {
+        patchedAssignmentId = params.id as string;
+        return HttpResponse.json({
+          id: params.id,
+          userId: USER_ID,
+          storeId: 'store-prado-seed',
+          role: 'encargada',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        });
+      }),
     );
 
     const { result } = renderHook(() => useChangeAssignmentRole(USER_ID), {
@@ -106,13 +108,10 @@ describe('useAssignments', () => {
   it('useRemoveAssignment DELETEs with ?confirm=true when confirm flag is set', async () => {
     let deletedUrl = '';
     server.use(
-      http.delete(
-        'http://localhost:3000/api/v1/users/:userId/assignments/:id',
-        ({ request }) => {
-          deletedUrl = request.url;
-          return new HttpResponse(null, { status: 204 });
-        },
-      ),
+      http.delete('http://localhost:3000/api/v1/users/:userId/assignments/:id', ({ request }) => {
+        deletedUrl = request.url;
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
 
     const { result } = renderHook(() => useRemoveAssignment(USER_ID), { wrapper: makeWrapper() });

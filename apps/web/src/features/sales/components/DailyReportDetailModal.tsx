@@ -1,7 +1,7 @@
-import { Alert, Modal, Skeleton } from '@/shared/ui';
-import { formatBs } from '@/shared/format/currency';
 import type { DailyReportDTO } from '@surmoda/contracts';
 import { useDailyReportItems } from '../hooks/useDailyReports';
+import { Alert, Modal, Skeleton } from '@/shared/ui';
+import { formatBs } from '@/shared/format/currency';
 
 interface DailyReportDetailModalProps {
   storeId: string;
@@ -20,7 +20,9 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
           <ul className="grid grid-cols-2 gap-2 text-xs">
             <li className="rounded border border-surface-border px-3 py-2">
               <p className="text-slate-500">Total</p>
-              <p className="font-mono font-semibold text-base mt-0.5">{formatBs(report.totalCents)}</p>
+              <p className="font-mono font-semibold text-base mt-0.5">
+                {formatBs(report.totalCents)}
+              </p>
             </li>
             <li className="rounded border border-surface-border px-3 py-2">
               <p className="text-slate-500">Trans. / Ítems</p>
@@ -74,9 +76,7 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
           <div>
             <p className="text-sm font-semibold mb-2">Productos vendidos</p>
             {itemsQuery.isLoading && <Skeleton className="h-24 w-full" />}
-            {itemsQuery.isError && (
-              <Alert variant="error">No pudimos cargar el detalle.</Alert>
-            )}
+            {itemsQuery.isError && <Alert variant="error">No pudimos cargar el detalle.</Alert>}
             {itemsQuery.data && itemsQuery.data.items.length === 0 && (
               <p className="text-sm text-slate-500">Este día no tuvo ventas.</p>
             )}

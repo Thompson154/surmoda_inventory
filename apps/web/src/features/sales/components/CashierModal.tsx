@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Banknote, CreditCard, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
+import { useCreateSale } from '../hooks/useSales';
 import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { httpClient } from '@/shared/services/httpClient';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
-import {
-  BarcodeScanner,
-  type BarcodeScannerHandle,
-} from '@/shared/components/BarcodeScanner';
-import { useCreateSale } from '../hooks/useSales';
+import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
 
 interface CashierModalProps {
   storeId: string;
@@ -31,7 +28,6 @@ interface CartLine {
   subtotalCents: number;
   available: number;
 }
-
 
 const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string; Icon: typeof QrCode }> = [
   { value: 'card', label: 'Tarjeta', Icon: CreditCard },
@@ -68,10 +64,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const subTotalCents = useMemo(
-    () => cart.reduce((s, i) => s + i.subtotalCents, 0),
-    [cart],
-  );
+  const subTotalCents = useMemo(() => cart.reduce((s, i) => s + i.subtotalCents, 0), [cart]);
   const grossTotalCents = useMemo(
     () => cart.reduce((s, i) => s + i.unitPriceCents * i.quantity, 0),
     [cart],
@@ -102,9 +95,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
               ? {
                   ...i,
                   quantity: newQty,
-                  subtotalCents: wasUntouched
-                    ? row.priceCents * newQty
-                    : i.subtotalCents,
+                  subtotalCents: wasUntouched ? row.priceCents * newQty : i.subtotalCents,
                 }
               : i,
           );
@@ -131,7 +122,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
       setLookupError(
         isNotFound
           ? 'Código no encontrado en esta sede.'
-          : e.message ?? 'No pudimos verificar el código.',
+          : (e.message ?? 'No pudimos verificar el código.'),
       );
       // Block the scanner from re-firing the same not-found code on every poll
       // (~120ms) — gives the cashier time to react and move the camera away.
@@ -298,9 +289,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                         min={0}
                         step={0.01}
                         value={(i.subtotalCents / 100).toFixed(2)}
-                        onChange={(e) =>
-                          updateSubtotal(i.variantId, Number(e.target.value) || 0)
-                        }
+                        onChange={(e) => updateSubtotal(i.variantId, Number(e.target.value) || 0)}
                         className="w-20 text-right text-xs py-1 font-mono"
                         aria-label="SubTotal"
                       />

@@ -1,7 +1,7 @@
+import { Plus, Trash2 } from 'lucide-react';
+import type { Role } from '../../types';
 import { Button, IconButton, Select } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
-import type { Role } from '../../types';
-import { Plus, Trash2 } from 'lucide-react';
 
 export interface AssignmentDraft {
   storeId: string;

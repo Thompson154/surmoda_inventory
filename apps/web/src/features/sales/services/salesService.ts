@@ -1,4 +1,3 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   CreateSalePayload,
   ListSalesFilters,
@@ -6,6 +5,7 @@ import type {
   SaleWithItems,
   SalesDashboard,
 } from '@surmoda/contracts';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQS(filters: ListSalesFilters): string {
   const params = new URLSearchParams();
@@ -30,7 +30,6 @@ export const salesQueryKeys = {
   all: ['sales'] as const,
   list: (storeId: string, filters: ListSalesFilters) =>
     ['sales', 'list', storeId, filters] as const,
-  detail: (storeId: string, saleId: string) =>
-    ['sales', 'detail', storeId, saleId] as const,
+  detail: (storeId: string, saleId: string) => ['sales', 'detail', storeId, saleId] as const,
   dashboard: (storeId: string) => ['sales', 'dashboard', storeId] as const,
 };

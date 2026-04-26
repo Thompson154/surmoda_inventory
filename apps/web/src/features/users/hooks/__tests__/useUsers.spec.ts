@@ -5,11 +5,11 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, it, expect, vi } from 'vitest';
+import { QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { useUsers, useCreateUser, useUpdateUser } from '../useUsers';
 import { server } from '@/test/server';
 import { makeQueryClient } from '@/test/utils';
-import { QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
 
 function makeWrapper() {
   const client = makeQueryClient();

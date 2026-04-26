@@ -1,25 +1,33 @@
 import { useMemo, useState } from 'react';
 import type { DailyReportDTO } from '@surmoda/contracts';
-import { DailyReportDetailModal } from '../components/DailyReportDetailModal';
 import { TrendingDown, TrendingUp } from 'lucide-react';
-import {
-  Alert,
-  Card,
-  CardContent,
-  Skeleton,
-} from '@/shared/ui';
+import { DailyReportDetailModal } from '../components/DailyReportDetailModal';
+import { useSalesDashboard } from '../hooks/useSales';
+import { useDailyReports } from '../hooks/useDailyReports';
+import { Alert, Card, CardContent, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useStoreParam } from '@/shared/hooks/useStoreParam';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
-import { useSalesDashboard } from '../hooks/useSales';
-import { useDailyReports } from '../hooks/useDailyReports';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { formatBs, formatBsShort } from '@/shared/format/currency';
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MONTH_ABBR = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
 
 function weekLabel(index: number): string {
   if (index === 0) return 'Esta semana';
@@ -74,7 +82,13 @@ function Sparkline({ data }: SparklineProps) {
           </linearGradient>
         </defs>
         <path d={area} fill="url(#sales-grad)" />
-        <path d={path} fill="none" stroke="rgb(99 102 241)" strokeWidth="2" strokeLinejoin="round" />
+        <path
+          d={path}
+          fill="none"
+          stroke="rgb(99 102 241)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
 
         {/* Larger transparent hit-targets so the tooltip is easy to trigger on touch + mouse. */}
         {points.map((p, i) => (
@@ -123,29 +137,38 @@ function Sparkline({ data }: SparklineProps) {
           );
         })}
 
-        {hover !== null && (() => {
-          const p = points[hover]!;
-          const d = data[hover]!;
-          const label = `${shortDate(d.date)} · ${formatBs(d.totalCents)}`;
-          // Approximate width based on char count so the box stays inside the SVG.
-          const w = Math.max(96, label.length * 6.5);
-          const x = Math.min(Math.max(p.x - w / 2, padding), width - padding - w);
-          const y = Math.max(p.y - 32, 4);
-          return (
-            <g pointerEvents="none">
-              <rect x={x} y={y} width={w} height={22} rx={4} fill="rgb(15 23 42)" opacity={0.92} />
-              <text
-                x={x + w / 2}
-                y={y + 14}
-                textAnchor="middle"
-                fill="white"
-                style={{ fontSize: 10, fontWeight: 500 }}
-              >
-                {label}
-              </text>
-            </g>
-          );
-        })()}
+        {hover !== null &&
+          (() => {
+            const p = points[hover]!;
+            const d = data[hover]!;
+            const label = `${shortDate(d.date)} · ${formatBs(d.totalCents)}`;
+            // Approximate width based on char count so the box stays inside the SVG.
+            const w = Math.max(96, label.length * 6.5);
+            const x = Math.min(Math.max(p.x - w / 2, padding), width - padding - w);
+            const y = Math.max(p.y - 32, 4);
+            return (
+              <g pointerEvents="none">
+                <rect
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={22}
+                  rx={4}
+                  fill="rgb(15 23 42)"
+                  opacity={0.92}
+                />
+                <text
+                  x={x + w / 2}
+                  y={y + 14}
+                  textAnchor="middle"
+                  fill="white"
+                  style={{ fontSize: 10, fontWeight: 500 }}
+                >
+                  {label}
+                </text>
+              </g>
+            );
+          })()}
       </svg>
     </div>
   );
@@ -203,7 +226,9 @@ export function SalesDashboardPage() {
               <CardContent className="flex flex-col gap-3">
                 <p className="text-xs uppercase tracking-wide text-slate-500">Ventas hoy</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{formatBsShort(dashboard.data.todayCents)}</span>
+                  <span className="text-3xl font-bold">
+                    {formatBsShort(dashboard.data.todayCents)}
+                  </span>
                   {dashboard.data.deltaPct !== null && (
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
@@ -241,9 +266,7 @@ export function SalesDashboardPage() {
               <Card>
                 <CardContent className="py-3">
                   <p className="text-xs text-slate-500">Transacciones</p>
-                  <p className="text-base font-semibold mt-1">
-                    {dashboard.data.transactionsCount}
-                  </p>
+                  <p className="text-base font-semibold mt-1">{dashboard.data.transactionsCount}</p>
                   <p className="text-[10px] text-slate-400 mt-0.5">completadas</p>
                 </CardContent>
               </Card>
@@ -281,9 +304,15 @@ export function SalesDashboardPage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-2 py-2 text-right font-mono">{formatBs(row.qrCents)}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatBs(row.cardCents)}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatBs(row.cashCents)}</td>
+                          <td className="px-2 py-2 text-right font-mono">
+                            {formatBs(row.qrCents)}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono">
+                            {formatBs(row.cardCents)}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono">
+                            {formatBs(row.cashCents)}
+                          </td>
                           <td className="px-2 py-2 text-right font-mono font-semibold">
                             {formatBs(row.totalCents)}
                           </td>
@@ -299,9 +328,7 @@ export function SalesDashboardPage() {
               <CardContent>
                 <p className="text-sm font-semibold mb-2">Historial de cierres diarios</p>
                 {closures.isLoading && <Skeleton className="h-16 w-full" />}
-                {closures.isError && (
-                  <Alert variant="error">No pudimos cargar el historial.</Alert>
-                )}
+                {closures.isError && <Alert variant="error">No pudimos cargar el historial.</Alert>}
                 {closures.data && closures.data.items.length === 0 && (
                   <p className="text-sm text-slate-500">Aún no hay cierres registrados.</p>
                 )}

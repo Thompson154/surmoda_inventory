@@ -4,8 +4,8 @@
 // This file powers the admin/encargada audit viewer (module 12). Both filters
 // (userId, storeId) are optional and combined with AND when supplied.
 
-import type { Database } from '../../infrastructure/database';
 import type { AuditLogListResponse, AuditLogRow } from '@surmoda/contracts';
+import type { Database } from '../../infrastructure/database';
 
 export interface AuditQueryFilters {
   userId?: string;
@@ -42,10 +42,7 @@ export function buildAuditRepository(db: Database): AuditRepository {
       const userFilter = userId ? { userId } : null;
 
       const where = {
-        AND: [
-          ...(userFilter ? [userFilter] : []),
-          ...(storeFilter ? [storeFilter] : []),
-        ],
+        AND: [...(userFilter ? [userFilter] : []), ...(storeFilter ? [storeFilter] : [])],
       };
 
       // userId is nullable on AuditLog so we hydrate user labels via a single

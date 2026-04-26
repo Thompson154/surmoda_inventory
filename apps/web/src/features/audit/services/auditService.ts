@@ -1,5 +1,5 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type { AuditLogFilters, AuditLogListResponse } from '@surmoda/contracts';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQuery(filters: AuditLogFilters): string {
   const qs = new URLSearchParams();
