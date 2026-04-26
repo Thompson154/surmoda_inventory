@@ -30,6 +30,10 @@ const EnvSchema = z.object({
     .optional()
     .transform((v) => v === 'true' || v === '1'),
 
+  /** Tier 1 — number of days to keep audit_logs rows. 0 disables the cron
+   *  (useful for dev / thesis demo). Recommended in production: 365. */
+  AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(0),
+
   IMAGE_STORAGE: z.enum(['local', 'cloudinary']).default('local'),
   IMAGE_STORAGE_LOCAL_DIR: z.string().optional(),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
