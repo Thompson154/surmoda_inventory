@@ -377,7 +377,17 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
     },
 
     async list(storeId, query) {
-      const where: Prisma.DeliveryWhereInput = { toStoreId: storeId };
+      // Direction filter — module 11.
+      //   incoming  → :storeId received the delivery (default, legacy behavior).
+      //   outgoing  → :storeId originated the delivery (lateral transfer / return).
+      //   both      → either side matches.
+      const direction = query.direction ?? 'incoming';
+      const where: Prisma.DeliveryWhereInput =
+        direction === 'incoming'
+          ? { toStoreId: storeId }
+          : direction === 'outgoing'
+            ? { fromStoreId: storeId }
+            : { OR: [{ toStoreId: storeId }, { fromStoreId: storeId }] };
       if (query.status && query.status.length > 0) {
         where.status = { in: query.status.map((s) => STATUS_TO_PRISMA[s]) };
       }

@@ -31,6 +31,8 @@ export type ListDeliveriesFiltersDTO = ListDeliveriesFilters;
 export interface ListDeliveriesQuery {
   q?: string;
   status?: DeliveryStatus[];
+  /** Module 11 — direction relative to the path :storeId. Defaults to incoming. */
+  direction?: 'incoming' | 'outgoing' | 'both';
   page: number;
   pageSize: number;
 }

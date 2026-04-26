@@ -442,3 +442,115 @@ describe("Distribution flow: draft → confirm → receive (full + partial)", ()
     expect(second.body.code).toBe("DELIVERY_INVALID_STATE");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module 11 — lateral transfers (sucursal → sucursal) and returns (sucursal →
+// almacén). Reuses the same `POST /stores/:toStoreId/deliveries` endpoint with
+// an explicit `fromStoreId` in the body. Encargada-of-origin authorizes per
+// locked decision Q1=A.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Module 11 — lateral transfers / returns', () => {
+  let zsurStoreId: string;
+
+  beforeAll(async () => {
+    const zsur = await db.store.findFirst({ where: { code: 'ZSUR' } });
+    if (!zsur) throw new Error('Seed missing ZSUR');
+    zsurStoreId = zsur.id;
+
+    // Pre-seed PRADO with stock so it has something to send. We reuse the
+    // legacy warehouse-distribution path: warehouse → PRADO with full reception.
+    await resetTestState({ db, resetStockFor: 'all' });
+    const intake = await request(app)
+      .post(`/api/v1/stores/${warehouseId}/deliveries`)
+      .set(bearer(adminToken))
+      .send({
+        items: [
+          { variantId: testVariantA, quantity: 30 },
+          { variantId: testVariantB, quantity: 30 },
+        ],
+      });
+    expect(intake.status).toBe(201);
+    const dist = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(adminToken))
+      .send({
+        items: [
+          { variantId: testVariantA, quantity: 20 },
+          { variantId: testVariantB, quantity: 10 },
+        ],
+        title: 'seed-distribution',
+      });
+    expect(dist.status).toBe(201);
+    const distItems = dist.body.items as Array<{ id: string; variantId: string }>;
+    await request(app)
+      .post(`/api/v1/deliveries/${dist.body.id as string}/receive`)
+      .set(bearer(encargadaToken))
+      .send({
+        items: distItems.map((it) => ({
+          deliveryItemId: it.id,
+          receivedQuantity: it.variantId === testVariantA ? 20 : 10,
+        })),
+      });
+  });
+
+  it('encargada de origen inicia transferencia lateral PRADO → ZSUR', async () => {
+    const res = await request(app)
+      .post(`/api/v1/stores/${zsurStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({
+        fromStoreId: pradoStoreId,
+        items: [{ variantId: testVariantA, quantity: 5 }],
+        title: 'transfer-prado-to-zsur',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.fromStoreId).toBe(pradoStoreId);
+    expect(res.body.toStoreId).toBe(zsurStoreId);
+    expect(res.body.kind).toBe('distribution');
+    expect(res.body.status).toBe('sent');
+  });
+
+  it('rechaza transferencia con origen = destino (400)', async () => {
+    const res = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({
+        fromStoreId: pradoStoreId,
+        items: [{ variantId: testVariantA, quantity: 1 }],
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('rechaza transferencia con origen inexistente (404)', async () => {
+    const res = await request(app)
+      .post(`/api/v1/stores/${zsurStoreId}/deliveries`)
+      .set(bearer(adminToken))
+      .send({
+        fromStoreId: 'store-does-not-exist',
+        items: [{ variantId: testVariantA, quantity: 1 }],
+      });
+    expect(res.status).toBe(404);
+  });
+
+  it('vendedora no puede iniciar (DELIVERY_FORBIDDEN)', async () => {
+    const res = await request(app)
+      .post(`/api/v1/stores/${zsurStoreId}/deliveries`)
+      .set(bearer(vendedoraToken))
+      .send({
+        fromStoreId: pradoStoreId,
+        items: [{ variantId: testVariantA, quantity: 1 }],
+      });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('DELIVERY_FORBIDDEN');
+  });
+
+  it('listado outgoing devuelve transferencias enviadas por la sede', async () => {
+    const res = await request(app)
+      .get(`/api/v1/stores/${pradoStoreId}/deliveries?direction=outgoing`)
+      .set(bearer(encargadaToken));
+    expect(res.status).toBe(200);
+    expect(res.body.items.length).toBeGreaterThan(0);
+    for (const row of res.body.items) {
+      expect(row.fromStoreId).toBe(pradoStoreId);
+    }
+  });
+});
