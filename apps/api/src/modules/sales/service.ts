@@ -18,6 +18,9 @@ import type {
 export interface SaleServiceDeps {
   sales: SaleRepository;
   assignments: StoreScopeRepo;
+  /** Feature 012 — when true the service refuses sale creation while
+   *  Store.salesLockedAt is non-null. Default false (dark-launch). */
+  dailyLockEnabled?: boolean;
 }
 
 export interface SaleService {
@@ -27,7 +30,7 @@ export interface SaleService {
   getDashboard(storeId: string, auth: AuthContext): Promise<SalesDashboard>;
 }
 
-export function buildSaleService({ sales, assignments }: SaleServiceDeps): SaleService {
+export function buildSaleService({ sales, assignments, dailyLockEnabled = false }: SaleServiceDeps): SaleService {
   async function ensureAssignedOrEncargada(storeId: string, auth: AuthContext): Promise<void> {
     await assertCanActOnStore(
       assignments,
@@ -75,6 +78,22 @@ export function buildSaleService({ sales, assignments }: SaleServiceDeps): SaleS
       const variantIds = Array.from(aggregated.keys());
 
       const saleId = await sales.runSerializable(async (tx) => {
+        // Feature 012 — daily sales lock. Gated by ENABLE_DAILY_SALES_LOCK so
+        // the column exists in dev/prod without enforcing the behaviour until
+        // product flips the switch. Lock is applied by the dailyLock cron at
+        // 22:00 Bolivia and cleared at 00:00 Bolivia.
+        if (dailyLockEnabled) {
+          const lockState = await sales.loadStoreLockState(storeId, tx);
+          if (lockState?.salesLockedAt) {
+            throw new AppError(
+              423,
+              ERROR_CODES.SALES_LOCKED,
+              'El registro de ventas está bloqueado. Cerrá el día primero.',
+              { lockedAt: lockState.salesLockedAt.toISOString() },
+            );
+          }
+        }
+
         // Validate every variant exists + is active.
         const existing = await sales.variantsExistAndActive(variantIds, tx);
         const missing = variantIds.filter((id) => !existing.has(id));

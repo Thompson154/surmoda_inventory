@@ -36,6 +36,7 @@ export interface CreateSaleItemRow {
 }
 
 export interface SaleRepository {
+  loadStoreLockState(storeId: string, tx: SaleTx): Promise<{ salesLockedAt: Date | null } | null>;
   loadVariantPrices(variantIds: string[], tx: SaleTx): Promise<Map<string, number>>;
   variantsExistAndActive(variantIds: string[], tx: SaleTx): Promise<Set<string>>;
   loadStockForVariants(storeId: string, variantIds: string[], tx: SaleTx): Promise<Map<string, number>>;
@@ -94,6 +95,14 @@ export function buildSaleRepository(db: Database): SaleRepository {
   }
 
   return {
+    async loadStoreLockState(storeId, tx) {
+      const row = await tx.store.findUnique({
+        where: { id: storeId },
+        select: { salesLockedAt: true },
+      });
+      return row;
+    },
+
     async loadVariantPrices(variantIds, tx) {
       const rows = await tx.variant.findMany({
         where: { id: { in: variantIds } },

@@ -96,6 +96,11 @@ model Store {
   name      String
   kind      StoreKind
   isActive  Boolean   @default(true) @map("is_active")
+  /// Feature 012 — daily sales lock. When non-null, /sales POST returns 423.
+  /// Driven by the dailyLock cron (22:00 Bolivia set, 00:00 Bolivia clear).
+  /// Field exists from 012; the cron only runs when env ENABLE_DAILY_SALES_LOCK
+  /// is true so we can dark-launch the schema before flipping the behaviour.
+  salesLockedAt DateTime? @map("sales_locked_at")
 
   assignments UserStore[]
   stock          StockBySite[]
