@@ -115,7 +115,11 @@ function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) 
             {sizeLabel} <span className="text-slate-400">·</span>{' '}
             <span className="capitalize">{row.color}</span>
           </p>
-          <p className="text-xs text-slate-500 mt-0.5 font-mono">{row.barcode}</p>
+          <p className="text-xs mt-0.5 font-mono flex items-center gap-1 flex-wrap">
+            <span className="text-slate-700">{row.productCode}</span>
+            <span className="text-slate-300">·</span>
+            <span className="text-slate-500 break-all">{row.barcode}</span>
+          </p>
           <p className="text-xs text-slate-600 mt-0.5">{formatPrice(row.priceCents)}</p>
         </div>
         {!canEdit && <Badge variant="default">Solo lectura</Badge>}

@@ -25,9 +25,11 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useEditPermission, useToggleEditPermission } from '../hooks/useInventory';
 import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
+import type { InventoryRow } from '@surmoda/contracts';
 import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { MovementsDrawer } from '../components/MovementsDrawer';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { SingleVariantQuickEditModal } from '../components/SingleVariantQuickEditModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { getImageUrl } from '@/features/products/services/productsService';
@@ -49,6 +51,7 @@ export function SedeInventoryPage() {
   const [movementsOpen, setMovementsOpen] = useState(false);
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannedVariant, setScannedVariant] = useState<InventoryRow | null>(null);
 
   const filteredQuery = useInventoryGrouped(storeId, {
     q: q || undefined,
@@ -233,8 +236,16 @@ export function SedeInventoryPage() {
                               <p className="text-sm font-medium text-slate-900 truncate">
                                 {row.productName}
                               </p>
-                              <p className="text-xs text-slate-500 mt-0.5 font-mono">
-                                {row.productCode}
+                              <p className="text-xs mt-0.5 font-mono flex items-center gap-1 flex-wrap">
+                                <span className="text-slate-700">{row.productCode}</span>
+                                {row.representativeBarcode && (
+                                  <>
+                                    <span className="text-slate-300">·</span>
+                                    <span className="text-slate-500 truncate">
+                                      {row.representativeBarcode}
+                                    </span>
+                                  </>
+                                )}
                               </p>
                               <p className="text-xs text-slate-500 mt-0.5">
                                 {row.variantsCount === 1
@@ -308,7 +319,14 @@ export function SedeInventoryPage() {
           storeId={storeId}
           open={scannerOpen}
           onClose={() => setScannerOpen(false)}
-          onResolved={(row) => setOpenProductId(row.productId)}
+          onResolved={(row) => setScannedVariant(row)}
+        />
+
+        <SingleVariantQuickEditModal
+          storeId={storeId}
+          row={scannedVariant}
+          canEdit={canEditQuantity}
+          onClose={() => setScannedVariant(null)}
         />
       </main>
     </AppShell>

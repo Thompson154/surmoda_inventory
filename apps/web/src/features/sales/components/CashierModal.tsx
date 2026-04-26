@@ -192,13 +192,14 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
               ref={inputRef}
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void addByBarcode(code);
               }}
               placeholder="Pegá o escribí el código..."
-              className="font-mono"
+              className="font-mono uppercase"
               autoComplete="off"
+              autoCapitalize="characters"
               disabled={lookupPending}
             />
             <Button
