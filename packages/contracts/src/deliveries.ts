@@ -136,6 +136,82 @@ export interface PaginatedDeliveryGroups {
   pageSize: number;
 }
 
+/**
+ * Warehouse intake (reception) — alta + reposición unificadas.
+ *
+ * Por variante:
+ *   (productCode, size, color) ya existe → suma stock; precio + imagen NO se
+ *     pisan (precio queda como está, imagen sólo se setea si era null).
+ *   no existe → crea Variant nueva con el precio + imagen del payload.
+ *
+ * El productCode (Product) se upsertea: si no existe, se crea con el code
+ * provisto y un name por defecto (igual al code) — la encargada puede
+ * renombrarlo después en la pantalla de productos.
+ */
+export interface WarehouseIntakeVariantPayload {
+  /** Tamaño contractual — mismo enum que Variant.size. */
+  size:
+    | 's'
+    | 'm'
+    | 'l'
+    | 'xl'
+    | 'xxl'
+    | '28'
+    | '30'
+    | '32'
+    | '34'
+    | 'standard';
+  color: string;
+  quantity: number;
+  /** Precio en centavos. Sólo se aplica al CREAR la variante; reposición lo ignora. */
+  priceCents: number;
+  /** Imagen opcional (sólo se aplica al crear la variante o si la actual es null). */
+  imageBase64?: string | null;
+}
+
+export interface WarehouseIntakePayload {
+  productCode: string;
+  /** Si productCode no existe lo creamos con este nombre. Opcional → default = code. */
+  productName?: string;
+  /** Título descriptivo de la entrega (ej: "Mercadería nueva de Chile"). */
+  title?: string;
+  note?: string;
+  variants: WarehouseIntakeVariantPayload[];
+}
+
+/**
+ * Lookup result for the intake form. Returns the product (if it exists) plus
+ * the variants currently in the warehouse so the encargada sees what she's
+ * adding to vs. starting from blank.
+ */
+export interface WarehouseIntakeLookupItem {
+  variantId: string;
+  size:
+    | 's'
+    | 'm'
+    | 'l'
+    | 'xl'
+    | 'xxl'
+    | '28'
+    | '30'
+    | '32'
+    | '34'
+    | 'standard';
+  color: string;
+  priceCents: number;
+  /** Stock actual de esa variante en el almacén. */
+  warehouseQuantity: number;
+  imagePath: string | null;
+}
+
+export interface WarehouseIntakeLookupResponse {
+  exists: boolean;
+  productId: string | null;
+  productCode: string;
+  productName: string | null;
+  variants: WarehouseIntakeLookupItem[];
+}
+
 export interface ListDeliveriesFilters {
   q?: string;
   /** Filter by lifecycle status. Multiple values OR'd. */

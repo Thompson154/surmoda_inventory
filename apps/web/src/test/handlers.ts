@@ -515,6 +515,65 @@ export const handlers = [
     }),
   ),
 
+  http.get(`${BASE}/stores/:storeId/deliveries/intake/lookup`, ({ request }) => {
+    const url = new URL(request.url);
+    const code = String(url.searchParams.get('code') ?? '').toUpperCase();
+    if (code === 'JN001') {
+      return HttpResponse.json({
+        exists: true,
+        productId: 'prod-1',
+        productCode: 'JN001',
+        productName: 'Jean Bota Recta',
+        variants: [
+          {
+            variantId: 'var-1',
+            size: '30',
+            color: 'azul',
+            priceCents: 30000,
+            warehouseQuantity: 12,
+            imagePath: null,
+          },
+        ],
+      });
+    }
+    return HttpResponse.json({
+      exists: false,
+      productId: null,
+      productCode: code,
+      productName: null,
+      variants: [],
+    });
+  }),
+
+  http.post(`${BASE}/stores/:storeId/deliveries/intake`, () =>
+    HttpResponse.json(
+      {
+        id: 'del-intake',
+        number: 999,
+        kind: 'reception',
+        status: 'received',
+        title: 'Mock intake',
+        fromStoreId: null,
+        fromStoreName: null,
+        toStoreId: 'store-almacen-seed',
+        toStoreName: 'Almacén Central',
+        createdByUserId: 'user-1',
+        createdByFullName: 'Admin Demo',
+        receivedByUserId: null,
+        receivedByFullName: null,
+        note: null,
+        createdAt: new Date().toISOString(),
+        sentAt: new Date().toISOString(),
+        receivedAt: new Date().toISOString(),
+        itemCount: 1,
+        totalUnits: 20,
+        items: [],
+        adjustments: [],
+      },
+      { status: 201 },
+    ),
+  ),
+
   http.post(`${BASE}/stores/:storeId/deliveries`, () =>
     HttpResponse.json(
       {

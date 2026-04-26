@@ -159,6 +159,9 @@ export function buildComposition(): Composition {
       },
     },
     assignments: storeScope,
+    products: productsRepo,
+    variants: variantsRepo,
+    imageStorage,
   });
   const deliveryController = buildDeliveryController(deliveryService);
   const deliveriesPerStoreRouter = buildDeliveriesPerStoreRouter(deliveryController);
