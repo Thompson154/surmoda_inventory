@@ -16,7 +16,44 @@ export function buildServer(): Express {
 
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  // Production-grade HTTP hardening. Reasoning per directive:
+  //   - contentSecurityPolicy: this API serves only JSON (no HTML), so the
+  //     CSP locks every fetch class to 'self' and disables inline + framing
+  //     entirely. Cheap defense if someone ever serves an HTML 4xx page.
+  //   - hsts: 1-year max-age + subdomains. Disabled in non-prod so local
+  //     plain-http development isn't accidentally pinned.
+  //   - frameguard: 'deny' — nobody embeds our API in an iframe, ever.
+  //   - referrerPolicy: 'no-referrer' so leaked referers don't carry route
+  //     names back to third parties.
+  //   - crossOriginResourcePolicy stays 'cross-origin' because the FE on a
+  //     different origin reads our /static/images path in local-storage mode.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          upgradeInsecureRequests: [],
+        },
+      },
+      hsts: config.NODE_ENV === 'production'
+        ? { maxAge: 31_536_000, includeSubDomains: true, preload: false }
+        : false,
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'no-referrer' },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use(cors({ origin: config.FE_ORIGIN, credentials: true }));
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
