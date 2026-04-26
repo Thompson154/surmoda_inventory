@@ -217,8 +217,8 @@ export function buildSaleRepository(db: Database): SaleRepository {
       const startToday = startOfDayLocal(now);
       const todayKey = isoLocalDate(now);
       const startWeek = startOfWeekMonday(now);
-      const startFourWeeksAgo = new Date(startWeek.getTime() - 3 * 7 * 24 * 60 * 60 * 1000);
-      const startTwentyEightDaysAgo = new Date(startToday.getTime() - 27 * 24 * 60 * 60 * 1000);
+      const startFourWeeksAgo = new Date(startWeek.getTime() - 4 * 7 * 24 * 60 * 60 * 1000);
+      const startTwentyEightDaysAgo = new Date(startToday.getTime() - 34 * 24 * 60 * 60 * 1000);
       const dateOnlyAt = (d: Date) => new Date(`${isoLocalDate(d)}T00:00:00.000Z`);
 
       // Today's runtime aggregate from sales.
@@ -305,11 +305,11 @@ export function buildSaleRepository(db: Database): SaleRepository {
         });
       }
 
-      // Weekly breakdown — last 4 weeks (Mon→Sun), newest first.
+      // Weekly breakdown — last 5 weeks (Mon→Sun), newest first.
       const weeklyBreakdown = [];
       let weekCents = 0;
       let weekCount = 0;
-      for (let i = 0; i < 4; i += 1) {
+      for (let i = 0; i < 5; i += 1) {
         const ws = new Date(startWeek.getTime() - i * 7 * 24 * 60 * 60 * 1000);
         const we = new Date(ws.getTime() + 6 * 24 * 60 * 60 * 1000);
         let qr = 0;

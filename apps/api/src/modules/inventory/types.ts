@@ -28,6 +28,9 @@ export type { StockMovementPayload, StockMovementType };
 
 export interface ListInventoryQuery {
   q?: string;
+  stockStatus?: 'low' | 'zero';
+  size?: 's' | 'm' | 'l' | 'xl' | 'xxl' | '28' | '30' | '32' | '34' | 'standard';
+  color?: string;
   page: number;
   pageSize: number;
 }

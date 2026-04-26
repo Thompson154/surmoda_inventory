@@ -28,12 +28,14 @@ export interface DailyReportRepository {
     closedByUserId: string | null;
     closedAt: Date;
     autoClosed: boolean;
+    attendedUserIds: string[];
   }, tx?: DailyReportTx): Promise<DailyReportDTO>;
   findByDate(storeId: string, day: Date): Promise<DailyReportDTO | null>;
   getDayItems(storeId: string, day: Date): Promise<DailyReportItemDTO[]>;
   list(storeId: string, query: ListDailyReportsQuery): Promise<PaginatedDailyReports>;
   listActiveStores(): Promise<Array<{ id: string }>>;
   findFirstSaleDay(storeId: string): Promise<Date | null>;
+  listStoreStaff(storeId: string): Promise<Array<{ userId: string; fullName: string; role: 'encargada' | 'vendedora' }>>;
   runSerializable<T>(fn: (tx: DailyReportTx) => Promise<T>): Promise<T>;
 }
 
@@ -56,6 +58,7 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
     closedAt: Date;
     autoClosed: boolean;
     user?: { fullName: string } | null;
+    attendees?: Array<{ user: { id: string; fullName: string } }>;
   }): DailyReportDTO {
     // The DB column is `DATE` so Prisma returns 00:00 UTC for the stored day —
     // slicing the ISO string is timezone-agnostic and keeps the YYYY-MM-DD
@@ -74,8 +77,17 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
       closedByFullName: row.user?.fullName ?? null,
       closedAt: row.closedAt.toISOString(),
       autoClosed: row.autoClosed,
+      attendees: (row.attendees ?? []).map((a) => ({
+        userId: a.user.id,
+        fullName: a.user.fullName,
+      })),
     };
   }
+
+  const dtoInclude = {
+    user: { select: { fullName: true } },
+    attendees: { include: { user: { select: { id: true, fullName: true } } } },
+  } as const;
 
   return {
     async aggregateDay(storeId, day, tx) {
@@ -137,15 +149,33 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
           closedAt: input.closedAt,
           autoClosed: input.autoClosed,
         },
-        include: { user: { select: { fullName: true } } },
+        select: { id: true },
       });
-      return rowToDTO(upserted);
+
+      // Reset attendance roster: cierre is idempotent so any prior list for
+      // the same day is replaced. Skipped on auto-close (empty list).
+      await c.dailyReportAttendance.deleteMany({ where: { dailyReportId: upserted.id } });
+      if (input.attendedUserIds.length > 0) {
+        await c.dailyReportAttendance.createMany({
+          data: input.attendedUserIds.map((userId) => ({
+            dailyReportId: upserted.id,
+            userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      const full = await c.dailyReport.findUniqueOrThrow({
+        where: { id: upserted.id },
+        include: dtoInclude,
+      });
+      return rowToDTO(full);
     },
 
     async findByDate(storeId, day) {
       const row = await db.dailyReport.findUnique({
         where: { storeId_date: { storeId, date: day } },
-        include: { user: { select: { fullName: true } } },
+        include: dtoInclude,
       });
       return row ? rowToDTO(row) : null;
     },
@@ -209,7 +239,7 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
       const [rows, total] = await Promise.all([
         db.dailyReport.findMany({
           where,
-          include: { user: { select: { fullName: true } } },
+          include: dtoInclude,
           orderBy: { date: 'desc' },
           skip,
           take: query.pageSize,
@@ -238,6 +268,40 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
         select: { createdAt: true },
       });
       return row?.createdAt ?? null;
+    },
+
+    async listStoreStaff(storeId) {
+      // Active assignments at this store, plus every encargada-anywhere
+      // (post-feature-004 product decision: encargada is global, so she may
+      // have helped at this store even without a direct assignment).
+      const direct = await db.userStore.findMany({
+        where: {
+          storeId,
+          deletedAt: null,
+          user: { isActive: true, deletedAt: null },
+        },
+        select: { userId: true, role: true, user: { select: { fullName: true } } },
+      });
+      const globalEncargadas = await db.userStore.findMany({
+        where: {
+          role: 'encargada',
+          deletedAt: null,
+          storeId: { not: storeId },
+          user: { isActive: true, deletedAt: null },
+        },
+        select: { userId: true, role: true, user: { select: { fullName: true } } },
+        distinct: ['userId'],
+      });
+
+      const seen = new Set<string>();
+      const out: Array<{ userId: string; fullName: string; role: 'encargada' | 'vendedora' }> = [];
+      for (const r of [...direct, ...globalEncargadas]) {
+        if (seen.has(r.userId)) continue;
+        seen.add(r.userId);
+        out.push({ userId: r.userId, fullName: r.user.fullName, role: r.role });
+      }
+      out.sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'));
+      return out;
     },
 
     async runSerializable(fn) {

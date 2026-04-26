@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ListDailyReportsFilters } from '@surmoda/contracts';
+import type { CloseDayPayload, ListDailyReportsFilters } from '@surmoda/contracts';
 import {
   dailyReportsQueryKeys,
   dailyReportsService,
@@ -50,10 +50,19 @@ export function useDailyReportItems(
 export function useCloseToday(storeId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => dailyReportsService.closeToday(storeId),
+    mutationFn: (payload: CloseDayPayload) => dailyReportsService.closeToday(storeId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: dailyReportsQueryKeys.all });
       void qc.invalidateQueries({ queryKey: salesQueryKeys.dashboard(storeId) });
     },
+  });
+}
+
+export function useStoreStaff(storeId: string | undefined) {
+  return useQuery({
+    queryKey: storeId ? dailyReportsQueryKeys.staff(storeId) : ['dailyReports', 'staff', 'noop'],
+    queryFn: () => dailyReportsService.listStaff(storeId as string),
+    enabled: Boolean(storeId),
+    staleTime: 60_000,
   });
 }

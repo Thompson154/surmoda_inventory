@@ -579,6 +579,7 @@ export const handlers = [
           closedByFullName: 'María Encargada',
           closedAt: '2024-01-08T03:30:00.000Z',
           autoClosed: false,
+          attendees: [],
         },
       ],
       total: 1,
@@ -602,6 +603,7 @@ export const handlers = [
       closedByFullName: 'María Encargada',
       closedAt: '2024-01-08T03:30:00.000Z',
       autoClosed: false,
+      attendees: [],
     }),
   ),
 
@@ -633,6 +635,16 @@ export const handlers = [
     }),
   ),
 
+  http.get(`${BASE}/stores/:storeId/daily-reports/staff`, () =>
+    HttpResponse.json({
+      items: [
+        { userId: 'user-encargada', fullName: 'María Encargada', role: 'encargada' },
+        { userId: 'user-vendedora-1', fullName: 'Lucía Vendedora', role: 'vendedora' },
+        { userId: 'user-vendedora-2', fullName: 'Sofía Vendedora', role: 'vendedora' },
+      ],
+    }),
+  ),
+
   http.post(`${BASE}/stores/:storeId/daily-reports/close-today`, ({ params }) =>
     HttpResponse.json({
       id: 'dr-today',
@@ -648,6 +660,7 @@ export const handlers = [
       closedByFullName: 'María Encargada',
       closedAt: new Date().toISOString(),
       autoClosed: false,
+      attendees: [],
     }),
   ),
 

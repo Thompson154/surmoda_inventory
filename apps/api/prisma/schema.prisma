@@ -149,6 +149,7 @@ model User {
   deliveriesCreated Delivery[]
   salesRecorded     Sale[]
   dailyReportsClosed DailyReport[]
+  dailyReportAttendance DailyReportAttendance[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -346,8 +347,26 @@ model DailyReport {
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user  User? @relation(fields: [closedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  attendees DailyReportAttendance[]
 
   @@unique([storeId, date])
   @@index([date])
   @@map("daily_reports")
+}
+
+/// Roster of staff (vendedora/encargada) who worked the store on the closed day.
+/// Manually marked by the encargada on close — distinct from `recordedByUserId`
+/// on Sale (the cashier who registered the transaction). One closure can have
+/// helpers who never typed a sale themselves.
+model DailyReportAttendance {
+  id            String @id @default(cuid())
+  dailyReportId String @map("daily_report_id")
+  userId        String @map("user_id")
+
+  dailyReport DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([dailyReportId, userId])
+  @@index([userId])
+  @@map("daily_report_attendance")
 }

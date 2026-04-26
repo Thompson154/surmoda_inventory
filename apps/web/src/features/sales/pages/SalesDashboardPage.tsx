@@ -19,6 +19,25 @@ import { formatBs, formatBsShort } from '@/shared/format/currency';
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function weekLabel(index: number): string {
+  if (index === 0) return 'Esta semana';
+  if (index === 1) return 'Semana pasada';
+  return `Hace ${index} sem`;
+}
+
+function shortDate(iso: string): string {
+  // iso = YYYY-MM-DD; render as "26 abr"
+  const [, mm, dd] = iso.split('-');
+  const m = MONTH_ABBR[Number(mm) - 1] ?? mm;
+  return `${Number(dd)} ${m}`;
+}
+
+function weekRange(weekStartIso: string, weekEndIso: string): string {
+  return `${shortDate(weekStartIso)} – ${shortDate(weekEndIso)}`;
+}
+
 interface SparklineProps {
   data: Array<{ date: string; totalCents: number }>;
 }
@@ -39,9 +58,15 @@ function Sparkline({ data }: SparklineProps) {
   const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   const area = `${path} L ${points[points.length - 1]!.x} ${height - padding} L ${points[0]!.x} ${height - padding} Z`;
 
+  const [hover, setHover] = useState<number | null>(null);
+
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${width} ${height + 24}`} className="w-full h-auto">
+      <svg
+        viewBox={`0 0 ${width} ${height + 24}`}
+        className="w-full h-auto"
+        onMouseLeave={() => setHover(null)}
+      >
         <defs>
           <linearGradient id="sales-grad" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="rgb(99 102 241)" stopOpacity="0.3" />
@@ -50,17 +75,37 @@ function Sparkline({ data }: SparklineProps) {
         </defs>
         <path d={area} fill="url(#sales-grad)" />
         <path d={path} fill="none" stroke="rgb(99 102 241)" strokeWidth="2" strokeLinejoin="round" />
+
+        {/* Larger transparent hit-targets so the tooltip is easy to trigger on touch + mouse. */}
+        {points.map((p, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={p.x - xStep / 2}
+            y={0}
+            width={xStep}
+            height={height}
+            fill="transparent"
+            onMouseEnter={() => setHover(i)}
+            onFocus={() => setHover(i)}
+            tabIndex={0}
+            aria-label={`${data[i]!.date}: ${formatBs(data[i]!.totalCents)}`}
+            style={{ cursor: 'pointer', outline: 'none' }}
+          />
+        ))}
+
         {points.map((p, i) => (
           <circle
             key={i}
             cx={p.x}
             cy={p.y}
-            r={i === points.length - 1 ? 4 : 2.5}
-            fill={i === points.length - 1 ? 'rgb(99 102 241)' : 'white'}
+            r={hover === i ? 5 : i === points.length - 1 ? 4 : 2.5}
+            fill={hover === i || i === points.length - 1 ? 'rgb(99 102 241)' : 'white'}
             stroke="rgb(99 102 241)"
-            strokeWidth={i === points.length - 1 ? 0 : 1.5}
+            strokeWidth={hover === i || i === points.length - 1 ? 0 : 1.5}
+            pointerEvents="none"
           />
         ))}
+
         {data.map((d, i) => {
           const dt = new Date(`${d.date}T00:00:00`);
           const dayLabel = DAY_LABELS[dt.getDay()];
@@ -77,6 +122,30 @@ function Sparkline({ data }: SparklineProps) {
             </text>
           );
         })}
+
+        {hover !== null && (() => {
+          const p = points[hover]!;
+          const d = data[hover]!;
+          const label = `${shortDate(d.date)} · ${formatBs(d.totalCents)}`;
+          // Approximate width based on char count so the box stays inside the SVG.
+          const w = Math.max(96, label.length * 6.5);
+          const x = Math.min(Math.max(p.x - w / 2, padding), width - padding - w);
+          const y = Math.max(p.y - 32, 4);
+          return (
+            <g pointerEvents="none">
+              <rect x={x} y={y} width={w} height={22} rx={4} fill="rgb(15 23 42)" opacity={0.92} />
+              <text
+                x={x + w / 2}
+                y={y + 14}
+                textAnchor="middle"
+                fill="white"
+                style={{ fontSize: 10, fontWeight: 500 }}
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })()}
       </svg>
     </div>
   );
@@ -181,12 +250,13 @@ export function SalesDashboardPage() {
 
             <Card>
               <CardContent>
-                <p className="text-sm font-semibold mb-2">Resumen semanal (últimas 4 semanas)</p>
+                <p className="text-sm font-semibold mb-2">Resumen semanal (últimas 5 semanas)</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-surface-sunken text-slate-600">
                       <tr>
                         <th className="text-left px-2 py-2">Semana</th>
+                        <th className="text-left px-2 py-2 text-slate-400 font-normal">Rango</th>
                         <th className="text-right px-2 py-2">QR</th>
                         <th className="text-right px-2 py-2">Tarjeta</th>
                         <th className="text-right px-2 py-2">Efectivo</th>
@@ -194,11 +264,10 @@ export function SalesDashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dashboard.data.weeklyBreakdown.map((row) => (
+                      {dashboard.data.weeklyBreakdown.map((row, idx) => (
                         <tr key={row.weekStart} className="border-t border-surface-border">
-                          <td className="px-2 py-2">
-                            {row.weekStart.slice(5)}–{row.weekEnd.slice(5)}
-                          </td>
+                          <td className="px-2 py-2 font-semibold">{weekLabel(idx)}</td>
+                          <td className="px-2 py-2 text-slate-500">{weekRange(row.weekStart, row.weekEnd)}</td>
                           <td className="px-2 py-2 text-right font-mono">{formatBs(row.qrCents)}</td>
                           <td className="px-2 py-2 text-right font-mono">{formatBs(row.cardCents)}</td>
                           <td className="px-2 py-2 text-right font-mono">{formatBs(row.cashCents)}</td>

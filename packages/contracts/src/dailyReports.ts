@@ -1,5 +1,10 @@
 // WHY: shared contracts for the daily-close report (feature 007).
 
+export interface DailyReportAttendeeDTO {
+  userId: string;
+  fullName: string;
+}
+
 export interface DailyReportDTO {
   id: string;
   storeId: string;
@@ -15,6 +20,19 @@ export interface DailyReportDTO {
   closedByFullName: string | null;
   closedAt: string;
   autoClosed: boolean;
+  /** Manually-recorded staff present on the floor that day. */
+  attendees: DailyReportAttendeeDTO[];
+}
+
+export interface CloseDayPayload {
+  /** User IDs of staff that worked the day. May be empty for legacy clients. */
+  attendedUserIds: string[];
+}
+
+export interface StoreStaffMember {
+  userId: string;
+  fullName: string;
+  role: 'encargada' | 'vendedora';
 }
 
 export interface PaginatedDailyReports {

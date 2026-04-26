@@ -37,7 +37,7 @@ export function startDailyCloseJob(deps: DailyCloseJobDeps): DailyCloseJobHandle
         if (boliviaDayKey(firstSale).getTime() > yesterday.getTime()) continue;
         const existing = await deps.reports.findByDate(s.id, yesterday);
         if (existing) continue;
-        await deps.service.closeForDay(s.id, yesterday, null, true);
+        await deps.service.closeForDay(s.id, yesterday, null, true, []);
         logger.info(
           { storeId: s.id, date: isoDateBolivia(yesterday) },
           'auto-closed daily report',
