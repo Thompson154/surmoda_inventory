@@ -1,8 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { emitAudit } from '../../middleware/auditLogger';
-import { ListUsersQuerySchema } from './validators';
+import {
+  CreateUserSchema,
+  ListUsersQuerySchema,
+  ResetPasswordSchema,
+  UpdateUserSchema,
+} from './validators';
 import type { UserService } from './service';
-import type { CreateUserDTO, ResetPasswordDTO, UpdateUserDTO } from './types';
 
 export interface UserController {
   create(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -18,7 +22,7 @@ export function buildUserController(service: UserService): UserController {
   return {
     async create(req, res, next) {
       try {
-        const input = req.body as CreateUserDTO;
+        const input = CreateUserSchema.parse(req.body);
         const user = await service.create(input);
         emitAudit(req, {
           userId: req.auth?.userId ?? null,
@@ -64,7 +68,7 @@ export function buildUserController(service: UserService): UserController {
           res.status(400).json({ code: 'VALIDATION_ERROR', message: 'id required' });
           return;
         }
-        const input = req.body as UpdateUserDTO;
+        const input = UpdateUserSchema.parse(req.body);
         const user = await service.update(id, input);
         emitAudit(req, {
           userId: req.auth?.userId ?? null,
@@ -128,7 +132,7 @@ export function buildUserController(service: UserService): UserController {
           res.status(400).json({ code: 'VALIDATION_ERROR', message: 'id required' });
           return;
         }
-        const input = req.body as ResetPasswordDTO;
+        const input = ResetPasswordSchema.parse(req.body);
         await service.adminResetPassword(id, input);
         // WHY: NEVER include the plaintext in the audit payload.
         emitAudit(req, {

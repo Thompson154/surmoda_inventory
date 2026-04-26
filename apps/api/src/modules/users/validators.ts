@@ -1,8 +1,17 @@
 import { z } from 'zod';
 import { Role } from '@prisma/client';
-import { PASSWORD_MIN_LENGTH } from '../../shared/constants/tokenConfig';
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+  PASSWORD_RULES_MESSAGE,
+} from '../../shared/constants/tokenConfig';
 
 const RoleEnum = z.nativeEnum(Role);
+
+const StrongPassword = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, PASSWORD_RULES_MESSAGE)
+  .regex(PASSWORD_PATTERN, PASSWORD_RULES_MESSAGE);
 
 const AssignmentInputSchema = z.object({
   storeId: z.string().min(1, 'storeId is required'),
@@ -12,7 +21,7 @@ const AssignmentInputSchema = z.object({
 export const CreateUserSchema = z
   .object({
     email: z.string().email().transform((v) => v.toLowerCase()),
-    password: z.string().min(PASSWORD_MIN_LENGTH, 'Password must be at least 8 characters'),
+    password: StrongPassword,
     fullName: z.string().trim().min(1).max(120),
     isAdmin: z.boolean().optional().default(false),
     assignments: z.array(AssignmentInputSchema).optional(),
@@ -61,7 +70,7 @@ export const UpdateUserSchema = z.object({
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
 export const ResetPasswordSchema = z.object({
-  newPassword: z.string().min(PASSWORD_MIN_LENGTH, 'Password must be at least 8 characters'),
+  newPassword: StrongPassword,
 });
 
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
