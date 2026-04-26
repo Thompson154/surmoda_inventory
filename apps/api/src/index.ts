@@ -10,7 +10,24 @@ import { startRefreshTokenCleanup, type CleanupJobHandle } from './jobs/refreshT
 import { startDailyCloseJob, type DailyCloseJobHandle } from './jobs/dailyClose';
 import { startDailyLockJob, type DailyLockJobHandle } from './jobs/dailyLock';
 
+// Last-ditch process safety net. These handlers fire BEFORE main() so a fault
+// during startup is logged structured-style instead of dumping a raw stack
+// trace to stderr. Per Node.js docs, after either event the process is in an
+// undefined state and we MUST exit. We give graceful shutdown 5 seconds; if
+// it can't drain in that window the supervisor (systemd / Docker / Render)
+// restarts us cleanly.
+function installCrashHandlers(): void {
+  const crash = (origin: string, err: unknown): void => {
+    logger.fatal({ err, origin }, 'fatal: process entering invalid state');
+    setTimeout(() => process.exit(1), 5_000).unref();
+  };
+  process.on('uncaughtException', (err) => crash('uncaughtException', err));
+  process.on('unhandledRejection', (reason) => crash('unhandledRejection', reason));
+}
+
 async function main(): Promise<void> {
+  installCrashHandlers();
+
   const config = loadConfig();
   const app = buildServer();
 

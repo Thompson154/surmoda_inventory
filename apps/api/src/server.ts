@@ -15,6 +15,16 @@ export function buildServer(): Express {
   const app = express();
 
   app.disable('x-powered-by');
+
+  // Trust the first proxy in front of the API. Required so:
+  //   - express-rate-limit reads X-Forwarded-For instead of treating every
+  //     request as 127.0.0.1 (which would defeat per-IP login throttling).
+  //   - req.ip and req.protocol reflect the real client behind Render /
+  //     Railway / Fly / nginx.
+  // We trust only ONE hop; if the deploy ever sits behind multiple proxies
+  // (e.g. Cloudflare → Render LB) bump this number to match the chain length.
+  app.set('trust proxy', 1);
+
   app.use(requestIdMiddleware);
 
   // Production-grade HTTP hardening. Reasoning per directive:
