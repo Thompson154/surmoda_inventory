@@ -1,4 +1,3 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   AdjustQuantityPayload,
   InventoryRow,
@@ -8,6 +7,7 @@ import type {
   StoreEditPermissionDTO,
   TogglePermissionPayload,
 } from '@surmoda/contracts';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQueryString(filters: ListInventoryFilters): string {
   const params = new URLSearchParams();
@@ -28,9 +28,7 @@ export interface AdjustResult extends InventoryRow {
 
 export const inventoryService = {
   list: (storeId: string, filters: ListInventoryFilters = {}) =>
-    httpClient.get<PaginatedInventory>(
-      `/stores/${storeId}/inventory${buildQueryString(filters)}`,
-    ),
+    httpClient.get<PaginatedInventory>(`/stores/${storeId}/inventory${buildQueryString(filters)}`),
 
   adjust: (storeId: string, variantId: string, payload: AdjustQuantityPayload) =>
     httpClient.patch<AdjustResult>(`/stores/${storeId}/inventory/${variantId}`, payload),

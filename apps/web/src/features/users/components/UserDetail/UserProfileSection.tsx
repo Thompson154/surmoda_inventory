@@ -1,9 +1,19 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Pencil, Save } from 'lucide-react';
-import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle, Field, Input } from '@/shared/ui';
 import { useUpdateUser } from '../../hooks/useUsers';
 import type { User } from '../../types';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Field,
+  Input,
+} from '@/shared/ui';
 import type { HttpError } from '@/shared/services/httpClient';
 
 interface UserProfileSectionProps {
@@ -34,10 +44,7 @@ export function UserProfileSection({ user }: UserProfileSectionProps) {
 
   const handleSave = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    update.mutate(
-      { fullName: fullName.trim(), isAdmin },
-      { onSuccess: () => setEditing(false) },
-    );
+    update.mutate({ fullName: fullName.trim(), isAdmin }, { onSuccess: () => setEditing(false) });
   };
 
   const handleCancel = () => {

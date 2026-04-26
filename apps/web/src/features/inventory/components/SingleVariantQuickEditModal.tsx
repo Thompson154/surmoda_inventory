@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Camera, Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
+import { useAdjustQuantity } from '../hooks/useInventory';
+import { inventoryQueryKeys } from '../services/inventoryService';
 import { Alert, Badge, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import { useAdjustQuantity } from '../hooks/useInventory';
-import { getImageUrl, productsService, productsQueryKeys } from '@/features/products/services/productsService';
-import { inventoryQueryKeys } from '../services/inventoryService';
+import {
+  getImageUrl,
+  productsService,
+  productsQueryKeys,
+} from '@/features/products/services/productsService';
 import { formatBs as formatPrice } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 
@@ -219,7 +223,13 @@ export function SingleVariantQuickEditModal({
 
         {canEdit && (
           <div className="flex gap-2 justify-end">
-            <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={adjust.isPending}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onClick={onClose}
+              disabled={adjust.isPending}
+            >
               Cancelar
             </Button>
             <Button

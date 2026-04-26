@@ -7,9 +7,9 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { LoginForm } from '../LoginForm';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { server } from '@/test/server';
 import { renderWithProviders } from '@/test/utils';
-import { useAuthStore } from '../../stores/useAuthStore';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {

@@ -1,5 +1,3 @@
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   CreateProductPayload,
   ListProductsFilters,
@@ -10,6 +8,8 @@ import type {
   UpdateProductPayload,
   Variant,
 } from '@surmoda/contracts';
+import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { httpClient } from '@/shared/services/httpClient';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
 

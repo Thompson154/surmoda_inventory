@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Banknote, Check, CreditCard, QrCode, ScanLine } from 'lucide-react';
 import type { SaleItemDTO, SaleWithItems } from '@surmoda/contracts';
+import { useSales, useSalesDashboard } from '../hooks/useSales';
+import { CashierModal } from '../components/CashierModal';
+import { CloseDayModal } from '../components/CloseDayModal';
 import { Alert, Button, Card, CardContent, Modal, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useStoreParam } from '@/shared/hooks/useStoreParam';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
-import { useSales, useSalesDashboard } from '../hooks/useSales';
-import { CashierModal } from '../components/CashierModal';
-import { CloseDayModal } from '../components/CloseDayModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { formatBsBig, formatBsShort } from '@/shared/format/currency';
@@ -67,13 +67,20 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
   const pct = totalCents === 0 ? 0 : Math.round((cents / totalCents) * 100);
   const palette = {
     QR: { bg: 'bg-violet-100', text: 'text-violet-600', bar: 'bg-violet-500', Icon: QrCode },
-    Efectivo: { bg: 'bg-emerald-100', text: 'text-emerald-600', bar: 'bg-emerald-500', Icon: Banknote },
+    Efectivo: {
+      bg: 'bg-emerald-100',
+      text: 'text-emerald-600',
+      bar: 'bg-emerald-500',
+      Icon: Banknote,
+    },
     Tarjeta: { bg: 'bg-slate-200', text: 'text-slate-700', bar: 'bg-slate-700', Icon: CreditCard },
   }[label];
   const { Icon } = palette;
   return (
     <div className="flex items-center gap-3">
-      <div className={`h-9 w-9 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}>
+      <div
+        className={`h-9 w-9 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}
+      >
         <Icon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
@@ -116,10 +123,18 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
           className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 focus:outline focus:outline-brand"
           aria-label="Ver imagen del producto"
         >
-          <img src={src} alt={row.productName} className="h-full w-full object-cover" />
+          <img
+            src={src}
+            alt={row.productName}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         </button>
       ) : (
-        <div className={`h-12 w-12 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}>
+        <div
+          className={`h-12 w-12 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}
+        >
           <Icon className="h-5 w-5" />
         </div>
       )}
@@ -134,7 +149,9 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
       </div>
 
       <div className="flex flex-col items-end shrink-0">
-        <div className={`h-5 w-5 rounded ${palette.bg} ${palette.text} flex items-center justify-center mb-0.5`}>
+        <div
+          className={`h-5 w-5 rounded ${palette.bg} ${palette.text} flex items-center justify-center mb-0.5`}
+        >
           <Icon className="h-3 w-3" />
         </div>
         {showDiscount && (
@@ -210,7 +227,10 @@ export function SalesRegisterPage() {
   const stats = useMemo(() => {
     if (canSeeDashboard && dashboard.data) {
       const breakdown = dashboard.data.dailyBreakdown[0] ?? {
-        cashCents: 0, qrCents: 0, cardCents: 0, totalCents: 0,
+        cashCents: 0,
+        qrCents: 0,
+        cardCents: 0,
+        totalCents: 0,
       };
       // dailyBreakdown[0] should be today; trust it.
       return {
@@ -243,12 +263,7 @@ export function SalesRegisterPage() {
         {/* Header — Cerrar día button */}
         <header className="flex items-center justify-between">
           <h1 className="text-base font-semibold">{store?.name ?? 'Ventas'}</h1>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setCloseDayOpen(true)}
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={() => setCloseDayOpen(true)}>
             Cerrar día
           </Button>
         </header>
@@ -291,11 +306,7 @@ export function SalesRegisterPage() {
 
           <div className="flex flex-col gap-2">
             {visibleItems.map((row) => (
-              <ItemSaleCard
-                key={row.itemId}
-                row={row}
-                onImageClick={setZoomImage}
-              />
+              <ItemSaleCard key={row.itemId} row={row} onImageClick={setZoomImage} />
             ))}
           </div>
 
@@ -337,11 +348,7 @@ export function SalesRegisterPage() {
           }}
         />
 
-        <Modal
-          isOpen={zoomImage !== null}
-          onClose={() => setZoomImage(null)}
-          title="Producto"
-        >
+        <Modal isOpen={zoomImage !== null} onClose={() => setZoomImage(null)} title="Producto">
           {zoomImage && (
             <img
               src={zoomImage}

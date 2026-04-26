@@ -1,25 +1,17 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, Search, Truck } from 'lucide-react';
-import {
-  Alert,
-  Badge,
-  Card,
-  CardContent,
-  EmptyState,
-  Input,
-  Skeleton,
-} from '@/shared/ui';
-import { useStores } from '@/features/stores/hooks/useStores';
-import { useStoreParam } from '@/shared/hooks/useStoreParam';
-import { useStoreScope } from '@/shared/hooks/useStoreScope';
+import type { DeliveryStatus } from '@surmoda/contracts';
 import { useDeliveriesList } from '../hooks/useDeliveries';
 import { DeliveryDetailDrawer } from '../components/DeliveryDetailDrawer';
 import { NewDeliveryModal } from '../components/NewDeliveryModal';
 import { TransferToStoreModal } from '../components/TransferToStoreModal';
 import { WarehouseIntakeModal } from '../components/WarehouseIntakeModal';
+import { Alert, Badge, Card, CardContent, EmptyState, Input, Skeleton } from '@/shared/ui';
+import { useStores } from '@/features/stores/hooks/useStores';
+import { useStoreParam } from '@/shared/hooks/useStoreParam';
+import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
-import type { DeliveryStatus } from '@surmoda/contracts';
 
 const PAGE_SIZE = 30;
 
@@ -46,7 +38,20 @@ const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
   partial: { bg: 'bg-orange-100', text: 'text-orange-700' },
 };
 
-const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MONTH_ABBR = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
 
 function shortDate(iso: string): string {
   const d = new Date(iso);
@@ -133,12 +138,10 @@ export function DeliveriesPage() {
             always the origin of legacy distributions. */}
         {!isWarehouse && (
           <div className="flex items-center gap-1 rounded-full bg-surface-sunken p-1 self-start">
-            {(
-              [
-                { value: 'incoming' as const, label: 'Recibidas' },
-                { value: 'outgoing' as const, label: 'Enviadas' },
-              ]
-            ).map((d) => {
+            {[
+              { value: 'incoming' as const, label: 'Recibidas' },
+              { value: 'outgoing' as const, label: 'Enviadas' },
+            ].map((d) => {
               const active = direction === d.value;
               return (
                 <button
@@ -243,17 +246,10 @@ export function DeliveriesPage() {
           </ul>
         )}
 
-        <DeliveryDetailDrawer
-          deliveryId={openDeliveryId}
-          onClose={() => setOpenDeliveryId(null)}
-        />
+        <DeliveryDetailDrawer deliveryId={openDeliveryId} onClose={() => setOpenDeliveryId(null)} />
 
         {canCreate && !isWarehouse && (
-          <NewDeliveryModal
-            storeId={storeId}
-            open={newOpen}
-            onClose={() => setNewOpen(false)}
-          />
+          <NewDeliveryModal storeId={storeId} open={newOpen} onClose={() => setNewOpen(false)} />
         )}
         {canCreate && !isWarehouse && (
           <TransferToStoreModal

@@ -9,6 +9,7 @@ import { disconnectPrisma, getPrisma } from './infrastructure/database';
 import { startRefreshTokenCleanup, type CleanupJobHandle } from './jobs/refreshTokenCleanup';
 import { startDailyCloseJob, type DailyCloseJobHandle } from './jobs/dailyClose';
 import { startDailyLockJob, type DailyLockJobHandle } from './jobs/dailyLock';
+import { startAuditRetentionJob, type AuditRetentionJobHandle } from './jobs/auditRetention';
 
 // Last-ditch process safety net. These handlers fire BEFORE main() so a fault
 // during startup is logged structured-style instead of dumping a raw stack
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
   let cleanupJob: CleanupJobHandle | undefined;
   let dailyCloseJob: DailyCloseJobHandle | undefined;
   let dailyLockJob: DailyLockJobHandle | undefined;
+  let auditRetentionJob: AuditRetentionJobHandle | undefined;
   if (config.NODE_ENV !== 'test') {
     cleanupJob = startRefreshTokenCleanup(getPrisma());
     const composition = buildComposition();
@@ -46,6 +48,14 @@ async function main(): Promise<void> {
     if (config.ENABLE_DAILY_SALES_LOCK) {
       dailyLockJob = startDailyLockJob({ db: getPrisma() });
       logger.info('Daily sales lock cron started');
+    }
+    // Tier 1 — audit retention. No-op when AUDIT_RETENTION_DAYS=0.
+    auditRetentionJob = startAuditRetentionJob(getPrisma(), config.AUDIT_RETENTION_DAYS);
+    if (config.AUDIT_RETENTION_DAYS > 0) {
+      logger.info(
+        { retentionDays: config.AUDIT_RETENTION_DAYS },
+        'Audit retention cron started',
+      );
     }
   }
 
@@ -61,6 +71,7 @@ async function main(): Promise<void> {
     cleanupJob?.stop();
     dailyCloseJob?.stop();
     dailyLockJob?.stop();
+    auditRetentionJob?.stop();
 
     // Stop accepting new connections; resolve once in-flight requests drain.
     await new Promise<void>((res) => server.close(() => res()));

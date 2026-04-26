@@ -1,14 +1,13 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   Assignment,
   AssignmentsListResponse,
   CreateAssignmentPayload,
   UpdateAssignmentPayload,
 } from '../types';
+import { httpClient } from '@/shared/services/httpClient';
 
 export const assignmentsService = {
-  list: (userId: string) =>
-    httpClient.get<AssignmentsListResponse>(`/users/${userId}/assignments`),
+  list: (userId: string) => httpClient.get<AssignmentsListResponse>(`/users/${userId}/assignments`),
   create: (userId: string, payload: CreateAssignmentPayload) =>
     httpClient.post<Assignment>(`/users/${userId}/assignments`, payload),
   updateRole: (userId: string, assignmentId: string, payload: UpdateAssignmentPayload) =>

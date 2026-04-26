@@ -2,12 +2,12 @@
 // Vendedora is forbidden — same matrix as the reports endpoint, since both
 // surface cross-store information.
 
+import type { AuditLogListResponse } from '@surmoda/contracts';
 import {
   assertEncargadaOrAdmin,
   type AuthContext,
   type StoreScopeRepo,
 } from '../../shared/auth/storeScope';
-import type { AuditLogListResponse } from '@surmoda/contracts';
 import type { AuditQueryFilters, AuditRepository } from './repository';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -25,10 +25,7 @@ export interface AuditQueryService {
   ): Promise<AuditLogListResponse>;
 }
 
-export function buildAuditQueryService({
-  audit,
-  scope,
-}: AuditQueryServiceDeps): AuditQueryService {
+export function buildAuditQueryService({ audit, scope }: AuditQueryServiceDeps): AuditQueryService {
   return {
     async list(raw, auth) {
       await assertEncargadaOrAdmin(

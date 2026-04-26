@@ -1,11 +1,7 @@
 import { Prisma } from '@prisma/client';
-import type { Database } from '../../infrastructure/database';
 import type { DailyReportItemDTO } from '@surmoda/contracts';
-import type {
-  DailyReportDTO,
-  ListDailyReportsQuery,
-  PaginatedDailyReports,
-} from './types';
+import type { Database } from '../../infrastructure/database';
+import type { DailyReportDTO, ListDailyReportsQuery, PaginatedDailyReports } from './types';
 import { boliviaDayWindow, parseBoliviaDayKey } from './timezone';
 
 export type DailyReportTx = Prisma.TransactionClient;
@@ -21,21 +17,26 @@ interface DayAggregate {
 
 export interface DailyReportRepository {
   aggregateDay(storeId: string, day: Date, tx?: DailyReportTx): Promise<DayAggregate>;
-  upsert(input: {
-    storeId: string;
-    day: Date;
-    aggregate: DayAggregate;
-    closedByUserId: string | null;
-    closedAt: Date;
-    autoClosed: boolean;
-    attendedNames: string[];
-  }, tx?: DailyReportTx): Promise<DailyReportDTO>;
+  upsert(
+    input: {
+      storeId: string;
+      day: Date;
+      aggregate: DayAggregate;
+      closedByUserId: string | null;
+      closedAt: Date;
+      autoClosed: boolean;
+      attendedNames: string[];
+    },
+    tx?: DailyReportTx,
+  ): Promise<DailyReportDTO>;
   findByDate(storeId: string, day: Date): Promise<DailyReportDTO | null>;
   getDayItems(storeId: string, day: Date): Promise<DailyReportItemDTO[]>;
   list(storeId: string, query: ListDailyReportsQuery): Promise<PaginatedDailyReports>;
   listActiveStores(): Promise<Array<{ id: string }>>;
   findFirstSaleDay(storeId: string): Promise<Date | null>;
-  listStoreStaff(storeId: string): Promise<Array<{ userId: string; fullName: string; role: 'encargada' | 'vendedora' }>>;
+  listStoreStaff(
+    storeId: string,
+  ): Promise<Array<{ userId: string; fullName: string; role: 'encargada' | 'vendedora' }>>;
   runSerializable<T>(fn: (tx: DailyReportTx) => Promise<T>): Promise<T>;
 }
 
@@ -215,8 +216,16 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
       });
 
       const SIZE_LABEL: Record<string, string> = {
-        s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL',
-        size_28: '28', size_30: '30', size_32: '32', size_34: '34', standard: 'standard',
+        s: 'S',
+        m: 'M',
+        l: 'L',
+        xl: 'XL',
+        xxl: 'XXL',
+        size_28: '28',
+        size_30: '30',
+        size_32: '32',
+        size_34: '34',
+        standard: 'standard',
       };
 
       const map = new Map<string, DailyReportItemDTO>();

@@ -1,16 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateUser } from '../../hooks/useUsers';
-import { useStores } from '@/features/stores/hooks/useStores';
-import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Button } from '@/shared/ui';
 import type { CreateUserPayload } from '../../types';
-import type { HttpError } from '@/shared/services/httpClient';
 import { EmailField } from './EmailField';
 import { FullNameField } from './FullNameField';
 import { PasswordField } from './PasswordField';
 import { AdminToggle } from './AdminToggle';
 import { AssignmentsDraftList, type AssignmentDraft } from './AssignmentsDraftList';
+import type { HttpError } from '@/shared/services/httpClient';
+import { Alert, Button } from '@/shared/ui';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useStores } from '@/features/stores/hooks/useStores';
 
 export function UserForm() {
   const navigate = useNavigate();
@@ -79,7 +79,13 @@ export function UserForm() {
         />
       )}
       {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
-      <Button type="submit" variant="primary" isLoading={create.isPending} size="md" className="w-full">
+      <Button
+        type="submit"
+        variant="primary"
+        isLoading={create.isPending}
+        size="md"
+        className="w-full"
+      >
         {create.isPending ? 'Creando...' : 'Crear usuario'}
       </Button>
     </form>

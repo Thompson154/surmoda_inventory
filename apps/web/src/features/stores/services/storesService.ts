@@ -1,4 +1,3 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   CreateStorePayload,
   ListStoresFilters,
@@ -6,6 +5,7 @@ import type {
   Store,
   UpdateStorePayload,
 } from '@surmoda/contracts';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQueryString(filters: ListStoresFilters): string {
   const params = new URLSearchParams();

@@ -1,11 +1,12 @@
-import type { HttpError } from '@/shared/services/httpClient';
 import { ERROR_CODES } from '@surmoda/contracts';
+import type { HttpError } from '@/shared/services/httpClient';
 
 type ErrorCodeKey = keyof typeof ERROR_CODES;
 
 const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.VALIDATION_ERROR]: 'Revisá los campos del formulario.',
-  [ERROR_CODES.RATE_LIMIT_EXCEEDED]: 'Demasiadas solicitudes. Esperá un momento e intentá de nuevo.',
+  [ERROR_CODES.RATE_LIMIT_EXCEEDED]:
+    'Demasiadas solicitudes. Esperá un momento e intentá de nuevo.',
   [ERROR_CODES.INTERNAL_ERROR]: 'Error interno del servidor. Intentá de nuevo más tarde.',
 
   [ERROR_CODES.AUTH_LOGIN_INVALID_CREDENTIALS]: 'Email o contraseña incorrectos.',
@@ -24,14 +25,16 @@ const ERROR_MESSAGES: Record<string, string> = {
     'No se puede desactivar/demoter al último admin activo.',
   [ERROR_CODES.USER_NOT_FOUND]: 'Usuario no encontrado.',
   [ERROR_CODES.USER_PASSWORD_TOO_SHORT]: 'La contraseña es demasiado corta.',
-  [ERROR_CODES.USER_PASSWORD_RESET_BY_ADMIN]: 'La contraseña fue restablecida por un administrador.',
+  [ERROR_CODES.USER_PASSWORD_RESET_BY_ADMIN]:
+    'La contraseña fue restablecida por un administrador.',
 
   [ERROR_CODES.ASSIGNMENT_DUPLICATE]: 'Ya tiene una asignación activa en esa tienda.',
   [ERROR_CODES.ASSIGNMENT_NOT_FOUND]: 'Asignación no encontrada.',
   [ERROR_CODES.ASSIGNMENT_LAST_REMOVAL_REQUIRES_CONFIRM]:
     'Esta es la última asignación. Confirmá si querés que el usuario quede sin acceso a tiendas.',
   [ERROR_CODES.ASSIGNMENT_STORE_NOT_FOUND]: 'Tienda no encontrada.',
-  [ERROR_CODES.ASSIGNMENT_INVALID_FOR_ADMIN]: 'Los administradores no pueden tener asignaciones de tienda.',
+  [ERROR_CODES.ASSIGNMENT_INVALID_FOR_ADMIN]:
+    'Los administradores no pueden tener asignaciones de tienda.',
 
   [ERROR_CODES.STORE_NOT_FOUND]: 'Tienda no encontrada.',
   [ERROR_CODES.STORE_DUPLICATE_CODE]: 'Ese código ya está en uso.',
@@ -67,7 +70,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.DELIVERY_EMPTY_ITEMS]: 'Agregá al menos un ítem.',
   [ERROR_CODES.DELIVERY_VARIANT_NOT_FOUND]: 'Una de las variantes no existe o está inactiva.',
   [ERROR_CODES.DELIVERY_FORBIDDEN]: 'Sólo encargada/admin puede crear entregas.',
-  [ERROR_CODES.DELIVERY_INVALID_STATE]: 'No se puede aplicar esa acción al estado actual de la entrega.',
+  [ERROR_CODES.DELIVERY_INVALID_STATE]:
+    'No se puede aplicar esa acción al estado actual de la entrega.',
 
   [ERROR_CODES.SALE_NOT_FOUND]: 'Venta no encontrada.',
   [ERROR_CODES.SALE_EMPTY_ITEMS]: 'Agregá al menos un ítem.',

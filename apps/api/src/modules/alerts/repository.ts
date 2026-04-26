@@ -5,6 +5,7 @@
 //   - STOCK_OUT_HOT   → stockBySite.quantity = 0 AND the variant sold in the last 7 days
 //   - CIERRE_MISSING  → active store had sales yesterday OR earlier and yesterday has no DailyReport
 
+import type { AlertDTO, AlertKind, AlertsResponse } from '@surmoda/contracts';
 import type { Database } from '../../infrastructure/database';
 import {
   boliviaDayKey,
@@ -13,7 +14,6 @@ import {
   previousBoliviaDayKey,
 } from '../../shared/datetime/bolivia';
 import { SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
-import type { AlertDTO, AlertKind, AlertsResponse } from '@surmoda/contracts';
 
 const LOW_STOCK_THRESHOLD = 5;
 const HOT_LOOKBACK_DAYS = 7;
@@ -29,21 +29,29 @@ export function buildAlertsRepository(db: Database): AlertsRepository {
       const now = new Date();
       const detectedAt = now.toISOString();
       const yesterdayKey = previousBoliviaDayKey(now);
-      const sevenDaysAgo = new Date(boliviaDayKey(now).getTime() - HOT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(
+        boliviaDayKey(now).getTime() - HOT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+      );
       const { start: hotStart } = boliviaDayWindow(sevenDaysAgo);
 
       // ── 1. STOCK_LOW + STOCK_OUT_HOT come from a single stockBySite scan ──
       const stockRows = await db.stockBySite.findMany({
         where: {
           quantity: { lte: LOW_STOCK_THRESHOLD },
-          variant: { deletedAt: null, isActive: true, product: { deletedAt: null, isActive: true } },
+          variant: {
+            deletedAt: null,
+            isActive: true,
+            product: { deletedAt: null, isActive: true },
+          },
           store: { isActive: true, deletedAt: null },
         },
         include: {
           store: { select: { id: true, name: true } },
           variant: {
             select: {
-              id: true, size: true, color: true,
+              id: true,
+              size: true,
+              color: true,
               product: { select: { code: true, name: true } },
             },
           },
@@ -51,7 +59,12 @@ export function buildAlertsRepository(db: Database): AlertsRepository {
       });
 
       const lowAlerts: AlertDTO[] = [];
-      const zeroVariantPairs: Array<{ storeId: string; variantId: string; storeName: string; variant: typeof stockRows[number]['variant'] }> = [];
+      const zeroVariantPairs: Array<{
+        storeId: string;
+        variantId: string;
+        storeName: string;
+        variant: (typeof stockRows)[number]['variant'];
+      }> = [];
       for (const r of stockRows) {
         if (r.quantity > 0) {
           lowAlerts.push({
@@ -81,7 +94,7 @@ export function buildAlertsRepository(db: Database): AlertsRepository {
       // STOCK_OUT_HOT — only flag a zero-stock variant if it actually sold recently.
       // Pull every saleItem in the lookback window joined to its sale's store and
       // build a Set of "storeId:variantId" pairs. Then intersect with zero rows.
-      let hotAlerts: AlertDTO[] = [];
+      const hotAlerts: AlertDTO[] = [];
       if (zeroVariantPairs.length > 0) {
         const recentItems = await db.saleItem.findMany({
           where: { sale: { createdAt: { gte: hotStart } } },
@@ -140,7 +153,7 @@ export function buildAlertsRepository(db: Database): AlertsRepository {
       }
 
       // Cap each kind so a runaway state doesn't ship 5k entries to the client.
-      const cap = <T,>(arr: T[]): T[] => arr.slice(0, ALERT_LIMIT_PER_KIND);
+      const cap = <T>(arr: T[]): T[] => arr.slice(0, ALERT_LIMIT_PER_KIND);
       const items: AlertDTO[] = [
         ...cap(cierreAlerts), // cierre first — highest operational urgency
         ...cap(hotAlerts),

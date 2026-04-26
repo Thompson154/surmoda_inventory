@@ -1,4 +1,3 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type {
   ConfirmDraftPayload,
   CreateDeliveryPayload,
@@ -11,6 +10,7 @@ import type {
   WarehouseIntakeLookupResponse,
   WarehouseIntakePayload,
 } from '@surmoda/contracts';
+import { httpClient } from '@/shared/services/httpClient';
 
 function buildQS(filters: ListDeliveriesFilters): string {
   const params = new URLSearchParams();
@@ -28,15 +28,12 @@ function buildQS(filters: ListDeliveriesFilters): string {
 
 export const deliveriesService = {
   list: (storeId: string, filters: ListDeliveriesFilters = {}) =>
-    httpClient.get<PaginatedDeliveries>(
-      `/stores/${storeId}/deliveries${buildQS(filters)}`,
-    ),
+    httpClient.get<PaginatedDeliveries>(`/stores/${storeId}/deliveries${buildQS(filters)}`),
   listGrouped: (storeId: string, filters: ListDeliveriesFilters = {}) =>
     httpClient.get<PaginatedDeliveryGroups>(
       `/stores/${storeId}/deliveries/grouped${buildQS(filters)}`,
     ),
-  getById: (deliveryId: string) =>
-    httpClient.get<DeliveryWithItems>(`/deliveries/${deliveryId}`),
+  getById: (deliveryId: string) => httpClient.get<DeliveryWithItems>(`/deliveries/${deliveryId}`),
   create: (storeId: string, payload: CreateDeliveryPayload) =>
     httpClient.post<DeliveryWithItems>(`/stores/${storeId}/deliveries`, payload),
   updateDraft: (deliveryId: string, payload: UpdateDraftDeliveryPayload) =>

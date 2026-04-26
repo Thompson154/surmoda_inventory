@@ -8,6 +8,13 @@
 //   - Top products / top sellers always come from raw `sale_items` / `sales`
 //     joined to variants, because DailyReport doesn't keep per-product detail.
 
+import type {
+  ReportStoreRowDTO,
+  ReportSummaryDTO,
+  ReportTopProductDTO,
+  ReportTopSellerDTO,
+  ReportTotalsDTO,
+} from '@surmoda/contracts';
 import type { Database } from '../../infrastructure/database';
 import {
   boliviaDayKey,
@@ -16,13 +23,6 @@ import {
   parseBoliviaDayKey,
 } from '../../shared/datetime/bolivia';
 import { PM_FROM_PRISMA, SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
-import type {
-  ReportStoreRowDTO,
-  ReportSummaryDTO,
-  ReportTopProductDTO,
-  ReportTopSellerDTO,
-  ReportTotalsDTO,
-} from '@surmoda/contracts';
 
 const TOP_PRODUCTS_LIMIT = 10;
 const TOP_SELLERS_LIMIT = 5;
@@ -41,9 +41,7 @@ export function buildReportRepository(db: Database): ReportRepository {
 
       const todayInRange = todayKey >= fromKey && todayKey <= toKey;
       // Past-portion of the range = everything strictly before today.
-      const closedTo = todayInRange
-        ? new Date(todayKey.getTime() - 24 * 60 * 60 * 1000)
-        : toKey;
+      const closedTo = todayInRange ? new Date(todayKey.getTime() - 24 * 60 * 60 * 1000) : toKey;
       const hasClosedRange = closedTo >= fromKey;
 
       // ── 1. Closed days from DailyReport ────────────────────────────────────
@@ -91,18 +89,16 @@ export function buildReportRepository(db: Database): ReportRepository {
         });
         for (const s of todaySales) {
           const key = s.storeId;
-          const bucket =
-            runtimeByStore.get(key) ??
-            {
-              totalCents: 0,
-              qrCents: 0,
-              cardCents: 0,
-              cashCents: 0,
-              transactionsCount: 0,
-              itemCount: 0,
-              storeName: s.store.name,
-              storeCode: s.store.code,
-            };
+          const bucket = runtimeByStore.get(key) ?? {
+            totalCents: 0,
+            qrCents: 0,
+            cardCents: 0,
+            cashCents: 0,
+            transactionsCount: 0,
+            itemCount: 0,
+            storeName: s.store.name,
+            storeCode: s.store.code,
+          };
           bucket.totalCents += s.totalCents;
           bucket.transactionsCount += 1;
           bucket.itemCount += s.items.reduce((a, b) => a + b.quantity, 0);
@@ -256,9 +252,7 @@ export function buildReportRepository(db: Database): ReportRepository {
         .sort((a, b) => b.totalCents - a.totalCents)
         .slice(0, TOP_SELLERS_LIMIT);
 
-      const byStore = Array.from(byStoreMap.values()).sort(
-        (a, b) => b.totalCents - a.totalCents,
-      );
+      const byStore = Array.from(byStoreMap.values()).sort((a, b) => b.totalCents - a.totalCents);
 
       // Suppress unused warning when range entirely in the past.
       void todayIso;

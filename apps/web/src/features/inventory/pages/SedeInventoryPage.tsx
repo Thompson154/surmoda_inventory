@@ -9,6 +9,15 @@ import {
   ClipboardList,
   ScanLine,
 } from 'lucide-react';
+import type { InventoryRow } from '@surmoda/contracts';
+import { useEditPermission, useToggleEditPermission } from '../hooks/useInventory';
+import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
+import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
+import { MovementsDrawer } from '../components/MovementsDrawer';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { SingleVariantQuickEditModal } from '../components/SingleVariantQuickEditModal';
+import { useStores } from '@/features/stores/hooks/useStores';
+import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import {
   Alert,
   Badge,
@@ -21,15 +30,6 @@ import {
   Input,
   Skeleton,
 } from '@/shared/ui';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
-import { useStores } from '@/features/stores/hooks/useStores';
-import { useEditPermission, useToggleEditPermission } from '../hooks/useInventory';
-import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
-import type { InventoryRow } from '@surmoda/contracts';
-import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
-import { MovementsDrawer } from '../components/MovementsDrawer';
-import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
-import { SingleVariantQuickEditModal } from '../components/SingleVariantQuickEditModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { getImageUrl } from '@/features/products/services/productsService';
@@ -153,9 +153,7 @@ export function SedeInventoryPage() {
                 type="button"
                 variant={permission.data.isEnabled ? 'danger' : 'primary'}
                 size="sm"
-                onClick={() =>
-                  togglePermission.mutate({ isEnabled: !permission.data!.isEnabled })
-                }
+                onClick={() => togglePermission.mutate({ isEnabled: !permission.data!.isEnabled })}
                 isLoading={togglePermission.isPending}
                 disabled={togglePermission.isPending}
               >
@@ -168,7 +166,9 @@ export function SedeInventoryPage() {
         {lowStockProbe.data && lowStockProbe.data.total > 0 && stockStatus !== 'low' && (
           <div className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
             <p className="text-sm text-amber-800 flex items-center gap-2">
-              <span aria-hidden className="text-amber-600">⚠</span>
+              <span aria-hidden className="text-amber-600">
+                ⚠
+              </span>
               {lowStockProbe.data.total}{' '}
               {lowStockProbe.data.total === 1
                 ? 'producto requiere reposición'
@@ -204,11 +204,13 @@ export function SedeInventoryPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {([
-            { value: 'all', label: 'Todos' },
-            { value: 'low', label: 'Stock bajo' },
-            { value: 'zero', label: 'Sin stock' },
-          ] as const).map((opt) => {
+          {(
+            [
+              { value: 'all', label: 'Todos' },
+              { value: 'low', label: 'Stock bajo' },
+              { value: 'zero', label: 'Sin stock' },
+            ] as const
+          ).map((opt) => {
             const active = stockStatus === opt.value;
             return (
               <button
@@ -249,9 +251,7 @@ export function SedeInventoryPage() {
           </Card>
         )}
 
-        {filteredQuery.isError && (
-          <Alert variant="error">No pudimos cargar el inventario.</Alert>
-        )}
+        {filteredQuery.isError && <Alert variant="error">No pudimos cargar el inventario.</Alert>}
 
         {filteredQuery.data && (
           <>
@@ -286,6 +286,8 @@ export function SedeInventoryPage() {
                                 <img
                                   src={imageUrl}
                                   alt=""
+                                  loading="lazy"
+                                  decoding="async"
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
@@ -321,7 +323,8 @@ export function SedeInventoryPage() {
                                   )}
                                   {row.lowVariantsCount > 0 && (
                                     <span className="rounded-full bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5">
-                                      {row.lowVariantsCount} variante{row.lowVariantsCount === 1 ? '' : 's'} con stock bajo
+                                      {row.lowVariantsCount} variante
+                                      {row.lowVariantsCount === 1 ? '' : 's'} con stock bajo
                                     </span>
                                   )}
                                 </div>
@@ -345,8 +348,8 @@ export function SedeInventoryPage() {
                 {filteredQuery.data.total > PAGE_SIZE && (
                   <CardFooter className="justify-between">
                     <span className="text-sm text-slate-600">
-                      Página {filteredQuery.data.page} de {totalPages} ·{' '}
-                      {filteredQuery.data.total} producto
+                      Página {filteredQuery.data.page} de {totalPages} · {filteredQuery.data.total}{' '}
+                      producto
                       {filteredQuery.data.total === 1 ? '' : 's'}
                     </span>
                     <div className="flex items-center gap-1">

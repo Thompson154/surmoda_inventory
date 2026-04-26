@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import type { InventoryRow } from '@surmoda/contracts';
 import { Alert, Button, Input, Modal } from '@/shared/ui';
 import { httpClient } from '@/shared/services/httpClient';
-import {
-  BarcodeScanner,
-  type BarcodeScannerHandle,
-} from '@/shared/components/BarcodeScanner';
-import type { InventoryRow } from '@surmoda/contracts';
+import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
 
 interface BarcodeScannerModalProps {
   storeId: string;
@@ -23,7 +20,12 @@ interface BarcodeScannerModalProps {
  * scanner with a long cooldown so the same not-found code doesn't re-fire
  * every 120ms (which is what made the old version feel sluggish).
  */
-export function BarcodeScannerModal({ storeId, open, onClose, onResolved }: BarcodeScannerModalProps) {
+export function BarcodeScannerModal({
+  storeId,
+  open,
+  onClose,
+  onResolved,
+}: BarcodeScannerModalProps) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -75,10 +77,7 @@ export function BarcodeScannerModal({ storeId, open, onClose, onResolved }: Barc
   return (
     <Modal isOpen={open} onClose={onClose} title="Escanear código de barras">
       <div className="flex flex-col gap-3">
-        <BarcodeScanner
-          handleRef={scannerRef}
-          onDetected={(c) => void submit(c, true)}
-        />
+        <BarcodeScanner handleRef={scannerRef} onDetected={(c) => void submit(c, true)} />
 
         <div>
           <label htmlFor="barcode-input" className="text-sm font-medium text-slate-700">

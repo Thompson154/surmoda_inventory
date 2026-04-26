@@ -1,19 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
-import {
-  Alert,
-  Button,
-  IconButton,
-  Input,
-  Modal,
-  Select,
-} from '@/shared/ui';
+import { useCreateDelivery } from '../hooks/useDeliveries';
+import { Alert, Button, IconButton, Input, Modal, Select } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useInventory } from '@/features/inventory/hooks/useInventory';
-import { useCreateDelivery } from '../hooks/useDeliveries';
 import { getImageUrl } from '@/features/products/services/productsService';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 
@@ -45,16 +38,11 @@ interface CartItem {
  * The delivery is born `sent` (status) and the destination's encargada/vendedora
  * receives it via the standard reception flow.
  */
-export function TransferToStoreModal({
-  fromStoreId,
-  open,
-  onClose,
-}: TransferToStoreModalProps) {
+export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToStoreModalProps) {
   const stores = useStores();
   // Allowed destinations = every active store except the origin itself.
   const destinations = useMemo(
-    () =>
-      stores.data?.items.filter((s) => s.id !== fromStoreId && s.isActive) ?? [],
+    () => stores.data?.items.filter((s) => s.id !== fromStoreId && s.isActive) ?? [],
     [stores.data, fromStoreId],
   );
   const [toStoreId, setToStoreId] = useState<string>('');
@@ -72,8 +60,7 @@ export function TransferToStoreModal({
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
 
   const totalUnits = cart.reduce((sum, c) => sum + c.quantity, 0);
-  const canSubmit =
-    Boolean(toStoreId) && cart.length > 0 && totalUnits > 0 && !create.isPending;
+  const canSubmit = Boolean(toStoreId) && cart.length > 0 && totalUnits > 0 && !create.isPending;
 
   function addToCart(row: InventoryRow) {
     if (row.quantity <= 0) return;
@@ -81,9 +68,7 @@ export function TransferToStoreModal({
       const existing = prev.find((i) => i.variantId === row.variantId);
       if (existing) {
         const next = Math.min(existing.available, existing.quantity + 1);
-        return prev.map((i) =>
-          i.variantId === row.variantId ? { ...i, quantity: next } : i,
-        );
+        return prev.map((i) => (i.variantId === row.variantId ? { ...i, quantity: next } : i));
       }
       return [
         ...prev,
@@ -218,9 +203,7 @@ export function TransferToStoreModal({
                     onClick={() => addToCart(row)}
                     disabled={disabled}
                     className={`flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed ${
-                      cart.find((c) => c.variantId === row.variantId)
-                        ? 'bg-surface-sunken'
-                        : ''
+                      cart.find((c) => c.variantId === row.variantId) ? 'bg-surface-sunken' : ''
                     }`}
                   >
                     <div className="h-9 w-9 shrink-0 rounded-md bg-slate-100 flex items-center justify-center overflow-hidden">
@@ -233,13 +216,10 @@ export function TransferToStoreModal({
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-mono text-slate-500">{row.productCode}</p>
                       <p className="text-sm truncate">
-                        {sizeLabel(row.size)} ·{' '}
-                        <span className="capitalize">{row.color}</span>
+                        {sizeLabel(row.size)} · <span className="capitalize">{row.color}</span>
                       </p>
                     </div>
-                    <span className="text-xs text-slate-500 shrink-0">
-                      {row.quantity} dispon.
-                    </span>
+                    <span className="text-xs text-slate-500 shrink-0">{row.quantity} dispon.</span>
                     <Plus className="h-4 w-4 text-slate-400 shrink-0" />
                   </button>
                 );
@@ -262,8 +242,7 @@ export function TransferToStoreModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono text-slate-500">{i.productCode}</p>
                     <p className="text-sm">
-                      {sizeLabel(i.size)} ·{' '}
-                      <span className="capitalize">{i.color}</span>
+                      {sizeLabel(i.size)} · <span className="capitalize">{i.color}</span>
                     </p>
                   </div>
                   <Input
@@ -275,9 +254,7 @@ export function TransferToStoreModal({
                     className="w-16 text-center text-xs py-1"
                     aria-label="Cantidad"
                   />
-                  <span className="text-[10px] text-slate-400 shrink-0">
-                    /{i.available}
-                  </span>
+                  <span className="text-[10px] text-slate-400 shrink-0">/{i.available}</span>
                   <IconButton
                     icon={<Trash2 className="h-3.5 w-3.5" />}
                     label="Quitar"

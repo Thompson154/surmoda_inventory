@@ -1,6 +1,6 @@
-import { httpClient } from '@/shared/services/httpClient';
 import type { LoginCredentials, LoginResponse, RefreshResponse } from '../types';
 import type { AuthUser } from '../stores/useAuthStore';
+import { httpClient } from '@/shared/services/httpClient';
 
 export const authService = {
   login: (creds: LoginCredentials) =>

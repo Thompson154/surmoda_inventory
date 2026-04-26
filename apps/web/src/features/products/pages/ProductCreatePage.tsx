@@ -1,10 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useCreateProduct } from '../hooks/useProductsAdmin';
+import { ProductForm } from '../components/ProductForm';
 import { Card, CardContent } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import { useCreateProduct } from '../hooks/useProductsAdmin';
-import { ProductForm } from '../components/ProductForm';
 
 export function ProductCreatePage() {
   const navigate = useNavigate();
@@ -26,7 +26,8 @@ export function ProductCreatePage() {
           </Link>
           <h1 className="text-xl font-semibold">Nuevo producto</h1>
           <p className="text-sm text-slate-500">
-            Después de crear el producto vas a poder agregar variantes (talla + color + precio + imagen).
+            Después de crear el producto vas a poder agregar variantes (talla + color + precio +
+            imagen).
           </p>
         </header>
         <Card>

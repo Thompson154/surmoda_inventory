@@ -10,19 +10,22 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   rightIcon?: ReactNode;
 }
 
+// Disabled-state palette uses SOLID colors (not opacity-50) so the contrast
+// against the background still satisfies WCAG 2.1 AA — opacity dilutes the
+// foreground/background ratio in a way the spec measures unfavourably.
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
     'bg-brand-primary text-white hover:bg-brand-primary-hover active:bg-brand-primary-active ' +
     'disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed',
   secondary:
     'border border-surface-border-strong text-slate-700 bg-white hover:bg-surface-sunken ' +
-    'disabled:opacity-50 disabled:cursor-not-allowed',
+    'disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed',
   danger:
     'bg-status-danger text-white hover:bg-red-700 ' +
-    'disabled:bg-red-300 disabled:cursor-not-allowed',
+    'disabled:bg-red-200 disabled:text-red-500 disabled:cursor-not-allowed',
   ghost:
     'text-slate-700 hover:bg-surface-sunken ' +
-    'disabled:opacity-50 disabled:cursor-not-allowed',
+    'disabled:text-slate-400 disabled:cursor-not-allowed',
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps['size']>, string> = {
@@ -57,11 +60,7 @@ export function Button({
       )}
       {...rest}
     >
-      {isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-      ) : (
-        leftIcon
-      )}
+      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : leftIcon}
       {children}
       {!isLoading && rightIcon}
     </button>

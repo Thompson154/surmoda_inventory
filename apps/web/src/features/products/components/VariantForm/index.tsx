@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import type { Size, Variant } from '@surmoda/contracts';
-import { Alert, Button } from '@/shared/ui';
 import { SizeSelect } from './SizeSelect';
 import { ColorInput } from './ColorInput';
 import { PriceInput } from './PriceInput';
 import { ImageUploader } from './ImageUploader';
+import { Alert, Button } from '@/shared/ui';
 
 interface VariantFormProps {
   mode: 'create' | 'edit';

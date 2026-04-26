@@ -11,6 +11,7 @@
 // straight to `received` at create-time, applying stock then. That's the
 // historical behaviour and matches how the operator already uses the screen.
 
+import type { WarehouseIntakeLookupResponse, WarehouseIntakePayload } from '@surmoda/contracts';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import {
@@ -29,10 +30,6 @@ import {
   type ImageMimeType,
   type ImageStorage,
 } from '../products/imageStorage/types';
-import type {
-  WarehouseIntakeLookupResponse,
-  WarehouseIntakePayload,
-} from '@surmoda/contracts';
 import type {
   AuthContext,
   ConfirmDraftDTO,
@@ -61,19 +58,47 @@ export interface DeliveryServiceDeps {
 }
 
 export interface DeliveryService {
-  create(toStoreId: string, input: CreateDeliveryDTO, auth: AuthContext): Promise<DeliveryWithItems>;
-  list(storeId: string, query: ListDeliveriesQuery, auth: AuthContext): Promise<PaginatedDeliveries>;
+  create(
+    toStoreId: string,
+    input: CreateDeliveryDTO,
+    auth: AuthContext,
+  ): Promise<DeliveryWithItems>;
+  list(
+    storeId: string,
+    query: ListDeliveriesQuery,
+    auth: AuthContext,
+  ): Promise<PaginatedDeliveries>;
   listGrouped(
     storeId: string,
     query: ListDeliveriesQuery,
     auth: AuthContext,
   ): Promise<PaginatedDeliveryGroups>;
   getById(deliveryId: string, auth: AuthContext): Promise<DeliveryWithItems>;
-  updateDraft(deliveryId: string, input: UpdateDraftDeliveryDTO, auth: AuthContext): Promise<DeliveryWithItems>;
-  confirmDraft(deliveryId: string, input: ConfirmDraftDTO, auth: AuthContext): Promise<DeliveryWithItems>;
-  receive(deliveryId: string, input: ReceiveDeliveryDTO, auth: AuthContext): Promise<DeliveryWithItems>;
-  intakeLookup(warehouseId: string, productCode: string, auth: AuthContext): Promise<WarehouseIntakeLookupResponse>;
-  intake(warehouseId: string, input: WarehouseIntakePayload, auth: AuthContext): Promise<DeliveryWithItems>;
+  updateDraft(
+    deliveryId: string,
+    input: UpdateDraftDeliveryDTO,
+    auth: AuthContext,
+  ): Promise<DeliveryWithItems>;
+  confirmDraft(
+    deliveryId: string,
+    input: ConfirmDraftDTO,
+    auth: AuthContext,
+  ): Promise<DeliveryWithItems>;
+  receive(
+    deliveryId: string,
+    input: ReceiveDeliveryDTO,
+    auth: AuthContext,
+  ): Promise<DeliveryWithItems>;
+  intakeLookup(
+    warehouseId: string,
+    productCode: string,
+    auth: AuthContext,
+  ): Promise<WarehouseIntakeLookupResponse>;
+  intake(
+    warehouseId: string,
+    input: WarehouseIntakePayload,
+    auth: AuthContext,
+  ): Promise<DeliveryWithItems>;
 }
 
 export function buildDeliveryService({
@@ -266,11 +291,7 @@ export function buildDeliveryService({
           if (input.fromStoreId) {
             const fromStore = await stores.findById(input.fromStoreId);
             if (!fromStore) {
-              throw new AppError(
-                404,
-                ERROR_CODES.STORE_NOT_FOUND,
-                'Sede de origen no encontrada.',
-              );
+              throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Sede de origen no encontrada.');
             }
             if (fromStore.id === toStoreId) {
               throw new AppError(
@@ -324,9 +345,17 @@ export function buildDeliveryService({
         if (targetStatus === 'received') {
           // Reload items so we have the freshly-generated DeliveryItem ids.
           const fresh = await deliveries.loadForUpdate(created.id, tx);
-          if (!fresh) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Entrega recién creada no se pudo recuperar.');
+          if (!fresh)
+            throw new AppError(
+              500,
+              ERROR_CODES.INTERNAL_ERROR,
+              'Entrega recién creada no se pudo recuperar.',
+            );
           const qtyMap = new Map(
-            fresh.items.map((i) => [i.id, { variantId: i.variantId, receivedQuantity: i.quantity }]),
+            fresh.items.map((i) => [
+              i.id,
+              { variantId: i.variantId, receivedQuantity: i.quantity },
+            ]),
           );
           await applyStockForReception(
             {
@@ -344,7 +373,8 @@ export function buildDeliveryService({
       });
 
       const full = await deliveries.findDelivery(deliveryId);
-      if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      if (!full)
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
 
@@ -360,7 +390,8 @@ export function buildDeliveryService({
 
     async getById(deliveryId, auth) {
       const delivery = await deliveries.findDelivery(deliveryId);
-      if (!delivery) throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
+      if (!delivery)
+        throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
       await ensureCanReadStore(delivery.toStoreId, auth);
       return delivery;
     },
@@ -402,7 +433,8 @@ export function buildDeliveryService({
         return deliveryId;
       });
       const full = await deliveries.findDelivery(updated);
-      if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      if (!full)
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
 
@@ -431,7 +463,8 @@ export function buildDeliveryService({
         return deliveryId;
       });
       const full = await deliveries.findDelivery(id);
-      if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      if (!full)
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
 
@@ -557,7 +590,8 @@ export function buildDeliveryService({
         return deliveryId;
       });
       const full = await deliveries.findDelivery(id);
-      if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      if (!full)
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
 
@@ -688,7 +722,7 @@ export function buildDeliveryService({
           product = await products.create(
             {
               code: input.productCode,
-              name: (input.productName?.trim() || input.productCode),
+              name: input.productName?.trim() || input.productCode,
               description: desc,
             },
             tx,
@@ -706,12 +740,7 @@ export function buildDeliveryService({
         const lines: ResolvedLine[] = [];
         for (let i = 0; i < input.variants.length; i += 1) {
           const v = input.variants[i]!;
-          const existing = await variants.findActiveByTuple(
-            product.id,
-            v.size,
-            v.color,
-            tx,
-          );
+          const existing = await variants.findActiveByTuple(product.id, v.size, v.color, tx);
 
           let variantId: string;
           if (existing) {
@@ -792,7 +821,11 @@ export function buildDeliveryService({
         // 5. Apply stock + write delivery_in movements (kind=reception).
         const fresh = await deliveries.loadForUpdate(created.id, tx);
         if (!fresh) {
-          throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Entrega recién creada no se pudo recuperar.');
+          throw new AppError(
+            500,
+            ERROR_CODES.INTERNAL_ERROR,
+            'Entrega recién creada no se pudo recuperar.',
+          );
         }
         const qtyMap = new Map(
           fresh.items.map((i) => [i.id, { variantId: i.variantId, receivedQuantity: i.quantity }]),
@@ -812,9 +845,9 @@ export function buildDeliveryService({
       });
 
       const full = await deliveries.findDelivery(deliveryId);
-      if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      if (!full)
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
   };
 }
-

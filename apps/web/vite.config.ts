@@ -1,8 +1,8 @@
+import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import path from 'node:path';
 
 export default defineConfig({
   plugins: [
@@ -12,11 +12,7 @@ export default defineConfig({
       // WHY: autoUpdate keeps the SW silent — no "new version available" banner.
       // For an internal B2B tool we trust the deploy cycle.
       registerType: 'autoUpdate',
-      includeAssets: [
-        'favicon.svg',
-        'favicon.ico',
-        'apple-touch-icon-180x180.png',
-      ],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Sur Moda — Inventario y Ventas',
         short_name: 'Sur Moda',

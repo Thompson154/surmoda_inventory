@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { AppHeader } from './AppHeader';
 import { BottomNav, type BottomNavTab } from './BottomNav';
+import { OfflineBanner } from './OfflineBanner';
+import { InstallPwaPrompt } from './InstallPwaPrompt';
 
 interface AppShellProps {
   children: ReactNode;
@@ -13,6 +15,10 @@ interface AppShellProps {
 export function AppShell({ children, context, bottomNav }: AppShellProps) {
   return (
     <div className="min-h-screen bg-surface-base flex flex-col">
+      {/* OfflineBanner + InstallPwaPrompt are silent until they fire; both
+          render NULL otherwise, so the layout is unchanged on the happy path. */}
+      <OfflineBanner />
+      <InstallPwaPrompt />
       <AppHeader context={context} />
       <div className={bottomNav ? 'flex-1 pb-20' : 'flex-1'}>{children}</div>
       {bottomNav && <BottomNav tabs={bottomNav} />}

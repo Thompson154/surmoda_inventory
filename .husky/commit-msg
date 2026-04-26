@@ -1,0 +1,4 @@
+# Conventional Commits enforcement. Mirrors the convention used in every prior
+# feat() / fix() / chore() commit on dev. The hook receives the commit message
+# file path as $1.
+npx --no -- commitlint --edit "$1"

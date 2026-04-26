@@ -6,12 +6,12 @@ import {
   useChangeAssignmentRole,
   useRemoveAssignment,
 } from '../../hooks/useAssignments';
-import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Card, CardContent, CardHeader, CardTitle, EmptyState } from '@/shared/ui';
 import type { Role } from '../../types';
-import type { HttpError } from '@/shared/services/httpClient';
 import { AssignmentRow } from './AssignmentRow';
 import { AddAssignmentForm } from './AddAssignmentForm';
+import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { Alert, Card, CardContent, CardHeader, CardTitle, EmptyState } from '@/shared/ui';
+import type { HttpError } from '@/shared/services/httpClient';
 
 interface AssignmentsManagerProps {
   userId: string;

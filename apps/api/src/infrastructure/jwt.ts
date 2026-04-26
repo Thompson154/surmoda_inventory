@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
 import { createHash, randomBytes } from 'node:crypto';
+import jwt from 'jsonwebtoken';
 import { loadConfig } from './config';
 
 export interface AccessTokenPayload {

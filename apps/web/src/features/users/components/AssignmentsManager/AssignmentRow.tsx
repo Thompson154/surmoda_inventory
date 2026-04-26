@@ -1,7 +1,7 @@
 import { Store, Trash2 } from 'lucide-react';
+import type { Assignment, Role } from '../../types';
 import { Badge, Button, IconButton, Select } from '@/shared/ui';
 import { useStoreLabel } from '@/features/stores/hooks/useStores';
-import type { Assignment, Role } from '../../types';
 
 interface AssignmentRowProps {
   assignment: Assignment;
@@ -61,12 +61,7 @@ export function AssignmentRow({
             >
               Confirmar (sin acceso)
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onCancelRemove}
-            >
+            <Button type="button" variant="secondary" size="sm" onClick={onCancelRemove}>
               Cancelar
             </Button>
           </>

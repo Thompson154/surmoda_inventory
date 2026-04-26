@@ -1,6 +1,6 @@
+import type { DailyReportItemsDTO, StoreStaffMember } from '@surmoda/contracts';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
-import type { DailyReportItemsDTO, StoreStaffMember } from '@surmoda/contracts';
 import type { DailyReportRepository } from './repository';
 import type {
   AuthContext,
@@ -20,11 +20,7 @@ export interface DailyReportServiceDeps {
 }
 
 export interface DailyReportService {
-  closeToday(
-    storeId: string,
-    auth: AuthContext,
-    attendedNames: string[],
-  ): Promise<DailyReportDTO>;
+  closeToday(storeId: string, auth: AuthContext, attendedNames: string[]): Promise<DailyReportDTO>;
   closeForDay(
     storeId: string,
     day: Date,
@@ -32,7 +28,11 @@ export interface DailyReportService {
     autoClosed: boolean,
     attendedNames: string[],
   ): Promise<DailyReportDTO>;
-  list(storeId: string, query: ListDailyReportsQuery, auth: AuthContext): Promise<PaginatedDailyReports>;
+  list(
+    storeId: string,
+    query: ListDailyReportsQuery,
+    auth: AuthContext,
+  ): Promise<PaginatedDailyReports>;
   getByDate(storeId: string, isoDay: string, auth: AuthContext): Promise<DailyReportDTO>;
   getItemsByDate(storeId: string, isoDay: string, auth: AuthContext): Promise<DailyReportItemsDTO>;
   listStoreStaff(storeId: string, auth: AuthContext): Promise<StoreStaffMember[]>;
@@ -81,13 +81,7 @@ export function buildDailyReportService({
 
     async closeToday(storeId, auth, attendedNames) {
       await ensureEncargadaOrAdmin(auth);
-      return closeForDay(
-        storeId,
-        boliviaDayKey(new Date()),
-        auth.userId,
-        false,
-        attendedNames,
-      );
+      return closeForDay(storeId, boliviaDayKey(new Date()), auth.userId, false, attendedNames);
     },
 
     async listStoreStaff(_storeId, auth) {

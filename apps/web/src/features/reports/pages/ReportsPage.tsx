@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Banknote, CreditCard, QrCode, TrendingUp } from 'lucide-react';
-import {
-  Alert,
-  Card,
-  CardContent,
-  Input,
-  Skeleton,
-} from '@/shared/ui';
+import { useReportSummary } from '../hooks/useReports';
+import { Alert, Card, CardContent, Input, Skeleton } from '@/shared/ui';
 import { AppShell } from '@/shared/layout/AppShell';
 import { formatBs, formatBsShort } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
-import { useReportSummary } from '../hooks/useReports';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
 type Preset = 'today' | '7d' | '30d' | 'custom';
@@ -72,14 +66,12 @@ export function ReportsPage() {
         {/* Range presets + custom */}
         <Card>
           <CardContent className="flex flex-wrap items-center gap-2 py-3">
-            {(
-              [
-                { v: 'today' as Preset, label: 'Hoy' },
-                { v: '7d' as Preset, label: '7 días' },
-                { v: '30d' as Preset, label: '30 días' },
-                { v: 'custom' as Preset, label: 'Personalizado' },
-              ]
-            ).map((p) => {
+            {[
+              { v: 'today' as Preset, label: 'Hoy' },
+              { v: '7d' as Preset, label: '7 días' },
+              { v: '30d' as Preset, label: '30 días' },
+              { v: 'custom' as Preset, label: 'Personalizado' },
+            ].map((p) => {
               const active = preset === p.v;
               return (
                 <button
@@ -143,16 +135,13 @@ export function ReportsPage() {
             )}
             {data && (
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <Stat label="Transacciones" value={data.totals.transactionsCount.toLocaleString('es-BO')} />
+                <Stat
+                  label="Transacciones"
+                  value={data.totals.transactionsCount.toLocaleString('es-BO')}
+                />
                 <Stat label="Ítems" value={data.totals.itemCount.toLocaleString('es-BO')} />
-                <Stat
-                  label="Descuentos"
-                  value={formatBs(data.totals.discountCents)}
-                />
-                <Stat
-                  label="Sucursales activas"
-                  value={data.byStore.length.toString()}
-                />
+                <Stat label="Descuentos" value={formatBs(data.totals.discountCents)} />
+                <Stat label="Sucursales activas" value={data.byStore.length.toString()} />
               </div>
             )}
           </CardContent>
@@ -176,7 +165,11 @@ export function ReportsPage() {
                   label="Efectivo"
                   cents={data.totals.cashCents}
                   totalCents={data.totals.totalCents}
-                  palette={{ bg: 'bg-emerald-100', text: 'text-emerald-600', bar: 'bg-emerald-500' }}
+                  palette={{
+                    bg: 'bg-emerald-100',
+                    text: 'text-emerald-600',
+                    bar: 'bg-emerald-500',
+                  }}
                 />
                 <PaymentBar
                   Icon={CreditCard}
@@ -215,7 +208,9 @@ export function ReportsPage() {
                           <tr key={row.storeId} className="border-t border-surface-border">
                             <td className="px-2 py-2">
                               <p className="font-semibold">{row.storeName}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{row.storeCode}</p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                {row.storeCode}
+                              </p>
                             </td>
                             <td className="px-2 py-2 text-right">{row.transactionsCount}</td>
                             <td className="px-2 py-2 text-right font-mono font-semibold">
@@ -304,9 +299,7 @@ export function ReportsPage() {
                         <p className="text-xs font-mono font-semibold">
                           {formatBsShort(s.totalCents)}
                         </p>
-                        <p className="text-[10px] text-slate-500">
-                          {s.transactionsCount} transac.
-                        </p>
+                        <p className="text-[10px] text-slate-500">{s.transactionsCount} transac.</p>
                       </div>
                     </li>
                   ))}
