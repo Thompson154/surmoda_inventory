@@ -283,7 +283,13 @@ export function SedeInventoryPage() {
                           >
                             <div className="h-14 w-14 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
                               {imageUrl ? (
-                                <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                                <img
+                                  src={imageUrl}
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-full w-full object-cover"
+                                />
                               ) : (
                                 <ImageIcon className="h-5 w-5 text-slate-400" />
                               )}

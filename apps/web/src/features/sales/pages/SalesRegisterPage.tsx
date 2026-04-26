@@ -123,7 +123,13 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
           className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 focus:outline focus:outline-brand"
           aria-label="Ver imagen del producto"
         >
-          <img src={src} alt={row.productName} className="h-full w-full object-cover" />
+          <img
+            src={src}
+            alt={row.productName}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         </button>
       ) : (
         <div

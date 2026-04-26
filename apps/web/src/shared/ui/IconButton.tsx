@@ -8,13 +8,14 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   size?: 'sm' | 'md';
 }
 
+// Solid disabled colors (not opacity) so contrast stays WCAG 2.1 AA.
 const variantClasses: Record<NonNullable<IconButtonProps['variant']>, string> = {
   ghost:
     'text-slate-700 hover:bg-surface-sunken ' +
-    'disabled:opacity-50 disabled:cursor-not-allowed',
+    'disabled:text-slate-400 disabled:cursor-not-allowed',
   secondary:
     'border border-surface-border-strong text-slate-700 bg-white hover:bg-surface-sunken ' +
-    'disabled:opacity-50 disabled:cursor-not-allowed',
+    'disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed',
 };
 
 const sizeClasses: Record<NonNullable<IconButtonProps['size']>, string> = {
