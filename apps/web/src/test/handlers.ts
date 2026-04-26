@@ -664,6 +664,32 @@ export const handlers = [
     }),
   ),
 
+  http.get(`${BASE}/alerts`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'CIERRE_MISSING:store-prado-seed:2026-04-25',
+          kind: 'CIERRE_MISSING',
+          severity: 'warning',
+          message: 'Sucursal Prado: cierre de 2026-04-25 no fue registrado.',
+          link: '/sedes/store-prado-seed/ventas',
+          detectedAt: new Date().toISOString(),
+          meta: { storeId: 'store-prado-seed', date: '2026-04-25' },
+        },
+        {
+          id: 'STOCK_LOW:store-prado-seed:v-1',
+          kind: 'STOCK_LOW',
+          severity: 'warning',
+          message: 'Stock bajo en Sucursal Prado: JN001 · 30 · azul (3 u.)',
+          link: '/sedes/store-prado-seed/inventario',
+          detectedAt: new Date().toISOString(),
+          meta: { storeId: 'store-prado-seed', variantId: 'v-1', productCode: 'JN001', quantity: 3 },
+        },
+      ],
+      countsByKind: { STOCK_LOW: 1, STOCK_OUT_HOT: 0, CIERRE_MISSING: 1 },
+    }),
+  ),
+
   http.get(`${BASE}/reports/summary`, ({ request }) => {
     const url = new URL(request.url);
     const from = url.searchParams.get('from') ?? '2026-04-01';

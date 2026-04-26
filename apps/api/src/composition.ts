@@ -51,6 +51,10 @@ import { buildReportRepository } from './modules/reports/repository';
 import { buildReportService } from './modules/reports/service';
 import { buildReportController } from './modules/reports/controller';
 import { buildReportsRouter } from './modules/reports/routes';
+import { buildAlertsRepository } from './modules/alerts/repository';
+import { buildAlertsService } from './modules/alerts/service';
+import { buildAlertsController } from './modules/alerts/controller';
+import { buildAlertsRouter } from './modules/alerts/routes';
 
 export interface Composition {
   db: Database;
@@ -69,6 +73,7 @@ export interface Composition {
   dailyReportRepository: DailyReportRepository;
   dailyReportService: DailyReportService;
   reportsRouter: Router;
+  alertsRouter: Router;
 }
 
 /**
@@ -184,6 +189,11 @@ export function buildComposition(): Composition {
   const reportController = buildReportController(reportService);
   const reportsRouter = buildReportsRouter(reportController);
 
+  const alertsRepo = buildAlertsRepository(db);
+  const alertsService = buildAlertsService({ alerts: alertsRepo, scope: storeScope });
+  const alertsController = buildAlertsController(alertsService);
+  const alertsRouter = buildAlertsRouter(alertsController);
+
   return {
     db,
     auditService,
@@ -201,5 +211,6 @@ export function buildComposition(): Composition {
     dailyReportRepository,
     dailyReportService,
     reportsRouter,
+    alertsRouter,
   };
 }

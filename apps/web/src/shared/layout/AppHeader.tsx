@@ -1,4 +1,5 @@
 import { AvatarMenu } from './AvatarMenu';
+import { BellMenu } from '@/features/alerts/components/BellMenu';
 
 interface AppHeaderProps {
   /** Optional context label appended after "Sur Moda" — typically the active store name. */
@@ -14,7 +15,10 @@ export function AppHeader({ context }: AppHeaderProps) {
             Sur Moda{context ? ` · ${context}` : ''}
           </span>
         </div>
-        <AvatarMenu />
+        <div className="flex items-center gap-1">
+          <BellMenu />
+          <AvatarMenu />
+        </div>
       </div>
     </header>
   );
