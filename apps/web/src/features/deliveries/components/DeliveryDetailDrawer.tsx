@@ -2,15 +2,12 @@ import { Image as ImageIcon } from 'lucide-react';
 import { Alert, Modal, Skeleton } from '@/shared/ui';
 import { useDelivery } from '../hooks/useDeliveries';
 import { getImageUrl } from '@/features/products/services/productsService';
+import { sizeLabel } from '@/shared/format/sizeLabel';
 
 interface DeliveryDetailDrawerProps {
   deliveryId: string | null;
   onClose: () => void;
 }
-
-const SIZE_LABEL: Record<string, string> = {
-  s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL', standard: 'Estándar',
-};
 
 export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDrawerProps) {
   const open = deliveryId !== null;
@@ -52,7 +49,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
             <ul className="flex flex-col gap-2">
               {query.data.items.map((it) => {
                 const url = getImageUrl(it.imagePath);
-                const sizeLabel = SIZE_LABEL[it.size] ?? it.size;
+                const label = sizeLabel(it.size);
                 return (
                   <li
                     key={it.id}
@@ -70,7 +67,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                         {it.productName}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        <span className="font-mono">{it.productCode}</span> · {sizeLabel} ·{' '}
+                        <span className="font-mono">{it.productCode}</span> · {label} ·{' '}
                         <span className="capitalize">{it.color}</span>
                       </p>
                     </div>

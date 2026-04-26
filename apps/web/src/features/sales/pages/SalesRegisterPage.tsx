@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { Banknote, Check, ChevronRight, CreditCard, QrCode, ScanLine } from 'lucide-react';
 import type { SaleItemDTO, SaleWithItems } from '@surmoda/contracts';
 import { Alert, Button, Card, CardContent, Modal, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { useStoreParam } from '@/shared/hooks/useStoreParam';
+import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import { useSales, useSalesDashboard } from '../hooks/useSales';
 import { CashierModal } from '../components/CashierModal';
 import { CloseDayModal } from '../components/CloseDayModal';
@@ -151,18 +151,11 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
 }
 
 export function SalesRegisterPage() {
-  const params = useParams<{ storeId: string }>();
-  const storeId = params.storeId ?? '';
-  const user = useAuthStore((s) => s.user);
+  const storeId = useStoreParam() ?? '';
   const stores = useStores();
   const store = stores.data?.items.find((s) => s.id === storeId);
   const isWarehouse = store?.kind === 'warehouse';
-
-  const hasEncargadaRole = (user?.assignments ?? []).some((a) => a.role === 'encargada');
-  const isAdmin = user?.isAdmin ?? false;
-  const directRole = user?.assignments.find((a) => a.storeId === storeId)?.role;
-  const isVendedoraHere = !isAdmin && !hasEncargadaRole && directRole === 'vendedora';
-  const canSeeDashboard = isAdmin || hasEncargadaRole;
+  const { canManage: canSeeDashboard, isVendedoraHere } = useStoreScope(storeId);
 
   const todayList = useSales(storeId, { page: 1, pageSize: 50 });
   const dashboard = useSalesDashboard(canSeeDashboard ? storeId : undefined);

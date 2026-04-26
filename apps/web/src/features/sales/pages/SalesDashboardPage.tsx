@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import type { DailyReportDTO } from '@surmoda/contracts';
 import { DailyReportDetailModal } from '../components/DailyReportDetailModal';
 import { TrendingDown, TrendingUp } from 'lucide-react';
@@ -10,7 +9,8 @@ import {
   Skeleton,
 } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { useStoreParam } from '@/shared/hooks/useStoreParam';
+import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import { useSalesDashboard } from '../hooks/useSales';
 import { useDailyReports } from '../hooks/useDailyReports';
 import { AppShell } from '@/shared/layout/AppShell';
@@ -83,17 +83,11 @@ function Sparkline({ data }: SparklineProps) {
 }
 
 export function SalesDashboardPage() {
-  const params = useParams<{ storeId: string }>();
-  const storeId = params.storeId ?? '';
-  const user = useAuthStore((s) => s.user);
+  const storeId = useStoreParam() ?? '';
   const stores = useStores();
   const store = stores.data?.items.find((s) => s.id === storeId);
   const isWarehouse = store?.kind === 'warehouse';
-
-  const hasEncargadaRole = (user?.assignments ?? []).some((a) => a.role === 'encargada');
-  const isAdmin = user?.isAdmin ?? false;
-  const directRole = user?.assignments.find((a) => a.storeId === storeId)?.role;
-  const isVendedoraHere = !isAdmin && !hasEncargadaRole && directRole === 'vendedora';
+  const { isVendedoraHere } = useStoreScope(storeId);
 
   const dashboard = useSalesDashboard(storeId);
   const closures = useDailyReports(storeId, { page: 1, pageSize: 10 });

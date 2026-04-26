@@ -6,20 +6,14 @@ import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useAdjustQuantity } from '../hooks/useInventory';
 import { getImageUrl } from '@/features/products/services/productsService';
+import { formatBs as formatPrice } from '@/shared/format/currency';
+import { sizeLabel } from '@/shared/format/sizeLabel';
 
 interface SingleVariantQuickEditModalProps {
   storeId: string;
   row: InventoryRow | null;
   canEdit: boolean;
   onClose: () => void;
-}
-
-const SIZE_LABEL: Record<string, string> = {
-  s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL', standard: 'Estándar',
-};
-
-function formatPrice(cents: number): string {
-  return `Bs. ${(cents / 100).toFixed(2)}`;
 }
 
 /**
@@ -50,7 +44,7 @@ export function SingleVariantQuickEditModal({
   }
 
   const isDirty = draft !== row.quantity;
-  const sizeLabel = SIZE_LABEL[row.size] ?? row.size;
+  const label = sizeLabel(row.size);
   const imageUrl = getImageUrl(row.imagePath);
 
   const submit = () => {
@@ -75,7 +69,7 @@ export function SingleVariantQuickEditModal({
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-900 truncate">{row.productName}</p>
             <p className="text-xs text-slate-500 mt-0.5">
-              {sizeLabel} · <span className="capitalize">{row.color}</span>
+              {label} · <span className="capitalize">{row.color}</span>
             </p>
             <p className="text-xs font-mono text-slate-400 mt-0.5">{row.barcode}</p>
             <p className="text-xs text-slate-600 mt-1">{formatPrice(row.priceCents)}</p>
