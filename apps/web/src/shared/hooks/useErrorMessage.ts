@@ -59,6 +59,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.STOCK_NEGATIVE_NOT_ALLOWED]: 'El stock no puede ser negativo.',
   [ERROR_CODES.STORE_EDIT_PERMISSION_FORBIDDEN]: 'Sólo encargada/admin puede realizar esta acción.',
   [ERROR_CODES.INVENTORY_PRODUCT_NOT_IN_STORE]: 'Este producto no tiene stock en esta sede.',
+  [ERROR_CODES.STORE_FORBIDDEN]: 'No tenés acceso a esta sede.',
 
   [ERROR_CODES.DELIVERY_NOT_FOUND]: 'Entrega no encontrada.',
   [ERROR_CODES.DELIVERY_NO_WAREHOUSE]: 'No hay un almacén activo configurado.',

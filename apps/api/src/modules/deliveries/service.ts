@@ -1,5 +1,10 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
+import {
+  assertCanActOnStore,
+  assertEncargadaOrAdmin,
+  type StoreScopeRepo,
+} from '../../shared/auth/storeScope';
 import type { DeliveryRepository } from './repository';
 import type {
   AuthContext,
@@ -14,15 +19,10 @@ interface StoreLookup {
   findById(id: string): Promise<{ id: string; kind: 'warehouse' | 'branch' } | null>;
 }
 
-interface AssignmentScope {
-  findActiveAssignment(userId: string, storeId: string): Promise<{ role: 'encargada' | 'vendedora' } | null>;
-  hasAnyEncargadaRole(userId: string): Promise<boolean>;
-}
-
 export interface DeliveryServiceDeps {
   deliveries: DeliveryRepository;
   stores: StoreLookup;
-  assignments: AssignmentScope;
+  assignments: StoreScopeRepo;
 }
 
 export interface DeliveryService {
@@ -42,19 +42,21 @@ export function buildDeliveryService({
   assignments,
 }: DeliveryServiceDeps): DeliveryService {
   async function ensureCanReadStore(storeId: string, auth: AuthContext): Promise<void> {
-    if (auth.isAdmin) return;
-    if (await assignments.hasAnyEncargadaRole(auth.userId)) return;
-    const a = await assignments.findActiveAssignment(auth.userId, storeId);
-    if (!a) throw new AppError(404, ERROR_CODES.STOCK_NOT_FOUND, 'Inventario no encontrado.');
+    await assertCanActOnStore(
+      assignments,
+      storeId,
+      auth,
+      'STORE_FORBIDDEN',
+      'No tenés acceso a esta sede.',
+    );
   }
 
   async function ensureCanWriteStore(_storeId: string, auth: AuthContext): Promise<void> {
-    if (auth.isAdmin) return;
-    if (await assignments.hasAnyEncargadaRole(auth.userId)) return;
-    // Vendedora cannot create deliveries (regla locked #10).
-    throw new AppError(
-      403,
-      ERROR_CODES.DELIVERY_FORBIDDEN,
+    // Regla locked #10: vendedora cannot create deliveries.
+    await assertEncargadaOrAdmin(
+      assignments,
+      auth,
+      'DELIVERY_FORBIDDEN',
       'Sólo encargada/admin puede crear entregas.',
     );
   }
@@ -68,7 +70,7 @@ export function buildDeliveryService({
       }
 
       const toStore = await stores.findById(toStoreId);
-      if (!toStore) throw new AppError(404, ERROR_CODES.STOCK_NOT_FOUND, 'Sede destino no encontrada.');
+      if (!toStore) throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Sede destino no encontrada.');
 
       // Aggregate quantities per variantId in case the FE sent duplicates.
       const aggregated = new Map<string, number>();
