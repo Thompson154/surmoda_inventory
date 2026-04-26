@@ -1,10 +1,11 @@
-import {
-  Prisma,
-  type PaymentMethod as PrismaPaymentMethod,
-  type Size as PrismaSize,
-} from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { Database } from '../../infrastructure/database';
-import type { Size } from '@surmoda/contracts';
+import {
+  isoLocalDate,
+  startOfBoliviaWeekMonday as startOfWeekMonday,
+  startOfDayBolivia as startOfDayLocal,
+} from '../../shared/datetime/bolivia';
+import { PM_FROM_PRISMA, PM_TO_PRISMA, SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
 import type {
   ListSalesQuery,
   PaginatedSales,
@@ -14,19 +15,6 @@ import type {
 } from './types';
 
 export type SaleTx = Prisma.TransactionClient;
-
-const SIZE_FROM_PRISMA: Record<PrismaSize, Size> = {
-  s: 's', m: 'm', l: 'l', xl: 'xl', xxl: 'xxl',
-  size_28: '28', size_30: '30', size_32: '32', size_34: '34', standard: 'standard',
-};
-
-const PM_FROM_PRISMA: Record<PrismaPaymentMethod, PaymentMethod> = {
-  qr: 'qr', card: 'card', cash: 'cash',
-};
-
-const PM_TO_PRISMA: Record<PaymentMethod, PrismaPaymentMethod> = {
-  qr: 'qr', card: 'card', cash: 'cash',
-};
 
 export interface VariantPriceSnapshot {
   variantId: string;
@@ -44,6 +32,7 @@ export interface CreateSaleItemRow {
   variantId: string;
   quantity: number;
   priceAtSaleCents: number;
+  subtotalCents: number;
 }
 
 export interface SaleRepository {
@@ -62,30 +51,6 @@ export interface SaleRepository {
   list(storeId: string, query: ListSalesQuery): Promise<PaginatedSales>;
   buildDashboard(storeId: string, now: Date): Promise<SalesDashboard>;
   runSerializable<T>(fn: (tx: SaleTx) => Promise<T>): Promise<T>;
-}
-
-// Bolivia is UTC-4. Day boundaries computed in store-local timezone.
-const TZ_OFFSET_MS = 4 * 60 * 60 * 1000;
-
-function startOfDayLocal(date: Date): Date {
-  const local = new Date(date.getTime() - TZ_OFFSET_MS);
-  local.setUTCHours(0, 0, 0, 0);
-  return new Date(local.getTime() + TZ_OFFSET_MS);
-}
-
-function isoLocalDate(date: Date): string {
-  // YYYY-MM-DD in Bolivia local time.
-  const local = new Date(date.getTime() - TZ_OFFSET_MS);
-  return local.toISOString().slice(0, 10);
-}
-
-function startOfWeekMonday(date: Date): Date {
-  const sod = startOfDayLocal(date);
-  const local = new Date(sod.getTime() - TZ_OFFSET_MS);
-  const dow = local.getUTCDay(); // 0=Sun..6=Sat
-  const diff = (dow === 0 ? -6 : 1 - dow); // Monday-anchored
-  local.setUTCDate(local.getUTCDate() + diff);
-  return new Date(local.getTime() + TZ_OFFSET_MS);
 }
 
 export function buildSaleRepository(db: Database): SaleRepository {
@@ -116,6 +81,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
         variantId: i.variantId,
         quantity: i.quantity,
         priceAtSaleCents: i.priceAtSaleCents,
+        subtotalCents: i.subtotalCents,
         productId: i.variant.productId,
         productCode: i.variant.product.code,
         productName: i.variant.product.name,
@@ -229,6 +195,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
             variantId: i.variantId,
             quantity: i.quantity,
             priceAtSaleCents: i.priceAtSaleCents,
+            subtotalCents: i.subtotalCents,
             productId: i.variant.productId,
             productCode: i.variant.product.code,
             productName: i.variant.product.name,

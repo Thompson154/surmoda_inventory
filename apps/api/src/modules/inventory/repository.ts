@@ -1,5 +1,6 @@
-import { Prisma, type Size as PrismaSize, type StockMovementType as PrismaStockMovementType } from '@prisma/client';
+import { Prisma, type StockMovementType as PrismaStockMovementType } from '@prisma/client';
 import type { Database } from '../../infrastructure/database';
+import { SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
 import type {
   InventoryRowDTO,
   ListInventoryQuery,
@@ -11,22 +12,8 @@ import type {
   StockMovementType,
   StoreEditPermissionDTO,
 } from './types';
-import type { Size } from '@surmoda/contracts';
 
 export type InventoryTx = Prisma.TransactionClient;
-
-const SIZE_FROM_PRISMA: Record<PrismaSize, Size> = {
-  s: 's',
-  m: 'm',
-  l: 'l',
-  xl: 'xl',
-  xxl: 'xxl',
-  size_28: '28',
-  size_30: '30',
-  size_32: '32',
-  size_34: '34',
-  standard: 'standard',
-};
 
 const MOVEMENT_TYPE_FROM_PRISMA: Record<PrismaStockMovementType, StockMovementType> = {
   adjusted: 'adjusted',

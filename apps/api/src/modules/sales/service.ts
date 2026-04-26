@@ -55,10 +55,22 @@ export function buildSaleService({ sales, assignments }: SaleServiceDeps): SaleS
         throw new AppError(400, ERROR_CODES.SALE_EMPTY_ITEMS, 'Agregá al menos un ítem.');
       }
 
-      // Aggregate quantities per variantId in case the FE sent duplicates.
-      const aggregated = new Map<string, number>();
+      // Aggregate quantities + (optional) per-line subtotals per variantId in case the
+      // FE sent duplicates. `subtotalCents` is null for that variant only when every
+      // payload row for it omitted the field — in that case the BE defaults to qty*unitPrice.
+      const aggregated = new Map<string, { quantity: number; subtotalCents: number | null }>();
       for (const it of input.items) {
-        aggregated.set(it.variantId, (aggregated.get(it.variantId) ?? 0) + it.quantity);
+        const prev = aggregated.get(it.variantId);
+        const incomingSub = it.subtotalCents ?? null;
+        if (!prev) {
+          aggregated.set(it.variantId, { quantity: it.quantity, subtotalCents: incomingSub });
+          continue;
+        }
+        const nextSub =
+          prev.subtotalCents === null || incomingSub === null
+            ? null
+            : prev.subtotalCents + incomingSub;
+        aggregated.set(it.variantId, { quantity: prev.quantity + it.quantity, subtotalCents: nextSub });
       }
       const variantIds = Array.from(aggregated.keys());
 
@@ -76,7 +88,7 @@ export function buildSaleService({ sales, assignments }: SaleServiceDeps): SaleS
 
         // Validate stock available in this store.
         const stockMap = await sales.loadStockForVariants(storeId, variantIds, tx);
-        for (const [variantId, qty] of aggregated.entries()) {
+        for (const [variantId, { quantity: qty }] of aggregated.entries()) {
           const available = stockMap.get(variantId) ?? 0;
           if (available < qty) {
             throw new AppError(
@@ -88,19 +100,44 @@ export function buildSaleService({ sales, assignments }: SaleServiceDeps): SaleS
           }
         }
 
-        // Snapshot prices.
+        // Snapshot prices + compute final subtotal per line.
         const priceMap = await sales.loadVariantPrices(variantIds, tx);
 
         let totalCents = 0;
-        const itemRows = [] as Array<{ variantId: string; quantity: number; priceAtSaleCents: number }>;
-        for (const [variantId, qty] of aggregated.entries()) {
+        const itemRows = [] as Array<{
+          variantId: string;
+          quantity: number;
+          priceAtSaleCents: number;
+          subtotalCents: number;
+        }>;
+        for (const [variantId, { quantity: qty, subtotalCents: providedSub }] of aggregated.entries()) {
           const unitPrice = priceMap.get(variantId) ?? 0;
-          totalCents += unitPrice * qty;
-          itemRows.push({ variantId, quantity: qty, priceAtSaleCents: unitPrice });
+          const gross = unitPrice * qty;
+          const subtotal = providedSub ?? gross;
+          if (subtotal < 0) {
+            throw new AppError(
+              400,
+              ERROR_CODES.VALIDATION_ERROR,
+              'El subtotal de un ítem no puede ser negativo.',
+              { variantId },
+            );
+          }
+          // Guard against accidental over-charging: a positive markup beyond catalog
+          // price is almost always a UI bug, not a real intent.
+          if (subtotal > gross) {
+            throw new AppError(
+              400,
+              ERROR_CODES.VALIDATION_ERROR,
+              'El subtotal no puede superar el precio de catálogo.',
+              { variantId, gross, subtotal },
+            );
+          }
+          totalCents += subtotal;
+          itemRows.push({ variantId, quantity: qty, priceAtSaleCents: unitPrice, subtotalCents: subtotal });
         }
 
         // Decrement stock + write sale_out movement per variant.
-        for (const [variantId, qty] of aggregated.entries()) {
+        for (const [variantId, { quantity: qty }] of aggregated.entries()) {
           const after = await sales.decrementStock(storeId, variantId, qty, tx);
           await sales.createMovement(
             {

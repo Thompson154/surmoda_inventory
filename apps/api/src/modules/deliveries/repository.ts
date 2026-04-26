@@ -1,10 +1,9 @@
 import {
   Prisma,
   type DeliveryKind as PrismaDeliveryKind,
-  type Size as PrismaSize,
 } from '@prisma/client';
 import type { Database } from '../../infrastructure/database';
-import type { Size } from '@surmoda/contracts';
+import { SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
 import type {
   DeliveryGroupedItem,
   DeliveryKind,
@@ -15,19 +14,6 @@ import type {
 } from './types';
 
 export type DeliveryTx = Prisma.TransactionClient;
-
-const SIZE_FROM_PRISMA: Record<PrismaSize, Size> = {
-  s: 's',
-  m: 'm',
-  l: 'l',
-  xl: 'xl',
-  xxl: 'xxl',
-  size_28: '28',
-  size_30: '30',
-  size_32: '32',
-  size_34: '34',
-  standard: 'standard',
-};
 
 const KIND_FROM_PRISMA: Record<PrismaDeliveryKind, DeliveryKind> = {
   reception: 'reception',
