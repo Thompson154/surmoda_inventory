@@ -166,7 +166,7 @@ export function SalesDashboardPage() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Card>
                 <CardContent className="py-3">
                   <p className="text-xs text-slate-500">Total semana</p>
@@ -183,15 +183,6 @@ export function SalesDashboardPage() {
                     {dashboard.data.transactionsCount}
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">completadas</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="py-3">
-                  <p className="text-xs text-slate-500">Ticket prom.</p>
-                  <p className="text-base font-semibold mt-1">
-                    {formatBsShort(dashboard.data.averageTicketCents)}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">por venta</p>
                 </CardContent>
               </Card>
             </div>
