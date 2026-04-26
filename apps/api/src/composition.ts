@@ -47,6 +47,10 @@ import { buildDailyReportController } from './modules/dailyReports/controller';
 import { buildDailyReportsPerStoreRouter } from './modules/dailyReports/routes';
 import type { DailyReportRepository } from './modules/dailyReports/repository';
 import type { DailyReportService } from './modules/dailyReports/service';
+import { buildReportRepository } from './modules/reports/repository';
+import { buildReportService } from './modules/reports/service';
+import { buildReportController } from './modules/reports/controller';
+import { buildReportsRouter } from './modules/reports/routes';
 
 export interface Composition {
   db: Database;
@@ -64,6 +68,7 @@ export interface Composition {
   dailyReportsPerStoreRouter: Router;
   dailyReportRepository: DailyReportRepository;
   dailyReportService: DailyReportService;
+  reportsRouter: Router;
 }
 
 /**
@@ -174,6 +179,11 @@ export function buildComposition(): Composition {
   const dailyReportController = buildDailyReportController(dailyReportService);
   const dailyReportsPerStoreRouter = buildDailyReportsPerStoreRouter(dailyReportController);
 
+  const reportRepo = buildReportRepository(db);
+  const reportService = buildReportService({ reports: reportRepo, scope: storeScope });
+  const reportController = buildReportController(reportService);
+  const reportsRouter = buildReportsRouter(reportController);
+
   return {
     db,
     auditService,
@@ -190,5 +200,6 @@ export function buildComposition(): Composition {
     dailyReportsPerStoreRouter,
     dailyReportRepository,
     dailyReportService,
+    reportsRouter,
   };
 }

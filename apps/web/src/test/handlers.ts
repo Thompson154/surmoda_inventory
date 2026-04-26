@@ -664,6 +664,36 @@ export const handlers = [
     }),
   ),
 
+  http.get(`${BASE}/reports/summary`, ({ request }) => {
+    const url = new URL(request.url);
+    const from = url.searchParams.get('from') ?? '2026-04-01';
+    const to = url.searchParams.get('to') ?? '2026-04-07';
+    return HttpResponse.json({
+      range: { from, to },
+      totals: {
+        totalCents: 1_540_000,
+        qrCents: 620_000,
+        cardCents: 480_000,
+        cashCents: 440_000,
+        transactionsCount: 84,
+        itemCount: 132,
+        averageTicketCents: 18333,
+      },
+      byStore: [
+        { storeId: 'store-prado-seed', storeName: 'Sucursal Prado', storeCode: 'PRADO', totalCents: 920_000, transactionsCount: 51 },
+        { storeId: 'store-zsur-seed', storeName: 'Sucursal Zona Sur', storeCode: 'ZSUR', totalCents: 620_000, transactionsCount: 33 },
+      ],
+      topProducts: [
+        { variantId: 'v-1', productCode: 'JN001', productName: 'Jeans clásico', size: '30', color: 'azul', quantitySold: 12, totalCents: 360_000 },
+        { variantId: 'v-2', productCode: 'CHQ001', productName: 'Chaqueta clásica', size: 'm', color: 'negro', quantitySold: 6, totalCents: 270_000 },
+      ],
+      topSellers: [
+        { userId: 'user-vendedora-1', fullName: 'Lucía Vendedora', transactionsCount: 30, totalCents: 540_000 },
+        { userId: 'user-vendedora-2', fullName: 'Sofía Vendedora', transactionsCount: 24, totalCents: 410_000 },
+      ],
+    });
+  }),
+
   http.get(`${BASE}/stores/:storeId/sales/dashboard`, () =>
     HttpResponse.json({
       todayCents: 448000,

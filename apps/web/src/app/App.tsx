@@ -16,6 +16,7 @@ import { DeliveriesPage } from '@/features/deliveries/pages/DeliveriesPage';
 import { SalesRegisterPage } from '@/features/sales/pages/SalesRegisterPage';
 import { SalesDashboardPage } from '@/features/sales/pages/SalesDashboardPage';
 import { AdminHomePage } from '@/features/admin/AdminHomePage';
+import { ReportsPage } from '@/features/reports/pages/ReportsPage';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
 export function App() {
@@ -76,6 +77,16 @@ export function App() {
         element={
           <Authenticated requireAdmin>
             <AdminHomePage />
+          </Authenticated>
+        }
+      />
+
+      {/* Reports — admin OR any encargada (BE enforces); vendedora gets 403 in-page. */}
+      <Route
+        path="/reportes"
+        element={
+          <Authenticated>
+            <ReportsPage />
           </Authenticated>
         }
       />
