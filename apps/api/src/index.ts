@@ -41,4 +41,10 @@ async function main(): Promise<void> {
   process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
-void main();
+void main().catch((err) => {
+  // Hard failure during startup (bad config, DB unreachable, etc.). Log it
+  // structured-style and exit non-zero so a process supervisor (systemd,
+  // Docker, Render, etc.) restarts the container cleanly.
+  logger.fatal({ err }, 'API failed to start');
+  process.exit(1);
+});
