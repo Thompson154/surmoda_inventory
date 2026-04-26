@@ -164,10 +164,12 @@ export function buildComposition(): Composition {
   const deliveriesPerStoreRouter = buildDeliveriesPerStoreRouter(deliveryController);
   const deliveriesByIdRouter = buildDeliveriesByIdRouter(deliveryController);
 
+  const config = loadConfig();
   const saleRepo = buildSaleRepository(db);
   const saleService = buildSaleService({
     sales: saleRepo,
     assignments: storeScope,
+    dailyLockEnabled: config.ENABLE_DAILY_SALES_LOCK,
   });
   const saleController = buildSaleController(saleService);
   const salesPerStoreRouter = buildSalesPerStoreRouter(saleController);

@@ -22,6 +22,14 @@ const EnvSchema = z.object({
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
+  /** Feature 012 — when true the dailyLock cron locks branch sales at 22:00
+   *  Bolivia and clears the lock at 00:00. Default false so the behaviour is
+   *  dark-launched until product is ready to flip it. */
+  ENABLE_DAILY_SALES_LOCK: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
+
   IMAGE_STORAGE: z.enum(['local', 'cloudinary']).default('local'),
   IMAGE_STORAGE_LOCAL_DIR: z.string().optional(),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),

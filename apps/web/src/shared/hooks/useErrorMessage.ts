@@ -74,6 +74,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.SALE_INSUFFICIENT_STOCK]: 'Stock insuficiente en esta sede.',
   [ERROR_CODES.SALE_VARIANT_NOT_FOUND]: 'Variante no encontrada.',
   [ERROR_CODES.SALE_DASHBOARD_FORBIDDEN]: 'Sólo encargada/admin puede ver el dashboard.',
+  [ERROR_CODES.SALES_LOCKED]: 'El registro de ventas está bloqueado. Cerrá el día primero.',
 
   [ERROR_CODES.DAILY_REPORT_NOT_FOUND]: 'No hay reporte cerrado para ese día.',
   [ERROR_CODES.DAILY_REPORT_FORBIDDEN]: 'Sólo encargada/admin puede cerrar el día.',
