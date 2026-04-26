@@ -7,5 +7,6 @@ export * from './inventory';
 export * from './deliveries';
 export * from './sales';
 export * from './dailyReports';
+export * from './reports';
 export * from './roles';
 export * from './errorCodes';
