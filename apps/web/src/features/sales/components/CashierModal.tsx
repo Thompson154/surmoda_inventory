@@ -5,6 +5,8 @@ import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { httpClient } from '@/shared/services/httpClient';
+import { formatBs } from '@/shared/format/currency';
+import { sizeLabel } from '@/shared/format/sizeLabel';
 import { useCreateSale } from '../hooks/useSales';
 
 interface CashierModalProps {
@@ -26,13 +28,6 @@ interface CartLine {
   available: number;
 }
 
-const SIZE_LABEL: Record<string, string> = {
-  s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL', standard: 'Estándar',
-};
-
-function formatBs(cents: number): string {
-  return `Bs. ${(cents / 100).toFixed(2)}`;
-}
 
 const PAYMENT_METHODS: Array<{ value: PaymentMethod; label: string; Icon: typeof QrCode }> = [
   { value: 'card', label: 'Tarjeta', Icon: CreditCard },
@@ -272,7 +267,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                     <td className="px-2 py-2">
                       <p className="font-mono text-[10px] text-slate-500">{i.productCode}</p>
                       <p>
-                        {SIZE_LABEL[i.size] ?? i.size}{' '}
+                        {sizeLabel(i.size)}{' '}
                         <span className="text-slate-400 capitalize">· {i.color}</span>
                       </p>
                     </td>

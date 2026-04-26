@@ -15,14 +15,7 @@ import { useSalesDashboard } from '../hooks/useSales';
 import { useDailyReports } from '../hooks/useDailyReports';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
-
-function formatBs(cents: number): string {
-  return `Bs. ${(cents / 100).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatBsShort(cents: number): string {
-  return `Bs. ${Math.round(cents / 100).toLocaleString('es-BO')}`;
-}
+import { formatBs, formatBsShort } from '@/shared/format/currency';
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 

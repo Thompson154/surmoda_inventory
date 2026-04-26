@@ -1,4 +1,5 @@
 import { Alert, Modal, Skeleton } from '@/shared/ui';
+import { formatBs } from '@/shared/format/currency';
 import type { DailyReportDTO } from '@surmoda/contracts';
 import { useDailyReportItems } from '../hooks/useDailyReports';
 
@@ -6,10 +7,6 @@ interface DailyReportDetailModalProps {
   storeId: string;
   report: DailyReportDTO | null;
   onClose: () => void;
-}
-
-function formatBs(cents: number): string {
-  return `Bs. ${(cents / 100).toFixed(2)}`;
 }
 
 export function DailyReportDetailModal({ storeId, report, onClose }: DailyReportDetailModalProps) {

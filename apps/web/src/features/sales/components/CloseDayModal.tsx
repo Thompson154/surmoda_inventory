@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { DailyReportDTO } from '@surmoda/contracts';
 import { Alert, Button, Modal, Skeleton } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { formatBs } from '@/shared/format/currency';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useCloseToday, useDailyReportByDate } from '../hooks/useDailyReports';
 
@@ -9,10 +10,6 @@ interface CloseDayModalProps {
   storeId: string;
   open: boolean;
   onClose: () => void;
-}
-
-function formatBs(cents: number): string {
-  return `Bs. ${(cents / 100).toFixed(2)}`;
 }
 
 function todayIsoBolivia(): string {

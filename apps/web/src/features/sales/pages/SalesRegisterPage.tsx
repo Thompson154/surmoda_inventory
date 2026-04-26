@@ -10,29 +10,13 @@ import { CashierModal } from '../components/CashierModal';
 import { CloseDayModal } from '../components/CloseDayModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
-
-function formatBsBig(cents: number): string {
-  return `Bs ${Math.round(cents / 100).toLocaleString('es-BO')}`;
-}
-
-function formatBsSmall(cents: number): string {
-  return `Bs ${(cents / 100).toLocaleString('es-BO', { maximumFractionDigits: 0 })}`;
-}
+import { formatBsBig, formatBsShort } from '@/shared/format/currency';
+import { sizeLabel } from '@/shared/format/sizeLabel';
+import { resolveImageUrl } from '@/shared/format/imageUrl';
 
 function timeOfDay(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-const SIZE_LABEL: Record<string, string> = {
-  s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL',
-  '28': '28', '30': '30', '32': '32', '34': '34', standard: 'Estándar',
-};
-
-function imageUrl(imagePath?: string | null): string | null {
-  if (!imagePath) return null;
-  if (/^https?:/.test(imagePath)) return imagePath;
-  return `/${imagePath.replace(/^\/+/, '')}`;
 }
 
 interface FlatItemRow {
@@ -61,7 +45,7 @@ function flattenSales(sales: SaleWithItems[]): FlatItemRow[] {
         createdAt: s.createdAt,
         productCode: it.productCode,
         productName: it.productName,
-        size: SIZE_LABEL[it.size] ?? it.size,
+        size: sizeLabel(it.size),
         color: it.color,
         imagePath: it.imagePath ?? null,
         quantity: it.quantity,
@@ -96,7 +80,7 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-slate-700">{label}</span>
           <span className="text-slate-500 font-mono">
-            {formatBsSmall(cents)} · {pct}%
+            {formatBsShort(cents)} · {pct}%
           </span>
         </div>
         <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
@@ -120,7 +104,7 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
         ? { bg: 'bg-emerald-100', text: 'text-emerald-600', Icon: Banknote }
         : { bg: 'bg-slate-200', text: 'text-slate-700', Icon: CreditCard };
   const { Icon } = palette;
-  const src = imageUrl(row.imagePath);
+  const src = resolveImageUrl(row.imagePath);
   const showDiscount = row.subtotalCents !== row.catalogTotalCents;
 
   return (
