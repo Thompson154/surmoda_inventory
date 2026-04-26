@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  ScanLine,
 } from 'lucide-react';
 import {
   Alert,
@@ -26,6 +27,7 @@ import { useEditPermission, useToggleEditPermission } from '../hooks/useInventor
 import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
 import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { MovementsDrawer } from '../components/MovementsDrawer';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { getImageUrl } from '@/features/products/services/productsService';
@@ -46,6 +48,7 @@ export function SedeInventoryPage() {
   const [page, setPage] = useState(1);
   const [movementsOpen, setMovementsOpen] = useState(false);
   const [openProductId, setOpenProductId] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const filteredQuery = useInventoryGrouped(storeId, {
     q: q || undefined,
@@ -99,17 +102,26 @@ export function SedeInventoryPage() {
               </Badge>
             )}
           </div>
-          {canManagePermission && (
-            <Button
-              type="button"
+          <div className="flex items-center gap-2">
+            <IconButton
+              icon={<ScanLine className="h-5 w-5" />}
+              label="Escanear código"
               variant="secondary"
               size="sm"
-              leftIcon={<ClipboardList className="h-4 w-4" />}
-              onClick={() => setMovementsOpen(true)}
-            >
-              Movimientos
-            </Button>
-          )}
+              onClick={() => setScannerOpen(true)}
+            />
+            {canManagePermission && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                leftIcon={<ClipboardList className="h-4 w-4" />}
+                onClick={() => setMovementsOpen(true)}
+              >
+                Movimientos
+              </Button>
+            )}
+          </div>
         </header>
 
         {canManagePermission && permission.data && !isWarehouse && (
@@ -290,6 +302,13 @@ export function SedeInventoryPage() {
           storeId={storeId}
           open={movementsOpen}
           onClose={() => setMovementsOpen(false)}
+        />
+
+        <BarcodeScannerModal
+          storeId={storeId}
+          open={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onResolved={(row) => setOpenProductId(row.productId)}
         />
       </main>
     </AppShell>
