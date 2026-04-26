@@ -197,7 +197,7 @@ describe('Daily close cron auto-close', () => {
         paymentMethod: 'cash',
         totalCents: 12345,
         createdAt: yesterdayMidday,
-        items: { create: [{ variantId: testVariantA, quantity: 1, priceAtSaleCents: 12345 }] },
+        items: { create: [{ variantId: testVariantA, quantity: 1, priceAtSaleCents: 12345, subtotalCents: 12345 }] },
       },
     });
 

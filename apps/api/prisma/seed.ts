@@ -352,6 +352,7 @@ async function main(): Promise<void> {
                   variantId: variant.id,
                   quantity: qty,
                   priceAtSaleCents: variant.priceCents,
+                  subtotalCents: lineTotal,
                 },
               ],
             },

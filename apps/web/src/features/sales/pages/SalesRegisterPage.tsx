@@ -53,14 +53,7 @@ interface FlatItemRow {
 function flattenSales(sales: SaleWithItems[]): FlatItemRow[] {
   const out: FlatItemRow[] = [];
   for (const s of sales) {
-    const grossTotal = s.items.reduce((sum, it) => sum + it.priceAtSaleCents * it.quantity, 0);
     for (const it of s.items as SaleItemDTO[]) {
-      const itemGross = it.priceAtSaleCents * it.quantity;
-      // Distribute the sale's actual cobrado proportionally across items.
-      const itemSubtotal =
-        grossTotal === 0
-          ? 0
-          : Math.round((itemGross / grossTotal) * s.totalCents);
       out.push({
         saleId: s.id,
         itemId: it.id,
@@ -72,8 +65,8 @@ function flattenSales(sales: SaleWithItems[]): FlatItemRow[] {
         color: it.color,
         imagePath: it.imagePath ?? null,
         quantity: it.quantity,
-        catalogTotalCents: itemGross,
-        subtotalCents: itemSubtotal,
+        catalogTotalCents: it.priceAtSaleCents * it.quantity,
+        subtotalCents: it.subtotalCents,
       });
     }
   }

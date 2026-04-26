@@ -7,6 +7,8 @@ export type PaymentMethod = 'qr' | 'card' | 'cash';
 export interface SaleItemPayload {
   variantId: string;
   quantity: number;
+  /** Charged amount for this line (cents). Optional — defaults to quantity*priceAtSale on the BE. */
+  subtotalCents?: number;
 }
 
 export interface CreateSalePayload {
@@ -19,6 +21,8 @@ export interface SaleItemDTO {
   variantId: string;
   quantity: number;
   priceAtSaleCents: number;
+  /** Final cobrado for this line (cents). Equals quantity*priceAtSaleCents when no discount applied. */
+  subtotalCents: number;
   productId: string;
   productCode: string;
   productName: string;

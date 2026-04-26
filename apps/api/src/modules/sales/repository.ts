@@ -44,6 +44,7 @@ export interface CreateSaleItemRow {
   variantId: string;
   quantity: number;
   priceAtSaleCents: number;
+  subtotalCents: number;
 }
 
 export interface SaleRepository {
@@ -116,6 +117,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
         variantId: i.variantId,
         quantity: i.quantity,
         priceAtSaleCents: i.priceAtSaleCents,
+        subtotalCents: i.subtotalCents,
         productId: i.variant.productId,
         productCode: i.variant.product.code,
         productName: i.variant.product.name,
@@ -229,6 +231,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
             variantId: i.variantId,
             quantity: i.quantity,
             priceAtSaleCents: i.priceAtSaleCents,
+            subtotalCents: i.subtotalCents,
             productId: i.variant.productId,
             productCode: i.variant.product.code,
             productName: i.variant.product.name,

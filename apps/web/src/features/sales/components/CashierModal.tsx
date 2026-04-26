@@ -168,7 +168,11 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     if (toSend.length === 0) return;
     create.mutate(
       {
-        items: toSend.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+        items: toSend.map((i) => ({
+          variantId: i.variantId,
+          quantity: i.quantity,
+          subtotalCents: i.subtotalCents,
+        })),
         paymentMethod,
       },
       { onSuccess: (sale) => onSold(sale) },
