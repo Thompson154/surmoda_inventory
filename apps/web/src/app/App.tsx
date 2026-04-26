@@ -17,6 +17,7 @@ import { SalesRegisterPage } from '@/features/sales/pages/SalesRegisterPage';
 import { SalesDashboardPage } from '@/features/sales/pages/SalesDashboardPage';
 import { AdminHomePage } from '@/features/admin/AdminHomePage';
 import { ReportsPage } from '@/features/reports/pages/ReportsPage';
+import { AuditLogsPage } from '@/features/audit/pages/AuditLogsPage';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
 export function App() {
@@ -87,6 +88,16 @@ export function App() {
         element={
           <Authenticated>
             <ReportsPage />
+          </Authenticated>
+        }
+      />
+
+      {/* Audit log viewer — admin OR any encargada (BE enforces). */}
+      <Route
+        path="/auditoria"
+        element={
+          <Authenticated>
+            <AuditLogsPage />
           </Authenticated>
         }
       />

@@ -9,5 +9,6 @@ export * from './sales';
 export * from './dailyReports';
 export * from './reports';
 export * from './alerts';
+export * from './audit';
 export * from './roles';
 export * from './errorCodes';

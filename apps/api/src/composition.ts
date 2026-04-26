@@ -1,6 +1,13 @@
 import type { Router } from 'express';
 import { getPrisma, type Database } from './infrastructure/database';
-import { buildAuditService, type AuditService } from './modules/auditing';
+import {
+  buildAuditService,
+  buildAuditRepository,
+  buildAuditQueryService,
+  buildAuditController,
+  buildAuditRouter,
+  type AuditService,
+} from './modules/auditing';
 import { buildRefreshTokenRepository } from './modules/auth/repository';
 import { buildAuthService } from './modules/auth/service';
 import { buildAuthController } from './modules/auth/controller';
@@ -74,6 +81,7 @@ export interface Composition {
   dailyReportService: DailyReportService;
   reportsRouter: Router;
   alertsRouter: Router;
+  auditRouter: Router;
 }
 
 /**
@@ -199,6 +207,11 @@ export function buildComposition(): Composition {
   const alertsController = buildAlertsController(alertsService);
   const alertsRouter = buildAlertsRouter(alertsController);
 
+  const auditRepo = buildAuditRepository(db);
+  const auditQueryService = buildAuditQueryService({ audit: auditRepo, scope: storeScope });
+  const auditController = buildAuditController(auditQueryService);
+  const auditRouter = buildAuditRouter(auditController);
+
   return {
     db,
     auditService,
@@ -217,5 +230,6 @@ export function buildComposition(): Composition {
     dailyReportService,
     reportsRouter,
     alertsRouter,
+    auditRouter,
   };
 }

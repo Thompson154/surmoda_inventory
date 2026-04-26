@@ -1,3 +1,10 @@
 export type { AuditAction, AuditEntity, AuditWriteInput } from './types';
 export type { AuditService } from './service';
 export { buildAuditService } from './service';
+export type { AuditRepository, AuditQueryFilters } from './repository';
+export { buildAuditRepository } from './repository';
+export type { AuditQueryService } from './queryService';
+export { buildAuditQueryService } from './queryService';
+export type { AuditController } from './controller';
+export { buildAuditController } from './controller';
+export { buildAuditRouter } from './routes';

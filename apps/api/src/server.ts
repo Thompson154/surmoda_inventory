@@ -59,6 +59,7 @@ export function buildServer(): Express {
   app.use('/api/v1/stores/:storeId', composition.dailyReportsPerStoreRouter);
   app.use('/api/v1/reports', composition.reportsRouter);
   app.use('/api/v1/alerts', composition.alertsRouter);
+  app.use('/api/v1/audit-logs', composition.auditRouter);
 
   app.use(errorHandler);
 

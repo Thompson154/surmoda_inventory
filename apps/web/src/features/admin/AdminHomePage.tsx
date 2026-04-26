@@ -1,5 +1,13 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BarChart3, ChevronRight, Package, Store as StoreIcon, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  BarChart3,
+  ChevronRight,
+  Package,
+  ScrollText,
+  Store as StoreIcon,
+  Users,
+} from 'lucide-react';
 import { Card, CardContent } from '@/shared/ui';
 import { AppShell } from '@/shared/layout/AppShell';
 
@@ -81,6 +89,23 @@ export function AdminHomePage() {
                   <p className="text-sm font-semibold text-slate-900">Reportes</p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Análisis cross-sucursal — ventas, top productos, ranking de vendedoras
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-slate-400 shrink-0" />
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link to="/auditoria" className="block">
+          <Card className="hover:bg-surface-sunken transition-colors duration-150">
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-start gap-3">
+                <ScrollText className="h-5 w-5 text-slate-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Auditoría del sistema</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Log inmutable de acciones — login, ediciones, ventas, entregas
                   </p>
                 </div>
               </div>
