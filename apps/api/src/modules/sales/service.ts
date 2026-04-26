@@ -1,5 +1,10 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
+import {
+  assertCanActOnStore,
+  assertEncargadaOrAdmin,
+  type StoreScopeRepo,
+} from '../../shared/auth/storeScope';
 import type { SaleRepository } from './repository';
 import type {
   AuthContext,
@@ -10,14 +15,9 @@ import type {
   SaleWithItems,
 } from './types';
 
-interface AssignmentScope {
-  findActiveAssignment(userId: string, storeId: string): Promise<{ role: 'encargada' | 'vendedora' } | null>;
-  hasAnyEncargadaRole(userId: string): Promise<boolean>;
-}
-
 export interface SaleServiceDeps {
   sales: SaleRepository;
-  assignments: AssignmentScope;
+  assignments: StoreScopeRepo;
 }
 
 export interface SaleService {
@@ -29,20 +29,20 @@ export interface SaleService {
 
 export function buildSaleService({ sales, assignments }: SaleServiceDeps): SaleService {
   async function ensureAssignedOrEncargada(storeId: string, auth: AuthContext): Promise<void> {
-    if (auth.isAdmin) return;
-    if (await assignments.hasAnyEncargadaRole(auth.userId)) return;
-    const a = await assignments.findActiveAssignment(auth.userId, storeId);
-    if (!a) throw new AppError(404, ERROR_CODES.STOCK_NOT_FOUND, 'Sede no encontrada.');
+    await assertCanActOnStore(
+      assignments,
+      storeId,
+      auth,
+      'STORE_FORBIDDEN',
+      'No tenés acceso a esta sede.',
+    );
   }
 
-  async function ensureEncargadaOrAdmin(storeId: string, auth: AuthContext): Promise<void> {
-    if (auth.isAdmin) return;
-    if (await assignments.hasAnyEncargadaRole(auth.userId)) return;
-    // Vendedora can create + read sales but cannot see the dashboard aggregates.
-    void storeId;
-    throw new AppError(
-      403,
-      ERROR_CODES.SALE_DASHBOARD_FORBIDDEN,
+  async function ensureEncargadaOrAdmin(_storeId: string, auth: AuthContext): Promise<void> {
+    await assertEncargadaOrAdmin(
+      assignments,
+      auth,
+      'SALE_DASHBOARD_FORBIDDEN',
       'Sólo encargada/admin puede ver el dashboard de ventas.',
     );
   }

@@ -3,10 +3,11 @@
 // idempotent — re-creating the report just refreshes the snapshot from the same
 // (append-only) sales data.
 
+import { Prisma } from '@prisma/client';
 import { logger } from '../infrastructure/logger';
 import type { DailyReportRepository } from '../modules/dailyReports/repository';
 import type { DailyReportService } from '../modules/dailyReports/service';
-import { boliviaDayKey, isoDateBolivia, previousBoliviaDayKey } from '../modules/dailyReports/timezone';
+import { boliviaDayKey, isoDateBolivia, previousBoliviaDayKey } from '../shared/datetime/bolivia';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -42,12 +43,21 @@ export function startDailyCloseJob(deps: DailyCloseJobDeps): DailyCloseJobHandle
           'auto-closed daily report',
         );
       } catch (err) {
+        // P2002 = unique violation on (store_id, date). Means another instance
+        // (multi-replica deploy, manual close racing the cron) already closed
+        // this day. Treat as success — the snapshot exists.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          logger.info({ storeId: s.id }, 'daily report already closed by concurrent writer');
+          continue;
+        }
         logger.error({ err, storeId: s.id }, 'auto-close daily report failed');
       }
     }
   }
 
   function tick(): void {
+    // Inner runOnce already swallows per-store errors; only an unexpected
+    // failure (e.g. listActiveStores throws) reaches here.
     void runOnce().catch((err) => logger.error({ err }, 'daily close cron crashed'));
   }
 

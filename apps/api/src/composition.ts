@@ -125,6 +125,19 @@ export function buildComposition(): Composition {
   const inventoryController = buildInventoryController(inventoryService);
   const inventoryRouter = buildInventoryRouter(inventoryController);
 
+  // Single source of truth for store-scoped RBAC: every domain service
+  // (sales, deliveries, dailyReports) consumes the same StoreScopeRepo so the
+  // permission matrix can never drift between modules. See shared/auth/storeScope.ts.
+  const storeScope = {
+    async findActiveAssignment(userId: string, storeId: string) {
+      const row = await inventoryRepo.findUserAssignment(userId, storeId);
+      return row ? { role: row.role } : null;
+    },
+    async hasAnyEncargadaRole(userId: string) {
+      return inventoryRepo.hasAnyEncargadaRole(userId);
+    },
+  };
+
   const deliveryRepo = buildDeliveryRepository(db);
   const deliveryService = buildDeliveryService({
     deliveries: deliveryRepo,
@@ -135,16 +148,7 @@ export function buildComposition(): Composition {
         return { id: found.id, kind: found.kind };
       },
     },
-    assignments: {
-      async findActiveAssignment(userId, storeId) {
-        const row = await inventoryRepo.findUserAssignment(userId, storeId);
-        if (!row) return null;
-        return { role: row.role };
-      },
-      async hasAnyEncargadaRole(userId) {
-        return inventoryRepo.hasAnyEncargadaRole(userId);
-      },
-    },
+    assignments: storeScope,
   });
   const deliveryController = buildDeliveryController(deliveryService);
   const deliveriesPerStoreRouter = buildDeliveriesPerStoreRouter(deliveryController);
@@ -153,16 +157,7 @@ export function buildComposition(): Composition {
   const saleRepo = buildSaleRepository(db);
   const saleService = buildSaleService({
     sales: saleRepo,
-    assignments: {
-      async findActiveAssignment(userId, storeId) {
-        const row = await inventoryRepo.findUserAssignment(userId, storeId);
-        if (!row) return null;
-        return { role: row.role };
-      },
-      async hasAnyEncargadaRole(userId) {
-        return inventoryRepo.hasAnyEncargadaRole(userId);
-      },
-    },
+    assignments: storeScope,
   });
   const saleController = buildSaleController(saleService);
   const salesPerStoreRouter = buildSalesPerStoreRouter(saleController);

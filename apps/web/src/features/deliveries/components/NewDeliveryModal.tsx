@@ -14,6 +14,7 @@ import { useStores } from '@/features/stores/hooks/useStores';
 import { useInventory } from '@/features/inventory/hooks/useInventory';
 import { useCreateDelivery } from '../hooks/useDeliveries';
 import { getImageUrl } from '@/features/products/services/productsService';
+import { sizeLabel } from '@/shared/format/sizeLabel';
 
 interface NewDeliveryModalProps {
   storeId: string;
@@ -32,10 +33,6 @@ interface CartItem {
   /** Stock disponible en el origen (warehouse). Permite validar antes del POST. */
   available: number;
 }
-
-const SIZE_LABEL: Record<string, string> = {
-  s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL', standard: 'Estándar',
-};
 
 export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalProps) {
   const stores = useStores();
@@ -189,7 +186,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-slate-900 truncate">
                           <span className="font-mono">{row.productCode}</span> ·{' '}
-                          {SIZE_LABEL[row.size] ?? row.size} · <span className="capitalize">{row.color}</span>
+                          {sizeLabel(row.size)} · <span className="capitalize">{row.color}</span>
                         </p>
                         <p className="text-xs text-slate-500 truncate">{row.productName}</p>
                       </div>
@@ -231,7 +228,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-900 truncate">
                         <span className="font-mono">{i.productCode}</span> ·{' '}
-                        {SIZE_LABEL[i.size] ?? i.size} · <span className="capitalize">{i.color}</span>
+                        {sizeLabel(i.size)} · <span className="capitalize">{i.color}</span>
                       </p>
                       {!isReception && (
                         <p className="text-[10px] text-slate-400 mt-0.5">
@@ -302,7 +299,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
               .filter((i) => i.quantity > 0)
               .map((i) => (
                 <li key={i.variantId} className="py-0.5">
-                  · {i.productCode} {SIZE_LABEL[i.size] ?? i.size} {i.color} ×{' '}
+                  · {i.productCode} {sizeLabel(i.size)} {i.color} ×{' '}
                   <strong>{i.quantity}</strong>
                 </li>
               ))}

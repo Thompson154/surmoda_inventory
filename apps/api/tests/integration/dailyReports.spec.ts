@@ -11,6 +11,7 @@ import {
   isoDateBolivia,
   previousBoliviaDayKey,
 } from '../../src/modules/dailyReports/timezone';
+import { resetTestState } from './_shared/dbReset';
 
 const app = buildServer();
 const db = getPrisma();
@@ -59,16 +60,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.auditLog.deleteMany({ where: { entity: 'DailyReport' } });
-  await db.dailyReport.deleteMany({ where: { storeId: pradoStoreId } });
-  await db.saleItem.deleteMany({});
-  await db.sale.deleteMany({});
-  await db.stockMovement.deleteMany({ where: { type: 'sale_out' } });
-  // Restore the contract other suites assume: PRADO stock starts at 0.
-  await db.stockBySite.update({
-    where: { variantId_storeId: { variantId: testVariantA, storeId: pradoStoreId } },
-    data: { quantity: 0 },
-  });
+  await resetTestState({ db, resetStockFor: 'all' });
   await disconnectPrisma();
 });
 

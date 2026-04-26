@@ -3,6 +3,7 @@
 import request from 'supertest';
 import { buildServer } from '../../src/server';
 import { disconnectPrisma, getPrisma } from '../../src/infrastructure/database';
+import { resetTestState } from './_shared/dbReset';
 
 const app = buildServer();
 const db = getPrisma();
@@ -68,6 +69,8 @@ beforeAll(async () => {
   priceA = variants[0]!.priceCents;
   priceB = variants[1]!.priceCents;
 
+  await resetTestState({ db, resetStockFor: 'all' });
+
   // Seed PRADO with stock for the test variants.
   await db.stockBySite.update({
     where: { variantId_storeId: { variantId: testVariantA, storeId: pradoStoreId } },
@@ -80,12 +83,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.auditLog.deleteMany({ where: { entity: 'Sale' } });
-  await db.saleItem.deleteMany({});
-  await db.sale.deleteMany({});
-  await db.stockMovement.deleteMany({ where: { type: 'sale_out' } });
-  // WHY: do NOT zero stockBySite in afterAll — other integration suites assume
-  // their own stock invariants (deliveries, inventory). They reset what they need.
+  await resetTestState({ db, resetStockFor: 'all' });
   await disconnectPrisma();
 });
 
@@ -147,12 +145,13 @@ describe('POST /api/v1/stores/:storeId/sales', () => {
     expect(res.status).toBe(400);
   });
 
-  it('vendedora ZSUR cannot register sale in PRADO (404)', async () => {
+  it('vendedora ZSUR cannot register sale in PRADO (403 STORE_FORBIDDEN)', async () => {
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/sales`)
       .set(bearer(vendedoraZsurToken))
       .send({ items: [{ variantId: testVariantA, quantity: 1 }], paymentMethod: 'cash' });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('STORE_FORBIDDEN');
   });
 });
 

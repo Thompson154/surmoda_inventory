@@ -3,22 +3,11 @@ import type { Variant } from '@surmoda/contracts';
 import { Badge, Button, Card, CardContent } from '@/shared/ui';
 import { useDeactivateVariant, useReactivateVariant } from '../hooks/useProductsAdmin';
 import { getImageUrl } from '../services/productsService';
+import { formatBs as formatPrice } from '@/shared/format/currency';
+import { sizeLabel } from '@/shared/format/sizeLabel';
 
 interface VariantListProps {
   variants: Variant[];
-}
-
-const SIZE_LABELS: Record<string, string> = {
-  s: 'S',
-  m: 'M',
-  l: 'L',
-  xl: 'XL',
-  xxl: 'XXL',
-  standard: 'Estándar',
-};
-
-function formatPrice(cents: number): string {
-  return `Bs. ${(cents / 100).toFixed(2)}`;
 }
 
 export function VariantList({ variants }: VariantListProps) {
@@ -39,7 +28,7 @@ function VariantRow({ variant }: { variant: Variant }) {
   const deactivate = useDeactivateVariant(variant.id);
   const reactivate = useReactivateVariant(variant.id);
   const imageUrl = getImageUrl(variant.imagePath);
-  const sizeLabel = SIZE_LABELS[variant.size] ?? variant.size;
+  const label = sizeLabel(variant.size);
 
   return (
     <li>
@@ -47,14 +36,14 @@ function VariantRow({ variant }: { variant: Variant }) {
         <CardContent className="flex items-center gap-3 py-3">
           <div className="h-14 w-14 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
             {imageUrl ? (
-              <img src={imageUrl} alt={`${sizeLabel} ${variant.color}`} className="h-full w-full object-cover" />
+              <img src={imageUrl} alt={`${label} ${variant.color}`} className="h-full w-full object-cover" />
             ) : (
               <ImageIcon className="h-5 w-5 text-slate-400" />
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-900">{sizeLabel}</span>
+              <span className="text-sm font-medium text-slate-900">{label}</span>
               <span className="text-sm text-slate-500">·</span>
               <span className="text-sm text-slate-700 capitalize">{variant.color}</span>
               {!variant.isActive && <Badge variant="default">Inactiva</Badge>}
