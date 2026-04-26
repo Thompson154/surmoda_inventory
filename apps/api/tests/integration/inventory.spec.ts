@@ -4,6 +4,7 @@
 import request from 'supertest';
 import { buildServer } from '../../src/server';
 import { disconnectPrisma, getPrisma } from '../../src/infrastructure/database';
+import { resetTestState } from './_shared/dbReset';
 
 const app = buildServer();
 const db = getPrisma();
@@ -69,16 +70,11 @@ beforeAll(async () => {
   testVariantId = variant.id;
 
   // Self-contained: reset state we depend on regardless of suite order.
-  await db.stockMovement.deleteMany({});
-  await db.stockBySite.updateMany({ data: { quantity: 0 } });
+  await resetTestState({ db, resetStockFor: 'all' });
 });
 
 afterAll(async () => {
-  // Reset state
-  await db.stockMovement.deleteMany({});
-  await db.storeEditPermission.deleteMany({});
-  await db.stockBySite.updateMany({ data: { quantity: 0 } });
-  await db.auditLog.deleteMany({ where: { entity: { in: ['Stock', 'StoreEditPermission'] } } });
+  await resetTestState({ db, resetStockFor: 'all' });
   await disconnectPrisma();
 });
 

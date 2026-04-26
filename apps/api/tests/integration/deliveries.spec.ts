@@ -4,6 +4,7 @@
 import request from 'supertest';
 import { buildServer } from '../../src/server';
 import { disconnectPrisma, getPrisma } from '../../src/infrastructure/database';
+import { resetTestState } from './_shared/dbReset';
 
 const app = buildServer();
 const db = getPrisma();
@@ -70,15 +71,11 @@ beforeAll(async () => {
   testVariantB = variants[1]!.id;
 
   // Reset stock to 0 across all stores so the test is deterministic.
-  await db.stockBySite.updateMany({ data: { quantity: 0 } });
+  await resetTestState({ db, resetStockFor: 'all' });
 });
 
 afterAll(async () => {
-  await db.auditLog.deleteMany({ where: { entity: 'Delivery' } });
-  await db.deliveryItem.deleteMany({});
-  await db.delivery.deleteMany({});
-  await db.stockMovement.deleteMany({});
-  await db.stockBySite.updateMany({ data: { quantity: 0 } });
+  await resetTestState({ db, resetStockFor: 'all' });
   await disconnectPrisma();
 });
 
