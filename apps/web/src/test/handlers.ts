@@ -562,6 +562,95 @@ export const handlers = [
     ),
   ),
 
+  http.get(`${BASE}/stores/:storeId/daily-reports`, ({ params }) =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'dr-1',
+          storeId: params.storeId,
+          date: '2024-01-07',
+          totalCents: 448000,
+          qrCents: 150000,
+          cardCents: 100000,
+          cashCents: 198000,
+          itemCount: 18,
+          transactionsCount: 12,
+          closedByUserId: 'user-encargada',
+          closedByFullName: 'María Encargada',
+          closedAt: '2024-01-08T03:30:00.000Z',
+          autoClosed: false,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 31,
+    }),
+  ),
+
+  http.get(`${BASE}/stores/:storeId/daily-reports/:date`, ({ params }) =>
+    HttpResponse.json({
+      id: 'dr-1',
+      storeId: params.storeId,
+      date: params.date,
+      totalCents: 448000,
+      qrCents: 150000,
+      cardCents: 100000,
+      cashCents: 198000,
+      itemCount: 18,
+      transactionsCount: 12,
+      closedByUserId: 'user-encargada',
+      closedByFullName: 'María Encargada',
+      closedAt: '2024-01-08T03:30:00.000Z',
+      autoClosed: false,
+    }),
+  ),
+
+  http.get(`${BASE}/stores/:storeId/daily-reports/:date/items`, ({ params }) =>
+    HttpResponse.json({
+      date: params.date,
+      items: [
+        {
+          variantId: 'v-1',
+          productCode: 'JN001',
+          productName: 'Jeans clásico',
+          size: '30',
+          color: 'azul',
+          barcode: '7770100100012',
+          quantity: 5,
+          totalCents: 250000,
+        },
+        {
+          variantId: 'v-2',
+          productCode: 'CHQ001',
+          productName: 'Chaqueta clásica',
+          size: 'M',
+          color: 'negro',
+          barcode: '7770100100029',
+          quantity: 2,
+          totalCents: 90000,
+        },
+      ],
+    }),
+  ),
+
+  http.post(`${BASE}/stores/:storeId/daily-reports/close-today`, ({ params }) =>
+    HttpResponse.json({
+      id: 'dr-today',
+      storeId: params.storeId,
+      date: new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      totalCents: 60000,
+      qrCents: 20000,
+      cardCents: 20000,
+      cashCents: 20000,
+      itemCount: 4,
+      transactionsCount: 3,
+      closedByUserId: 'user-encargada',
+      closedByFullName: 'María Encargada',
+      closedAt: new Date().toISOString(),
+      autoClosed: false,
+    }),
+  ),
+
   http.get(`${BASE}/stores/:storeId/sales/dashboard`, () =>
     HttpResponse.json({
       todayCents: 448000,

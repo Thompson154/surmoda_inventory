@@ -204,7 +204,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
           include: {
             store: { select: { name: true } },
             user: { select: { fullName: true } },
-            items: { select: { quantity: true } },
+            items: { include: { variant: { include: { product: true } } } },
           },
           orderBy: { createdAt: 'desc' },
           skip,
@@ -224,6 +224,19 @@ export function buildSaleRepository(db: Database): SaleRepository {
           itemCount: r.items.length,
           totalUnits: r.items.reduce((s, i) => s + i.quantity, 0),
           createdAt: r.createdAt.toISOString(),
+          items: r.items.map((i) => ({
+            id: i.id,
+            variantId: i.variantId,
+            quantity: i.quantity,
+            priceAtSaleCents: i.priceAtSaleCents,
+            productId: i.variant.productId,
+            productCode: i.variant.product.code,
+            productName: i.variant.product.name,
+            size: SIZE_FROM_PRISMA[i.variant.size],
+            color: i.variant.color,
+            barcode: i.variant.barcode,
+            imagePath: i.variant.imagePath,
+          })),
         })),
         total,
         page: query.page,
@@ -232,59 +245,77 @@ export function buildSaleRepository(db: Database): SaleRepository {
     },
 
     async buildDashboard(storeId, now) {
+      // Today is still runtime (not yet closed). Everything ≤ yesterday is read
+      // from DailyReport (the immutable cierre snapshot), per the agreed model.
       const startToday = startOfDayLocal(now);
-      const startYesterday = new Date(startToday.getTime() - 24 * 60 * 60 * 1000);
-      // 7-day window for the chart (oldest day first).
-      const startSevenDaysAgo = new Date(startToday.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const todayKey = isoLocalDate(now);
       const startWeek = startOfWeekMonday(now);
       const startFourWeeksAgo = new Date(startWeek.getTime() - 3 * 7 * 24 * 60 * 60 * 1000);
+      const startTwentyEightDaysAgo = new Date(startToday.getTime() - 27 * 24 * 60 * 60 * 1000);
+      const dateOnlyAt = (d: Date) => new Date(`${isoLocalDate(d)}T00:00:00.000Z`);
 
-      const sales = await db.sale.findMany({
-        where: { storeId, createdAt: { gte: startFourWeeksAgo } },
-        select: { paymentMethod: true, totalCents: true, createdAt: true },
-        orderBy: { createdAt: 'asc' },
+      // Today's runtime aggregate from sales.
+      const todaySales = await db.sale.findMany({
+        where: { storeId, createdAt: { gte: startToday } },
+        select: { paymentMethod: true, totalCents: true },
       });
-
       let todayCents = 0;
-      let yesterdayCents = 0;
-      let weekCents = 0;
-      let weekCount = 0;
-      const dayMap = new Map<string, { qr: number; card: number; cash: number; total: number }>();
-      const weekMap = new Map<string, { qr: number; card: number; cash: number; total: number; weekStart: Date }>();
-
-      for (const s of sales) {
-        const day = isoLocalDate(s.createdAt);
-        const totalC = s.totalCents;
-
-        if (s.createdAt >= startToday) todayCents += totalC;
-        else if (s.createdAt >= startYesterday) yesterdayCents += totalC;
-
-        if (s.createdAt >= startWeek) {
-          weekCents += totalC;
-          weekCount += 1;
-        }
-
-        const dayBucket = dayMap.get(day) ?? { qr: 0, card: 0, cash: 0, total: 0 };
-        const bucket = { ...dayBucket };
+      let todayQr = 0;
+      let todayCard = 0;
+      let todayCash = 0;
+      const todayCount = todaySales.length;
+      for (const s of todaySales) {
+        todayCents += s.totalCents;
         const pm = PM_FROM_PRISMA[s.paymentMethod];
-        if (pm === 'qr') bucket.qr += totalC;
-        else if (pm === 'card') bucket.card += totalC;
-        else bucket.cash += totalC;
-        bucket.total += totalC;
-        dayMap.set(day, bucket);
-
-        const weekStart = startOfWeekMonday(s.createdAt);
-        const weekKey = isoLocalDate(weekStart);
-        const wbDefault = { qr: 0, card: 0, cash: 0, total: 0, weekStart };
-        const wb = { ...(weekMap.get(weekKey) ?? wbDefault) };
-        if (pm === 'qr') wb.qr += totalC;
-        else if (pm === 'card') wb.card += totalC;
-        else wb.cash += totalC;
-        wb.total += totalC;
-        weekMap.set(weekKey, wb);
+        if (pm === 'qr') todayQr += s.totalCents;
+        else if (pm === 'card') todayCard += s.totalCents;
+        else todayCash += s.totalCents;
       }
 
+      // Closed reports for the last 28 days (covers 4 weekly buckets + last5).
+      const closedReports = await db.dailyReport.findMany({
+        where: {
+          storeId,
+          date: {
+            gte: dateOnlyAt(startTwentyEightDaysAgo),
+            lt: dateOnlyAt(now), // strictly before today
+          },
+        },
+        select: {
+          date: true,
+          totalCents: true,
+          qrCents: true,
+          cardCents: true,
+          cashCents: true,
+          transactionsCount: true,
+        },
+      });
+
+      const dayMap = new Map<string, { qr: number; card: number; cash: number; total: number; count: number }>();
+      for (const r of closedReports) {
+        const key = r.date.toISOString().slice(0, 10);
+        dayMap.set(key, {
+          qr: r.qrCents,
+          card: r.cardCents,
+          cash: r.cashCents,
+          total: r.totalCents,
+          count: r.transactionsCount,
+        });
+      }
+      // Add today (runtime).
+      dayMap.set(todayKey, {
+        qr: todayQr,
+        card: todayCard,
+        cash: todayCash,
+        total: todayCents,
+        count: todayCount,
+      });
+
+      const yesterdayKey = isoLocalDate(new Date(startToday.getTime() - 24 * 60 * 60 * 1000));
+      const yesterdayCents = dayMap.get(yesterdayKey)?.total ?? 0;
+
       // 7-day series (oldest → newest), zero-filled.
+      const startSevenDaysAgo = new Date(startToday.getTime() - 6 * 24 * 60 * 60 * 1000);
       const last7Days: Array<{ date: string; totalCents: number }> = [];
       for (let i = 0; i < 7; i += 1) {
         const d = new Date(startSevenDaysAgo.getTime() + i * 24 * 60 * 60 * 1000);
@@ -297,7 +328,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
       for (let i = 0; i < 5; i += 1) {
         const d = new Date(startToday.getTime() - i * 24 * 60 * 60 * 1000);
         const key = isoLocalDate(d);
-        const b = dayMap.get(key) ?? { qr: 0, card: 0, cash: 0, total: 0 };
+        const b = dayMap.get(key) ?? { qr: 0, card: 0, cash: 0, total: 0, count: 0 };
         dailyBreakdown.push({
           date: key,
           qrCents: b.qr,
@@ -307,22 +338,46 @@ export function buildSaleRepository(db: Database): SaleRepository {
         });
       }
 
-      // Weekly breakdown — last 4 weeks, newest first.
+      // Weekly breakdown — last 4 weeks (Mon→Sun), newest first.
       const weeklyBreakdown = [];
+      let weekCents = 0;
+      let weekCount = 0;
       for (let i = 0; i < 4; i += 1) {
         const ws = new Date(startWeek.getTime() - i * 7 * 24 * 60 * 60 * 1000);
         const we = new Date(ws.getTime() + 6 * 24 * 60 * 60 * 1000);
-        const key = isoLocalDate(ws);
-        const b = weekMap.get(key) ?? { qr: 0, card: 0, cash: 0, total: 0 };
+        let qr = 0;
+        let card = 0;
+        let cash = 0;
+        let total = 0;
+        let count = 0;
+        for (let d = 0; d < 7; d += 1) {
+          const dDate = new Date(ws.getTime() + d * 24 * 60 * 60 * 1000);
+          const key = isoLocalDate(dDate);
+          const b = dayMap.get(key);
+          if (!b) continue;
+          qr += b.qr;
+          card += b.card;
+          cash += b.cash;
+          total += b.total;
+          count += b.count;
+        }
         weeklyBreakdown.push({
-          weekStart: key,
+          weekStart: isoLocalDate(ws),
           weekEnd: isoLocalDate(we),
-          qrCents: b.qr,
-          cardCents: b.card,
-          cashCents: b.cash,
-          totalCents: b.total,
+          qrCents: qr,
+          cardCents: card,
+          cashCents: cash,
+          totalCents: total,
         });
+        if (i === 0) {
+          weekCents = total;
+          weekCount = count;
+        }
       }
+
+      // Suppress unused warning: startFourWeeksAgo is conceptually the window;
+      // implementation derives it via the per-week loop instead.
+      void startFourWeeksAgo;
 
       const deltaPct =
         yesterdayCents === 0

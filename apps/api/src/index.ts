@@ -2,18 +2,26 @@
 import 'dotenv/config';
 
 import { buildServer } from './server';
+import { buildComposition } from './composition';
 import { loadConfig } from './infrastructure/config';
 import { logger } from './infrastructure/logger';
 import { disconnectPrisma, getPrisma } from './infrastructure/database';
 import { startRefreshTokenCleanup, type CleanupJobHandle } from './jobs/refreshTokenCleanup';
+import { startDailyCloseJob, type DailyCloseJobHandle } from './jobs/dailyClose';
 
 async function main(): Promise<void> {
   const config = loadConfig();
   const app = buildServer();
 
   let cleanupJob: CleanupJobHandle | undefined;
+  let dailyCloseJob: DailyCloseJobHandle | undefined;
   if (config.NODE_ENV !== 'test') {
     cleanupJob = startRefreshTokenCleanup(getPrisma());
+    const composition = buildComposition();
+    dailyCloseJob = startDailyCloseJob({
+      reports: composition.dailyReportRepository,
+      service: composition.dailyReportService,
+    });
   }
 
   const server = app.listen(config.PORT, () => {
@@ -23,6 +31,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'Shutting down');
     cleanupJob?.stop();
+    dailyCloseJob?.stop();
     server.close(() => undefined);
     await disconnectPrisma();
     process.exit(0);
