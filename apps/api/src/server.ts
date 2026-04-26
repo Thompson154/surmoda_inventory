@@ -38,6 +38,7 @@ export function buildServer(): Express {
   app.use('/api/v1/stores/:storeId', composition.inventoryRouter);
   app.use('/api/v1/stores/:storeId', composition.deliveriesPerStoreRouter);
   app.use('/api/v1/deliveries', composition.deliveriesByIdRouter);
+  app.use('/api/v1/stores/:storeId', composition.salesPerStoreRouter);
 
   app.use(errorHandler);
 

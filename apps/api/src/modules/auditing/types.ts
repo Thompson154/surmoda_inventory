@@ -25,7 +25,8 @@ export type AuditAction =
   | 'VARIANT_REACTIVATED'
   | 'INVENTORY_QUANTITY_ADJUSTED'
   | 'STORE_EDIT_PERMISSION_TOGGLED'
-  | 'DELIVERY_CREATED';
+  | 'DELIVERY_CREATED'
+  | 'SALE_CREATED';
 
 export type AuditEntity =
   | 'User'
@@ -36,7 +37,8 @@ export type AuditEntity =
   | 'Variant'
   | 'Stock'
   | 'StoreEditPermission'
-  | 'Delivery';
+  | 'Delivery'
+  | 'Sale';
 
 export interface AuditWriteInput {
   userId?: string | null;

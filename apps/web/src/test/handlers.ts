@@ -519,4 +519,81 @@ export const handlers = [
       { status: 201 },
     ),
   ),
+
+  // Sales
+  http.get(`${BASE}/stores/:storeId/sales`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: 'sale-1',
+          storeId: 'store-prado-seed',
+          storeName: 'Sucursal Prado',
+          recordedByUserId: 'user-1',
+          recordedByFullName: 'Vendedora Prado',
+          paymentMethod: 'cash',
+          totalCents: 50000,
+          itemCount: 2,
+          totalUnits: 3,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
+  ),
+
+  http.post(`${BASE}/stores/:storeId/sales`, () =>
+    HttpResponse.json(
+      {
+        id: 'sale-new',
+        storeId: 'store-prado-seed',
+        storeName: 'Sucursal Prado',
+        recordedByUserId: 'user-1',
+        recordedByFullName: 'Vendedora Prado',
+        paymentMethod: 'cash',
+        totalCents: 25000,
+        itemCount: 1,
+        totalUnits: 1,
+        createdAt: new Date().toISOString(),
+        items: [],
+      },
+      { status: 201 },
+    ),
+  ),
+
+  http.get(`${BASE}/stores/:storeId/sales/dashboard`, () =>
+    HttpResponse.json({
+      todayCents: 448000,
+      yesterdayCents: 312000,
+      deltaPct: 43.6,
+      weekCents: 2206000,
+      transactionsCount: 46,
+      averageTicketCents: 48000,
+      last7Days: [
+        { date: '2024-01-01', totalCents: 100000 },
+        { date: '2024-01-02', totalCents: 200000 },
+        { date: '2024-01-03', totalCents: 150000 },
+        { date: '2024-01-04', totalCents: 80000 },
+        { date: '2024-01-05', totalCents: 220000 },
+        { date: '2024-01-06', totalCents: 280000 },
+        { date: '2024-01-07', totalCents: 448000 },
+      ],
+      dailyBreakdown: Array.from({ length: 5 }).map((_, i) => ({
+        date: `2024-01-0${5 - i}`,
+        qrCents: 20000,
+        cardCents: 20000,
+        cashCents: 20000,
+        totalCents: 60000,
+      })),
+      weeklyBreakdown: Array.from({ length: 4 }).map((_, i) => ({
+        weekStart: `2024-01-0${1 + i * 7}`.slice(0, 10),
+        weekEnd: `2024-01-0${7 + i * 7}`.slice(0, 10),
+        qrCents: 200000,
+        cardCents: 200000,
+        cashCents: 200000,
+        totalCents: 600000,
+      })),
+    }),
+  ),
 ];

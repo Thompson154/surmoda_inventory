@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "jest",
     "test:unit": "jest --selectProjects unit",
-    "test:integration": "jest --selectProjects integration",
+    "test:integration": "jest --selectProjects integration --runInBand",
     "test:coverage": "jest --coverage",
     "type": "tsc --noEmit",
     "prisma:generate": "prisma generate",

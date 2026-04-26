@@ -12,8 +12,9 @@ import { ProductCreatePage } from '@/features/products/pages/ProductCreatePage';
 import { ProductDetailPage } from '@/features/products/pages/ProductDetailPage';
 import { SedePickerPage } from '@/features/inventory/pages/SedePickerPage';
 import { SedeInventoryPage } from '@/features/inventory/pages/SedeInventoryPage';
-import { PlaceholderSectionPage } from '@/features/inventory/pages/PlaceholderSectionPage';
 import { DeliveriesPage } from '@/features/deliveries/pages/DeliveriesPage';
+import { SalesRegisterPage } from '@/features/sales/pages/SalesRegisterPage';
+import { SalesDashboardPage } from '@/features/sales/pages/SalesDashboardPage';
 import { AdminHomePage } from '@/features/admin/AdminHomePage';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
@@ -56,11 +57,7 @@ export function App() {
         path="/sedes/:storeId/ventas"
         element={
           <Authenticated>
-            <PlaceholderSectionPage
-              section="ventas"
-              title="Ventas"
-              description="Próximamente — dashboard de ventas y cierre diario por sucursal."
-            />
+            <SalesDashboardPage />
           </Authenticated>
         }
       />
@@ -68,11 +65,7 @@ export function App() {
         path="/sedes/:storeId/scanner"
         element={
           <Authenticated>
-            <PlaceholderSectionPage
-              section="scanner"
-              title="Registro de venta"
-              description="Próximamente — escaneo de código de barras y carrito."
-            />
+            <SalesRegisterPage />
           </Authenticated>
         }
       />
