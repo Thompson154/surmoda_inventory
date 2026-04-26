@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Banknote, CreditCard, QrCode, ScanLine, Trash2, X } from 'lucide-react';
+import { Banknote, CreditCard, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
 import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -7,6 +7,10 @@ import type { HttpError } from '@/shared/services/httpClient';
 import { httpClient } from '@/shared/services/httpClient';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
+import {
+  BarcodeScanner,
+  type BarcodeScannerHandle,
+} from '@/shared/components/BarcodeScanner';
 import { useCreateSale } from '../hooks/useSales';
 
 interface CashierModalProps {
@@ -42,6 +46,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const inputRef = useRef<HTMLInputElement>(null);
+  const scannerRef = useRef<BarcodeScannerHandle | null>(null);
   const create = useCreateSale(storeId);
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
 
@@ -122,11 +127,15 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
       inputRef.current?.focus();
     } catch (err) {
       const e = err as { code?: string; message?: string };
+      const isNotFound = e.code === 'STOCK_BARCODE_NOT_FOUND';
       setLookupError(
-        e.code === 'STOCK_BARCODE_NOT_FOUND'
+        isNotFound
           ? 'Código no encontrado en esta sede.'
           : e.message ?? 'No pudimos verificar el código.',
       );
+      // Block the scanner from re-firing the same not-found code on every poll
+      // (~120ms) — gives the cashier time to react and move the camera away.
+      scannerRef.current?.markHandled(trimmed, isNotFound ? 10_000 : 5_000);
     } finally {
       setLookupPending(false);
     }
@@ -177,13 +186,11 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   return (
     <Modal isOpen={open} onClose={onClose} title="Registro de venta">
       <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
-        <div className="aspect-square max-h-48 rounded-xl border-2 border-dashed border-surface-border bg-surface-sunken flex items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-slate-500">
-            <ScanLine className="h-10 w-10" />
-            <p className="text-xs">Cámara: próximamente</p>
-            <p className="text-[10px] text-slate-400">(escribí el código por ahora)</p>
-          </div>
-        </div>
+        <BarcodeScanner
+          handleRef={scannerRef}
+          hint="Apuntá al código del producto"
+          onDetected={(c) => void addByBarcode(c)}
+        />
 
         <div>
           <label htmlFor="cashier-code" className="text-sm font-medium text-slate-700">
