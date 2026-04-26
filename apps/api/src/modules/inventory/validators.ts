@@ -21,8 +21,17 @@ export const TogglePermissionSchema = z
 
 export type TogglePermissionInput = z.infer<typeof TogglePermissionSchema>;
 
+const STOCK_STATUS_VALUES = ['low', 'zero'] as const;
+const SIZE_VALUES = ['s', 'm', 'l', 'xl', 'xxl', '28', '30', '32', '34', 'standard'] as const;
+
 export const ListInventoryQuerySchema = z.object({
   q: z.string().trim().min(1).optional(),
+  /** Filter by aggregate stock state across all variants of the product. */
+  stockStatus: z.enum(STOCK_STATUS_VALUES).optional(),
+  /** Filter by variant size — keep at least one variant of that size with stock. */
+  size: z.enum(SIZE_VALUES).optional(),
+  /** Filter by variant color (case-insensitive substring). */
+  color: z.string().trim().min(1).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });

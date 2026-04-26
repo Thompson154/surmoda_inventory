@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import { emitAudit } from '../../middleware/auditLogger';
-import { DailyReportDateParamSchema, ListDailyReportsQuerySchema } from './validators';
+import { CloseDayPayloadSchema, DailyReportDateParamSchema, ListDailyReportsQuerySchema } from './validators';
 import type { AuthContext } from './types';
 import type { DailyReportService } from './service';
 
@@ -11,6 +11,7 @@ export interface DailyReportController {
   list(req: Request, res: Response, next: NextFunction): Promise<void>;
   getByDate(req: Request, res: Response, next: NextFunction): Promise<void>;
   getItemsByDate(req: Request, res: Response, next: NextFunction): Promise<void>;
+  listStaff(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 
 function requireAuth(req: Request): AuthContext {
@@ -30,7 +31,9 @@ export function buildDailyReportController(service: DailyReportService): DailyRe
       try {
         const auth = requireAuth(req);
         const storeId = requireParam(req, 'storeId');
-        const report = await service.closeToday(storeId, auth);
+        // Body is optional for backwards-compat with older clients — defaults to [].
+        const body = CloseDayPayloadSchema.parse(req.body ?? {});
+        const report = await service.closeToday(storeId, auth, body.attendedUserIds);
         emitAudit(req, {
           userId: auth.userId,
           action: 'DAILY_REPORT_CLOSED',
@@ -41,6 +44,7 @@ export function buildDailyReportController(service: DailyReportService): DailyRe
             date: report.date,
             totalCents: report.totalCents,
             transactionsCount: report.transactionsCount,
+            attendeeCount: report.attendees.length,
             autoClosed: false,
           },
         });
@@ -83,6 +87,17 @@ export function buildDailyReportController(service: DailyReportService): DailyRe
         const date = DailyReportDateParamSchema.parse(dateRaw);
         const result = await service.getItemsByDate(storeId, date, auth);
         res.status(200).json(result);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async listStaff(req, res, next) {
+      try {
+        const auth = requireAuth(req);
+        const storeId = requireParam(req, 'storeId');
+        const result = await service.listStoreStaff(storeId, auth);
+        res.status(200).json({ items: result });
       } catch (err) {
         next(err);
       }

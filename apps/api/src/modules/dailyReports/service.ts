@@ -1,6 +1,6 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
-import type { DailyReportItemsDTO } from '@surmoda/contracts';
+import type { DailyReportItemsDTO, StoreStaffMember } from '@surmoda/contracts';
 import type { DailyReportRepository } from './repository';
 import type {
   AuthContext,
@@ -20,16 +20,22 @@ export interface DailyReportServiceDeps {
 }
 
 export interface DailyReportService {
-  closeToday(storeId: string, auth: AuthContext): Promise<DailyReportDTO>;
+  closeToday(
+    storeId: string,
+    auth: AuthContext,
+    attendedUserIds: string[],
+  ): Promise<DailyReportDTO>;
   closeForDay(
     storeId: string,
     day: Date,
     closedByUserId: string | null,
     autoClosed: boolean,
+    attendedUserIds: string[],
   ): Promise<DailyReportDTO>;
   list(storeId: string, query: ListDailyReportsQuery, auth: AuthContext): Promise<PaginatedDailyReports>;
   getByDate(storeId: string, isoDay: string, auth: AuthContext): Promise<DailyReportDTO>;
   getItemsByDate(storeId: string, isoDay: string, auth: AuthContext): Promise<DailyReportItemsDTO>;
+  listStoreStaff(storeId: string, auth: AuthContext): Promise<StoreStaffMember[]>;
 }
 
 export function buildDailyReportService({
@@ -51,6 +57,7 @@ export function buildDailyReportService({
     day: Date,
     closedByUserId: string | null,
     autoClosed: boolean,
+    attendedUserIds: string[] = [],
   ): Promise<DailyReportDTO> {
     return reports.runSerializable(async (tx) => {
       const aggregate = await reports.aggregateDay(storeId, day, tx);
@@ -62,6 +69,7 @@ export function buildDailyReportService({
           closedByUserId,
           closedAt: new Date(),
           autoClosed,
+          attendedUserIds,
         },
         tx,
       );
@@ -71,9 +79,20 @@ export function buildDailyReportService({
   return {
     closeForDay,
 
-    async closeToday(storeId, auth) {
+    async closeToday(storeId, auth, attendedUserIds) {
       await ensureEncargadaOrAdmin(auth);
-      return closeForDay(storeId, boliviaDayKey(new Date()), auth.userId, false);
+      return closeForDay(
+        storeId,
+        boliviaDayKey(new Date()),
+        auth.userId,
+        false,
+        attendedUserIds,
+      );
+    },
+
+    async listStoreStaff(_storeId, auth) {
+      await ensureEncargadaOrAdmin(auth);
+      return reports.listStoreStaff(_storeId);
     },
 
     async list(storeId, query, auth) {

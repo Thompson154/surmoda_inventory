@@ -192,7 +192,7 @@ describe('GET /api/v1/stores/:storeId/sales/dashboard', () => {
     expect(res.body).toHaveProperty('last7Days');
     expect(res.body.last7Days).toHaveLength(7);
     expect(res.body.dailyBreakdown).toHaveLength(5);
-    expect(res.body.weeklyBreakdown).toHaveLength(4);
+    expect(res.body.weeklyBreakdown).toHaveLength(5);
   });
 
   it('vendedora is blocked (403)', async () => {

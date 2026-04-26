@@ -41,6 +41,22 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
             </li>
           </ul>
 
+          {report.attendees.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold mb-1">Atendieron ese día</p>
+              <ul className="flex flex-wrap gap-1.5">
+                {report.attendees.map((a) => (
+                  <li
+                    key={a.userId}
+                    className="rounded-full bg-violet-100 text-violet-700 text-xs px-2 py-0.5"
+                  >
+                    {a.fullName}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div>
             <p className="text-sm font-semibold mb-2">Productos vendidos</p>
             {itemsQuery.isLoading && <Skeleton className="h-24 w-full" />}

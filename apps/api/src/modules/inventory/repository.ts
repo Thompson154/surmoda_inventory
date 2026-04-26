@@ -134,6 +134,21 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
           { barcode: { contains: upper } },
         ];
       }
+      if (query.size) {
+        // Map contract size string back to the Prisma enum value.
+        const SIZE_TO_PRISMA: Record<string, string> = {
+          s: 's', m: 'm', l: 'l', xl: 'xl', xxl: 'xxl',
+          '28': 'size_28', '30': 'size_30', '32': 'size_32', '34': 'size_34',
+          standard: 'standard',
+        };
+        const prismaSize = SIZE_TO_PRISMA[query.size];
+        if (prismaSize) {
+          variantWhere.size = prismaSize as Prisma.VariantWhereInput['size'];
+        }
+      }
+      if (query.color) {
+        variantWhere.color = { contains: query.color, mode: 'insensitive' };
+      }
 
       // Pull every matching stockBySite row + its variant + product, then aggregate in JS.
       // For a small catalog (≤ a few hundred products) this is the simplest path.
@@ -177,9 +192,18 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
         }
       }
 
-      const items = Array.from(groupedMap.values()).sort((a, b) =>
+      let items = Array.from(groupedMap.values()).sort((a, b) =>
         a.productCode.localeCompare(b.productCode),
       );
+      // Stock-status filter is applied AFTER aggregation because "low" / "zero"
+      // are product-level concepts (sum of variant quantities), not variant-level.
+      if (query.stockStatus === 'zero') {
+        items = items.filter((it) => it.totalQuantity === 0);
+      } else if (query.stockStatus === 'low') {
+        // "Low" = at least one unit but ≤5. Tunable threshold; aligns with
+        // the "requiere reposición" banner on the inventory dashboard.
+        items = items.filter((it) => it.totalQuantity > 0 && it.totalQuantity <= 5);
+      }
       const total = items.length;
       const start = (query.page - 1) * query.pageSize;
       const paginated = items.slice(start, start + query.pageSize);

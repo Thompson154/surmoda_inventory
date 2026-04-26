@@ -28,17 +28,32 @@ async function main(): Promise<void> {
     logger.info({ port: config.PORT, env: config.NODE_ENV }, 'API ready');
   });
 
+  let shuttingDown = false;
   const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     logger.info({ signal }, 'Shutting down');
     cleanupJob?.stop();
     dailyCloseJob?.stop();
-    server.close(() => undefined);
+
+    // Stop accepting new connections; resolve once in-flight requests drain.
+    await new Promise<void>((res) => server.close(() => res()));
     await disconnectPrisma();
+    logger.info('Shutdown complete');
     process.exit(0);
   };
 
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
-  process.on('SIGINT', () => void shutdown('SIGINT'));
+  // Force-exit after a hard ceiling so a misbehaving handler can't block forever.
+  const forceExit = (signal: string) => {
+    void shutdown(signal);
+    setTimeout(() => {
+      logger.error('Shutdown timed out — forcing exit');
+      process.exit(1);
+    }, 10_000).unref();
+  };
+
+  process.on('SIGTERM', () => forceExit('SIGTERM'));
+  process.on('SIGINT', () => forceExit('SIGINT'));
 }
 
 void main().catch((err) => {

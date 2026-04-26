@@ -25,7 +25,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useEditPermission, useToggleEditPermission } from '../hooks/useInventory';
 import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
-import type { InventoryRow } from '@surmoda/contracts';
+import type { InventoryRow, ListInventoryFilters } from '@surmoda/contracts';
 import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { MovementsDrawer } from '../components/MovementsDrawer';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
@@ -48,6 +48,9 @@ export function SedeInventoryPage() {
 
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [stockStatus, setStockStatus] = useState<'all' | 'low' | 'zero'>('all');
+  const [size, setSize] = useState<string>('');
+  const [color, setColor] = useState<string>('');
   const [movementsOpen, setMovementsOpen] = useState(false);
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -55,8 +58,20 @@ export function SedeInventoryPage() {
 
   const filteredQuery = useInventoryGrouped(storeId, {
     q: q || undefined,
+    stockStatus: stockStatus === 'all' ? undefined : stockStatus,
+    size: (size || undefined) as ListInventoryFilters['size'],
+    color: color || undefined,
     page,
     pageSize: PAGE_SIZE,
+  });
+
+  // Total of low+zero so we can show the "requiere reposición" banner. Runs in
+  // parallel with the main listing — server-side filter via stockStatus=low
+  // returns the total.
+  const lowStockProbe = useInventoryGrouped(storeId, {
+    stockStatus: 'low',
+    page: 1,
+    pageSize: 1,
   });
 
   const store = stores.data?.items.find((s) => s.id === storeId);
@@ -154,6 +169,28 @@ export function SedeInventoryPage() {
           </Card>
         )}
 
+        {lowStockProbe.data && lowStockProbe.data.total > 0 && stockStatus !== 'low' && (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-sm text-amber-800 flex items-center gap-2">
+              <span aria-hidden className="text-amber-600">⚠</span>
+              {lowStockProbe.data.total}{' '}
+              {lowStockProbe.data.total === 1
+                ? 'producto requiere reposición'
+                : 'productos requieren reposición'}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setStockStatus('low');
+                setPage(1);
+              }}
+              className="text-sm font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
+            >
+              Ver
+            </button>
+          </div>
+        )}
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <Input
@@ -167,6 +204,68 @@ export function SedeInventoryPage() {
             }}
             className="pl-9"
             aria-label="Buscar inventario"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { value: 'all', label: 'Todos' },
+            { value: 'low', label: 'Stock bajo' },
+            { value: 'zero', label: 'Sin stock' },
+          ] as const).map((opt) => {
+            const active = stockStatus === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  setStockStatus(opt.value);
+                  setPage(1);
+                }}
+                className={
+                  active
+                    ? 'rounded-full bg-slate-900 text-white text-xs font-semibold px-3 py-1.5'
+                    : 'rounded-full border border-surface-border bg-white text-slate-600 text-xs px-3 py-1.5 hover:bg-surface-sunken'
+                }
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-md border border-surface-border bg-white text-xs px-2 py-1.5"
+            aria-label="Talla"
+          >
+            <option value="">Todas las tallas</option>
+            <option value="s">S</option>
+            <option value="m">M</option>
+            <option value="l">L</option>
+            <option value="xl">XL</option>
+            <option value="xxl">XXL</option>
+            <option value="28">28</option>
+            <option value="30">30</option>
+            <option value="32">32</option>
+            <option value="34">34</option>
+            <option value="standard">Estándar</option>
+          </select>
+
+          <Input
+            id="inventory-color-filter"
+            type="search"
+            placeholder="Color..."
+            value={color}
+            onChange={(e) => {
+              setColor(e.target.value);
+              setPage(1);
+            }}
+            className="w-32 text-xs"
+            aria-label="Filtrar por color"
           />
         </div>
 

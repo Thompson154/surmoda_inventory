@@ -28,6 +28,10 @@ declare global {
   namespace Express {
     interface Request {
       auth?: AuthContext;
+      /** Correlation id stamped by `requestIdMiddleware`. */
+      id?: string;
+      /** Pino child logger pre-bound to the request id. */
+      log?: import('pino').Logger;
     }
   }
 }

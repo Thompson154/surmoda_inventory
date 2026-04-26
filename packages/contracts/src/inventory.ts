@@ -52,8 +52,16 @@ export interface AdjustQuantityPayload {
   reason?: string;
 }
 
+export type InventoryStockStatus = 'low' | 'zero';
+
 export interface ListInventoryFilters {
   q?: string;
+  /** Aggregate state across all variants of the product. */
+  stockStatus?: InventoryStockStatus;
+  /** Variant size filter (Prisma enum string). */
+  size?: 's' | 'm' | 'l' | 'xl' | 'xxl' | '28' | '30' | '32' | '34' | 'standard';
+  /** Variant color (case-insensitive substring match on the BE). */
+  color?: string;
   page?: number;
   pageSize?: number;
 }

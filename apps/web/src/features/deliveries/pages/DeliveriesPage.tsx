@@ -9,7 +9,6 @@ import {
 import {
   Alert,
   Badge,
-  Button,
   Card,
   CardContent,
   EmptyState,
@@ -90,11 +89,6 @@ export function DeliveriesPage() {
               </Badge>
             )}
           </div>
-          {canCreate && (
-            <Button type="button" variant="primary" size="sm" onClick={() => setNewOpen(true)}>
-              Entregar
-            </Button>
-          )}
         </header>
 
         <p className="text-xs text-slate-500">Historial</p>
@@ -230,6 +224,21 @@ export function DeliveriesPage() {
           />
         )}
       </main>
+
+      {/* Floating action button — primary entrypoint for the only mutation on
+          this page. Sits above the BottomNav (bottom: 80px) on mobile and
+          inside the main column on desktop. */}
+      {canCreate && (
+        <button
+          type="button"
+          onClick={() => setNewOpen(true)}
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white px-5 py-3 shadow-lg hover:shadow-xl active:scale-[0.98] transition"
+          aria-label="Nueva entrega"
+        >
+          <span className="text-xl leading-none">+</span>
+          <span className="font-semibold">Nueva entrega</span>
+        </button>
+      )}
     </AppShell>
   );
 }

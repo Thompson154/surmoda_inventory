@@ -9,9 +9,12 @@ import type {
   TogglePermissionPayload,
 } from '@surmoda/contracts';
 
-function buildQueryString(filters: { q?: string; page?: number; pageSize?: number }): string {
+function buildQueryString(filters: ListInventoryFilters): string {
   const params = new URLSearchParams();
   if (filters.q) params.set('q', filters.q);
+  if (filters.stockStatus) params.set('stockStatus', filters.stockStatus);
+  if (filters.size) params.set('size', filters.size);
+  if (filters.color) params.set('color', filters.color);
   if (filters.page) params.set('page', String(filters.page));
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
   const qs = params.toString();
