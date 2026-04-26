@@ -18,9 +18,9 @@ beforeEach(() => resetConfigForTests());
 
 describe('loadConfig — Tier 1 production hardening', () => {
   it('rejects BCRYPT_SALT_ROUNDS < 12 in production', () => {
-    expect(() =>
-      loadConfig({ ...BASE_ENV, BCRYPT_SALT_ROUNDS: '4' }),
-    ).toThrow(/BCRYPT_SALT_ROUNDS.*12.*production/i);
+    expect(() => loadConfig({ ...BASE_ENV, BCRYPT_SALT_ROUNDS: '4' })).toThrow(
+      /BCRYPT_SALT_ROUNDS.*12.*production/i,
+    );
   });
 
   it('accepts BCRYPT_SALT_ROUNDS=12 in production', () => {
@@ -57,9 +57,7 @@ describe('loadConfig — Tier 1 production hardening', () => {
   });
 
   it('rejects JWT_SECRET shorter than 32 chars', () => {
-    expect(() => loadConfig({ ...BASE_ENV, JWT_SECRET: 'short' })).toThrow(
-      /JWT_SECRET/,
-    );
+    expect(() => loadConfig({ ...BASE_ENV, JWT_SECRET: 'short' })).toThrow(/JWT_SECRET/);
   });
 
   it('AUDIT_RETENTION_DAYS defaults to 0 (disabled)', () => {

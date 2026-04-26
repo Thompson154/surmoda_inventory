@@ -1,0 +1,4 @@
+# Tier 1 — pre-commit gate. Runs only against staged files via lint-staged so
+# big repos don't pay full lint+typecheck on every commit. Husky propagates
+# non-zero exits, blocking the commit.
+npx lint-staged
