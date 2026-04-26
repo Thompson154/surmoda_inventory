@@ -37,6 +37,10 @@ import {
   buildDeliveriesByIdRouter,
   buildDeliveriesPerStoreRouter,
 } from './modules/deliveries/routes';
+import { buildSaleRepository } from './modules/sales/repository';
+import { buildSaleService } from './modules/sales/service';
+import { buildSaleController } from './modules/sales/controller';
+import { buildSalesPerStoreRouter } from './modules/sales/routes';
 
 export interface Composition {
   db: Database;
@@ -50,6 +54,7 @@ export interface Composition {
   inventoryRouter: Router;
   deliveriesPerStoreRouter: Router;
   deliveriesByIdRouter: Router;
+  salesPerStoreRouter: Router;
 }
 
 /**
@@ -136,6 +141,23 @@ export function buildComposition(): Composition {
   const deliveriesPerStoreRouter = buildDeliveriesPerStoreRouter(deliveryController);
   const deliveriesByIdRouter = buildDeliveriesByIdRouter(deliveryController);
 
+  const saleRepo = buildSaleRepository(db);
+  const saleService = buildSaleService({
+    sales: saleRepo,
+    assignments: {
+      async findActiveAssignment(userId, storeId) {
+        const row = await inventoryRepo.findUserAssignment(userId, storeId);
+        if (!row) return null;
+        return { role: row.role };
+      },
+      async hasAnyEncargadaRole(userId) {
+        return inventoryRepo.hasAnyEncargadaRole(userId);
+      },
+    },
+  });
+  const saleController = buildSaleController(saleService);
+  const salesPerStoreRouter = buildSalesPerStoreRouter(saleController);
+
   return {
     db,
     auditService,
@@ -148,5 +170,6 @@ export function buildComposition(): Composition {
     inventoryRouter,
     deliveriesPerStoreRouter,
     deliveriesByIdRouter,
+    salesPerStoreRouter,
   };
 }

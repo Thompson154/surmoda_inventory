@@ -6,7 +6,8 @@ export type StockMovementType =
   | 'adjusted'
   | 'edit_permission_toggled'
   | 'delivery_in'
-  | 'delivery_out';
+  | 'delivery_out'
+  | 'sale_out';
 
 export interface InventoryRow {
   variantId: string;

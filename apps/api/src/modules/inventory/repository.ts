@@ -33,6 +33,7 @@ const MOVEMENT_TYPE_FROM_PRISMA: Record<PrismaStockMovementType, StockMovementTy
   edit_permission_toggled: 'edit_permission_toggled',
   delivery_in: 'delivery_in',
   delivery_out: 'delivery_out',
+  sale_out: 'sale_out',
 };
 
 const MOVEMENT_TYPE_TO_PRISMA: Record<StockMovementType, PrismaStockMovementType> = {
@@ -40,6 +41,7 @@ const MOVEMENT_TYPE_TO_PRISMA: Record<StockMovementType, PrismaStockMovementType
   edit_permission_toggled: 'edit_permission_toggled',
   delivery_in: 'delivery_in',
   delivery_out: 'delivery_out',
+  sale_out: 'sale_out',
 };
 
 export interface UserAssignmentRow {

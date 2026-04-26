@@ -66,6 +66,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.DELIVERY_EMPTY_ITEMS]: 'Agregá al menos un ítem.',
   [ERROR_CODES.DELIVERY_VARIANT_NOT_FOUND]: 'Una de las variantes no existe o está inactiva.',
   [ERROR_CODES.DELIVERY_FORBIDDEN]: 'Sólo encargada/admin puede crear entregas.',
+
+  [ERROR_CODES.SALE_NOT_FOUND]: 'Venta no encontrada.',
+  [ERROR_CODES.SALE_EMPTY_ITEMS]: 'Agregá al menos un ítem.',
+  [ERROR_CODES.SALE_INSUFFICIENT_STOCK]: 'Stock insuficiente en esta sede.',
+  [ERROR_CODES.SALE_VARIANT_NOT_FOUND]: 'Variante no encontrada.',
+  [ERROR_CODES.SALE_DASHBOARD_FORBIDDEN]: 'Sólo encargada/admin puede ver el dashboard.',
 } satisfies Record<(typeof ERROR_CODES)[ErrorCodeKey], string>;
 
 const DEFAULT_MESSAGE = 'No pudimos completar la operación.';
