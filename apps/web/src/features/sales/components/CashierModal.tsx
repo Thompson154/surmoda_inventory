@@ -62,7 +62,11 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     }
     const t = setTimeout(() => inputRef.current?.focus(), 60);
     return () => clearTimeout(t);
-  }, [open, create]);
+    // Intentionally only depends on `open`. Including `create` makes the
+    // mutation reference change on every render and steal focus back to the
+    // barcode input when the cashier clicks any cart cell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const subTotalCents = useMemo(
     () => cart.reduce((s, i) => s + i.subtotalCents, 0),
@@ -251,8 +255,8 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
             <table className="w-full text-xs">
               <thead className="bg-surface-sunken text-slate-600">
                 <tr>
-                  <th className="text-left px-2 py-2">Codigo</th>
-                  <th className="text-left px-2 py-2">Talla</th>
+                  <th className="text-left px-2 py-2">Talla / Color</th>
+                  <th className="text-right px-2 py-2">Cantidad</th>
                   <th className="text-right px-2 py-2">Total</th>
                   <th className="text-right px-2 py-2">SubTotal</th>
                   <th className="px-1 py-2"></th>
@@ -261,10 +265,12 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
               <tbody>
                 {cart.map((i) => (
                   <tr key={i.variantId} className="border-t border-surface-border">
-                    <td className="px-2 py-2 font-mono">{i.productCode}</td>
                     <td className="px-2 py-2">
-                      {SIZE_LABEL[i.size] ?? i.size}{' '}
-                      <span className="text-slate-400 capitalize">· {i.color}</span>
+                      <p className="font-mono text-[10px] text-slate-500">{i.productCode}</p>
+                      <p>
+                        {SIZE_LABEL[i.size] ?? i.size}{' '}
+                        <span className="text-slate-400 capitalize">· {i.color}</span>
+                      </p>
                     </td>
                     <td className="px-2 py-2 text-right">
                       <Input
@@ -276,6 +282,9 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                         className="w-14 text-center text-xs py-1"
                         aria-label="Cantidad"
                       />
+                    </td>
+                    <td className="px-2 py-2 text-right font-mono">
+                      {formatBs(i.unitPriceCents * i.quantity)}
                     </td>
                     <td className="px-2 py-2 text-right">
                       <Input

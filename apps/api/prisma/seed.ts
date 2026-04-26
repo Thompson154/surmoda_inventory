@@ -294,13 +294,110 @@ async function main(): Promise<void> {
     }
   }
 
+  // -----------------------------------------------------------------------------
+  // Historical sales + daily-report seed (feature 007 demo flow).
+  // Idempotent: only runs when the store has no DailyReport rows yet.
+  // -----------------------------------------------------------------------------
+  let demoSalesCreated = 0;
+  let demoReportsCreated = 0;
+  for (const branchId of [STORE_PRADO, STORE_ZSUR]) {
+    const existingReports = await prisma.dailyReport.count({ where: { storeId: branchId } });
+    if (existingReports > 0) continue;
+
+    const branchVariants = await prisma.variant.findMany({
+      where: { deletedAt: null },
+      select: { id: true, priceCents: true },
+      take: 6,
+    });
+    if (branchVariants.length === 0) continue;
+
+    const branchSeller = branchId === STORE_PRADO ? vendedoraPrado.id : vendedoraZsur.id;
+    const branchEncargada = encargadaPrado.id; // closes both branches in demo
+    const TZ_OFFSET_MS = 4 * 60 * 60 * 1000;
+    const PMS = ['cash', 'qr', 'card'] as const;
+    const today = new Date();
+    const todayBoliviaIso = new Date(today.getTime() - TZ_OFFSET_MS).toISOString().slice(0, 10);
+    const todayKey = new Date(`${todayBoliviaIso}T00:00:00.000Z`);
+
+    // Generate 14 days of sales (oldest → today). Cierre snapshots cover days 1..7
+    // (i.e. the 7 days before today). Today is left open so the user can close it.
+    for (let i = 14; i >= 0; i -= 1) {
+      const dayKey = new Date(todayKey.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayStartUtc = new Date(dayKey.getTime() + TZ_OFFSET_MS); // 00:00 Bolivia
+      const salesPerDay = 3 + ((i * 7 + (branchId === STORE_PRADO ? 0 : 1)) % 4); // 3..6
+
+      let totalCents = 0;
+      let qrCents = 0;
+      let cardCents = 0;
+      let cashCents = 0;
+      let itemCount = 0;
+
+      for (let s = 0; s < salesPerDay; s += 1) {
+        const variant = branchVariants[(i + s) % branchVariants.length]!;
+        const qty = 1 + ((i + s) % 3); // 1..3
+        const pm = PMS[(i + s) % PMS.length]!;
+        const lineTotal = variant.priceCents * qty;
+        const createdAt = new Date(dayStartUtc.getTime() + (8 + s * 2) * 60 * 60 * 1000);
+
+        await prisma.sale.create({
+          data: {
+            storeId: branchId,
+            recordedByUserId: branchSeller,
+            paymentMethod: pm,
+            totalCents: lineTotal,
+            createdAt,
+            items: {
+              create: [
+                {
+                  variantId: variant.id,
+                  quantity: qty,
+                  priceAtSaleCents: variant.priceCents,
+                },
+              ],
+            },
+          },
+        });
+        demoSalesCreated += 1;
+
+        totalCents += lineTotal;
+        itemCount += qty;
+        if (pm === 'qr') qrCents += lineTotal;
+        else if (pm === 'card') cardCents += lineTotal;
+        else cashCents += lineTotal;
+      }
+
+      // Close every past day (i ≥ 1). Mix manual + auto so the UI badge is visible.
+      if (i >= 1) {
+        const isAuto = i % 2 === 0;
+        const closedAt = new Date(dayStartUtc.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000);
+        await prisma.dailyReport.create({
+          data: {
+            storeId: branchId,
+            date: dayKey,
+            totalCents,
+            qrCents,
+            cardCents,
+            cashCents,
+            itemCount,
+            transactionsCount: salesPerDay,
+            closedByUserId: isAuto ? null : branchEncargada,
+            closedAt,
+            autoClosed: isAuto,
+          },
+        });
+        demoReportsCreated += 1;
+      }
+    }
+  }
+
   // eslint-disable-next-line no-console
   console.info(
     `Seed OK — admin: ${admin.email}; staff: 4 users; assignments: ${assignments.length}; ` +
       `placeholder stores: ${STORE_PRADO}, ${STORE_ZSUR}, ${STORE_ALMACEN}; ` +
       `products: ${productCount}; variants created: ${variantCount}; ` +
       `stock rows created: ${stockRowsCreated}; ` +
-      `warehouse rows refilled to ${WAREHOUSE_DEFAULT_QTY}: ${warehouseRefilled}`,
+      `warehouse rows refilled to ${WAREHOUSE_DEFAULT_QTY}: ${warehouseRefilled}; ` +
+      `demo sales: ${demoSalesCreated}; demo daily reports: ${demoReportsCreated}`,
   );
 }
 

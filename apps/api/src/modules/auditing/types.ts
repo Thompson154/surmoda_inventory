@@ -26,7 +26,8 @@ export type AuditAction =
   | 'INVENTORY_QUANTITY_ADJUSTED'
   | 'STORE_EDIT_PERMISSION_TOGGLED'
   | 'DELIVERY_CREATED'
-  | 'SALE_CREATED';
+  | 'SALE_CREATED'
+  | 'DAILY_REPORT_CLOSED';
 
 export type AuditEntity =
   | 'User'
@@ -38,7 +39,8 @@ export type AuditEntity =
   | 'Stock'
   | 'StoreEditPermission'
   | 'Delivery'
-  | 'Sale';
+  | 'Sale'
+  | 'DailyReport';
 
 export interface AuditWriteInput {
   userId?: string | null;

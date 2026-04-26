@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import type { DailyReportDTO } from '@surmoda/contracts';
+import { DailyReportDetailModal } from '../components/DailyReportDetailModal';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import {
   Alert,
@@ -10,6 +12,7 @@ import {
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useSalesDashboard } from '../hooks/useSales';
+import { useDailyReports } from '../hooks/useDailyReports';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 
@@ -100,6 +103,8 @@ export function SalesDashboardPage() {
   const isVendedoraHere = !isAdmin && !hasEncargadaRole && directRole === 'vendedora';
 
   const dashboard = useSalesDashboard(storeId);
+  const closures = useDailyReports(storeId, { page: 1, pageSize: 10 });
+  const [selectedReport, setSelectedReport] = useState<DailyReportDTO | null>(null);
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [
@@ -189,38 +194,6 @@ export function SalesDashboardPage() {
 
             <Card>
               <CardContent>
-                <p className="text-sm font-semibold mb-2">Ventas (últimos 5 días)</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-surface-sunken text-slate-600">
-                      <tr>
-                        <th className="text-left px-2 py-2">Fecha</th>
-                        <th className="text-right px-2 py-2">QR</th>
-                        <th className="text-right px-2 py-2">Tarjeta</th>
-                        <th className="text-right px-2 py-2">Efectivo</th>
-                        <th className="text-right px-2 py-2">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.data.dailyBreakdown.map((row) => (
-                        <tr key={row.date} className="border-t border-surface-border">
-                          <td className="px-2 py-2">{row.date}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatBs(row.qrCents)}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatBs(row.cardCents)}</td>
-                          <td className="px-2 py-2 text-right font-mono">{formatBs(row.cashCents)}</td>
-                          <td className="px-2 py-2 text-right font-mono font-semibold">
-                            {formatBs(row.totalCents)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
                 <p className="text-sm font-semibold mb-2">Resumen semanal (últimas 4 semanas)</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -252,8 +225,71 @@ export function SalesDashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent>
+                <p className="text-sm font-semibold mb-2">Historial de cierres diarios</p>
+                {closures.isLoading && <Skeleton className="h-16 w-full" />}
+                {closures.isError && (
+                  <Alert variant="error">No pudimos cargar el historial.</Alert>
+                )}
+                {closures.data && closures.data.items.length === 0 && (
+                  <p className="text-sm text-slate-500">Aún no hay cierres registrados.</p>
+                )}
+                {closures.data && closures.data.items.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-surface-sunken text-slate-600">
+                        <tr>
+                          <th className="text-left px-2 py-2">Fecha</th>
+                          <th className="text-right px-2 py-2">Trans.</th>
+                          <th className="text-right px-2 py-2">Ítems</th>
+                          <th className="text-right px-2 py-2">Total</th>
+                          <th className="text-left px-2 py-2">Cierre</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {closures.data.items.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-t border-surface-border cursor-pointer hover:bg-surface-sunken"
+                            onClick={() => setSelectedReport(row)}
+                          >
+                            <td className="px-2 py-2 font-mono text-brand-strong underline-offset-2 hover:underline">
+                              {row.date}
+                            </td>
+                            <td className="px-2 py-2 text-right">{row.transactionsCount}</td>
+                            <td className="px-2 py-2 text-right">{row.itemCount}</td>
+                            <td className="px-2 py-2 text-right font-mono font-semibold">
+                              {formatBs(row.totalCents)}
+                            </td>
+                            <td className="px-2 py-2">
+                              {row.autoClosed ? (
+                                <span className="rounded bg-amber-100 text-amber-700 px-1.5 py-0.5">
+                                  Auto
+                                </span>
+                              ) : (
+                                <span className="rounded bg-emerald-100 text-emerald-700 px-1.5 py-0.5">
+                                  {row.closedByFullName ?? 'Manual'}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
+
+        <DailyReportDetailModal
+          storeId={storeId}
+          report={selectedReport}
+          onClose={() => setSelectedReport(null)}
+        />
       </main>
     </AppShell>
   );

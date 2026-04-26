@@ -46,7 +46,8 @@ export interface SaleWithItems extends SaleDTO {
 }
 
 export interface PaginatedSales {
-  items: SaleDTO[];
+  /** List endpoint eager-loads items so per-item rendering is possible without N+1. */
+  items: SaleWithItems[];
   total: number;
   page: number;
   pageSize: number;

@@ -67,6 +67,10 @@ beforeAll(async () => {
   const variant = await db.variant.findFirst({ where: { product: { code: 'JN001' } } });
   if (!variant) throw new Error('Seed missing JN001 variant');
   testVariantId = variant.id;
+
+  // Self-contained: reset state we depend on regardless of suite order.
+  await db.stockMovement.deleteMany({});
+  await db.stockBySite.updateMany({ data: { quantity: 0 } });
 });
 
 afterAll(async () => {

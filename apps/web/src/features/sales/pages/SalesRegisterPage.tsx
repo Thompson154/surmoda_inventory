@@ -1,15 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, ScanLine } from 'lucide-react';
-import type { SaleWithItems } from '@surmoda/contracts';
-import {
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  Modal,
-  Skeleton,
-} from '@/shared/ui';
+import { Banknote, Check, ChevronRight, CreditCard, QrCode, ScanLine } from 'lucide-react';
+import type { SaleItemDTO, SaleWithItems } from '@surmoda/contracts';
+import { Alert, Button, Card, CardContent, Modal, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useSales, useSalesDashboard } from '../hooks/useSales';
@@ -18,13 +11,166 @@ import { CloseDayModal } from '../components/CloseDayModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 
-function formatBs(cents: number): string {
-  return `Bs. ${(cents / 100).toFixed(2)}`;
+function formatBsBig(cents: number): string {
+  return `Bs ${Math.round(cents / 100).toLocaleString('es-BO')}`;
+}
+
+function formatBsSmall(cents: number): string {
+  return `Bs ${(cents / 100).toLocaleString('es-BO', { maximumFractionDigits: 0 })}`;
 }
 
 function timeOfDay(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+const SIZE_LABEL: Record<string, string> = {
+  s: 'S', m: 'M', l: 'L', xl: 'XL', xxl: 'XXL',
+  '28': '28', '30': '30', '32': '32', '34': '34', standard: 'Estándar',
+};
+
+function imageUrl(imagePath?: string | null): string | null {
+  if (!imagePath) return null;
+  if (/^https?:/.test(imagePath)) return imagePath;
+  return `/${imagePath.replace(/^\/+/, '')}`;
+}
+
+interface FlatItemRow {
+  saleId: string;
+  itemId: string;
+  paymentMethod: 'qr' | 'cash' | 'card';
+  createdAt: string;
+  productCode: string;
+  productName: string;
+  size: string;
+  color: string;
+  imagePath: string | null;
+  quantity: number;
+  catalogTotalCents: number;
+  subtotalCents: number;
+}
+
+function flattenSales(sales: SaleWithItems[]): FlatItemRow[] {
+  const out: FlatItemRow[] = [];
+  for (const s of sales) {
+    const grossTotal = s.items.reduce((sum, it) => sum + it.priceAtSaleCents * it.quantity, 0);
+    for (const it of s.items as SaleItemDTO[]) {
+      const itemGross = it.priceAtSaleCents * it.quantity;
+      // Distribute the sale's actual cobrado proportionally across items.
+      const itemSubtotal =
+        grossTotal === 0
+          ? 0
+          : Math.round((itemGross / grossTotal) * s.totalCents);
+      out.push({
+        saleId: s.id,
+        itemId: it.id,
+        paymentMethod: s.paymentMethod,
+        createdAt: s.createdAt,
+        productCode: it.productCode,
+        productName: it.productName,
+        size: SIZE_LABEL[it.size] ?? it.size,
+        color: it.color,
+        imagePath: it.imagePath ?? null,
+        quantity: it.quantity,
+        catalogTotalCents: itemGross,
+        subtotalCents: itemSubtotal,
+      });
+    }
+  }
+  return out;
+}
+
+interface PaymentRowProps {
+  label: 'QR' | 'Efectivo' | 'Tarjeta';
+  cents: number;
+  totalCents: number;
+}
+
+function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
+  const pct = totalCents === 0 ? 0 : Math.round((cents / totalCents) * 100);
+  const palette = {
+    QR: { bg: 'bg-violet-100', text: 'text-violet-600', bar: 'bg-violet-500', Icon: QrCode },
+    Efectivo: { bg: 'bg-emerald-100', text: 'text-emerald-600', bar: 'bg-emerald-500', Icon: Banknote },
+    Tarjeta: { bg: 'bg-slate-200', text: 'text-slate-700', bar: 'bg-slate-700', Icon: CreditCard },
+  }[label];
+  const { Icon } = palette;
+  return (
+    <div className="flex items-center gap-3">
+      <div className={`h-9 w-9 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-slate-700">{label}</span>
+          <span className="text-slate-500 font-mono">
+            {formatBsSmall(cents)} · {pct}%
+          </span>
+        </div>
+        <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <div className={`h-full ${palette.bar}`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ItemSaleCardProps {
+  row: FlatItemRow;
+  onImageClick: (src: string) => void;
+}
+
+function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
+  const palette =
+    row.paymentMethod === 'qr'
+      ? { bg: 'bg-violet-100', text: 'text-violet-600', Icon: QrCode }
+      : row.paymentMethod === 'cash'
+        ? { bg: 'bg-emerald-100', text: 'text-emerald-600', Icon: Banknote }
+        : { bg: 'bg-slate-200', text: 'text-slate-700', Icon: CreditCard };
+  const { Icon } = palette;
+  const src = imageUrl(row.imagePath);
+  const showDiscount = row.subtotalCents !== row.catalogTotalCents;
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-surface-border bg-white px-3 py-2.5">
+      {src ? (
+        <button
+          type="button"
+          onClick={() => onImageClick(src)}
+          className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 focus:outline focus:outline-brand"
+          aria-label="Ver imagen del producto"
+        >
+          <img src={src} alt={row.productName} className="h-full w-full object-cover" />
+        </button>
+      ) : (
+        <div className={`h-12 w-12 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900 truncate">
+          {row.productCode} · <span className="capitalize">{row.color}</span> · {row.size}
+        </p>
+        <p className="text-xs text-slate-500">
+          {timeOfDay(row.createdAt)} · {row.quantity} {row.quantity === 1 ? 'unidad' : 'unidades'}
+        </p>
+      </div>
+
+      <div className="flex flex-col items-end shrink-0">
+        <div className={`h-5 w-5 rounded ${palette.bg} ${palette.text} flex items-center justify-center mb-0.5`}>
+          <Icon className="h-3 w-3" />
+        </div>
+        {showDiscount && (
+          <p className="text-[10px] text-slate-400 font-mono line-through">
+            {formatBsBig(row.catalogTotalCents)}
+          </p>
+        )}
+        <p className="text-sm font-mono font-semibold text-slate-900">
+          {formatBsBig(row.subtotalCents)}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function SalesRegisterPage() {
@@ -42,12 +188,13 @@ export function SalesRegisterPage() {
   const canSeeDashboard = isAdmin || hasEncargadaRole;
 
   const todayList = useSales(storeId, { page: 1, pageSize: 50 });
-  // Dashboard is gated server-side (vendedora gets 403). Only request it when allowed.
   const dashboard = useSalesDashboard(canSeeDashboard ? storeId : undefined);
 
   const [cashierOpen, setCashierOpen] = useState(false);
   const [closeDayOpen, setCloseDayOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [lastSale, setLastSale] = useState<SaleWithItems | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [
@@ -63,128 +210,129 @@ export function SalesRegisterPage() {
     return tabs;
   }, [storeId, isWarehouse, isVendedoraHere]);
 
-  // Vendedora doesn't get dashboard data — fall back to the cashier-side breakdown
-  // computed from the day's sales list.
-  const fallback = useMemo(() => {
-    if (!todayList.data) return { total: 0, cash: 0, qr: 0, card: 0 };
-    const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayItems = useMemo(
+    () => todayList.data?.items.filter((s) => s.createdAt.startsWith(todayStr)) ?? [],
+    [todayList.data, todayStr],
+  );
+
+  // Derive day stats. Encargada/admin uses the dashboard endpoint; vendedora
+  // falls back to client-side aggregation of her own visible sales.
+  const stats = useMemo(() => {
+    if (canSeeDashboard && dashboard.data) {
+      const breakdown = dashboard.data.dailyBreakdown[0] ?? {
+        cashCents: 0, qrCents: 0, cardCents: 0, totalCents: 0,
+      };
+      // dailyBreakdown[0] should be today; trust it.
+      return {
+        total: dashboard.data.todayCents,
+        qr: breakdown.qrCents,
+        cash: breakdown.cashCents,
+        card: breakdown.cardCents,
+        count: todayItems.length,
+      };
+    }
     let total = 0;
-    let cash = 0;
     let qr = 0;
+    let cash = 0;
     let card = 0;
-    for (const s of todayList.data.items) {
-      if (!s.createdAt.startsWith(todayStr)) continue;
+    for (const s of todayItems) {
       total += s.totalCents;
-      if (s.paymentMethod === 'cash') cash += s.totalCents;
-      else if (s.paymentMethod === 'qr') qr += s.totalCents;
+      if (s.paymentMethod === 'qr') qr += s.totalCents;
+      else if (s.paymentMethod === 'cash') cash += s.totalCents;
       else if (s.paymentMethod === 'card') card += s.totalCents;
     }
-    return { total, cash, qr, card };
-  }, [todayList.data]);
+    return { total, qr, cash, card, count: todayItems.length };
+  }, [canSeeDashboard, dashboard.data, todayItems]);
 
-  const todayStats =
-    canSeeDashboard && dashboard.data
-      ? {
-          total: dashboard.data.todayCents,
-          cash: dashboard.data.dailyBreakdown[0]?.cashCents ?? 0,
-          qr: dashboard.data.dailyBreakdown[0]?.qrCents ?? 0,
-          card: dashboard.data.dailyBreakdown[0]?.cardCents ?? 0,
-        }
-      : fallback;
-
-  const todayItems =
-    todayList.data?.items.filter((s) =>
-      s.createdAt.startsWith(new Date().toISOString().slice(0, 10)),
-    ) ?? [];
+  const flatItems = useMemo(() => flattenSales(todayItems), [todayItems]);
+  const visibleItems = showAll ? flatItems : flatItems.slice(0, 3);
 
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
-        <header className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-lg font-semibold">Ventas del día</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setCloseDayOpen(true)}
-            >
-              Cerrar día
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              leftIcon={<ScanLine className="h-4 w-4" />}
-              onClick={() => setCashierOpen(true)}
-            >
-              Vender
-            </Button>
-          </div>
+      <main className="mx-auto flex w-full max-w-md flex-col gap-4 p-4 text-slate-900">
+        {/* Header — Cerrar día button */}
+        <header className="flex items-center justify-between">
+          <h1 className="text-base font-semibold">{store?.name ?? 'Ventas'}</h1>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setCloseDayOpen(true)}
+          >
+            Cerrar día
+          </Button>
         </header>
 
+        {/* Day summary card */}
         <Card>
-          <CardContent className="grid grid-cols-2 gap-2 py-3 text-sm">
-            <Stat label="Total" value={formatBs(todayStats.total)} />
-            <Stat label="QR" value={formatBs(todayStats.qr)} />
-            <Stat label="Efectivo" value={formatBs(todayStats.cash)} />
-            <Stat label="Tarjeta" value={formatBs(todayStats.card)} />
+          <CardContent className="py-4">
+            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+              Ventas del día
+            </p>
+            <p className="mt-1 text-3xl font-bold tracking-tight">{formatBsBig(stats.total)}</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {stats.count} {stats.count === 1 ? 'transacción' : 'transacciones'}
+            </p>
+
+            <div className="mt-4 flex flex-col gap-3">
+              <PaymentRow label="QR" cents={stats.qr} totalCents={stats.total} />
+              <PaymentRow label="Efectivo" cents={stats.cash} totalCents={stats.total} />
+              <PaymentRow label="Tarjeta" cents={stats.card} totalCents={stats.total} />
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-surface-sunken text-slate-600">
-                <tr>
-                  <th className="text-left px-2 py-2">Hora</th>
-                  <th className="text-left px-2 py-2">Vendedora</th>
-                  <th className="text-right px-2 py-2">Items</th>
-                  <th className="text-right px-2 py-2">Pago</th>
-                  <th className="text-right px-2 py-2">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todayList.isLoading && (
-                  <tr>
-                    <td colSpan={5} className="p-3">
-                      <Skeleton className="h-4 w-full" />
-                    </td>
-                  </tr>
-                )}
-                {todayList.isError && (
-                  <tr>
-                    <td colSpan={5} className="p-3">
-                      <Alert variant="error">No pudimos cargar las ventas.</Alert>
-                    </td>
-                  </tr>
-                )}
-                {todayItems.length === 0 && !todayList.isLoading && (
-                  <tr>
-                    <td colSpan={5} className="p-4 text-center text-slate-500">
-                      Sin ventas todavía hoy.
-                    </td>
-                  </tr>
-                )}
-                {todayItems.map((s) => (
-                  <tr key={s.id} className="border-t border-surface-border">
-                    <td className="px-2 py-2 font-mono">{timeOfDay(s.createdAt)}</td>
-                    <td className="px-2 py-2 truncate">{s.recordedByFullName}</td>
-                    <td className="px-2 py-2 text-right">{s.totalUnits}</td>
-                    <td className="px-2 py-2 text-right uppercase text-slate-500">
-                      {s.paymentMethod}
-                    </td>
-                    <td className="px-2 py-2 text-right font-mono font-semibold">
-                      {formatBs(s.totalCents)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        {/* Big violet "Escanear venta" CTA */}
+        <button
+          type="button"
+          onClick={() => setCashierOpen(true)}
+          className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white p-4 shadow-md hover:shadow-lg active:scale-[0.99] transition"
+        >
+          <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <ScanLine className="h-6 w-6" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-semibold">Escanear venta</p>
+            <p className="text-xs text-white/80">Apuntá al código de barras del producto</p>
+          </div>
+          <ChevronRight className="h-5 w-5 opacity-80 shrink-0" />
+        </button>
+
+        {/* Today's sales list */}
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">Ventas de hoy</p>
+          </div>
+
+          {todayList.isLoading && <Skeleton className="h-16 w-full" />}
+          {todayList.isError && <Alert variant="error">No pudimos cargar las ventas.</Alert>}
+          {!todayList.isLoading && flatItems.length === 0 && (
+            <p className="text-sm text-slate-500 px-2">Sin ventas todavía hoy.</p>
+          )}
+
+          <div className="flex flex-col gap-2">
+            {visibleItems.map((row) => (
+              <ItemSaleCard
+                key={row.itemId}
+                row={row}
+                onImageClick={setZoomImage}
+              />
+            ))}
+          </div>
+
+          {flatItems.length > 3 && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                {showAll ? 'Ver menos' : 'Ver historial completo →'}
+              </button>
+            </div>
+          )}
+        </section>
 
         <CashierModal
           storeId={storeId}
@@ -203,6 +351,20 @@ export function SalesRegisterPage() {
         />
 
         <Modal
+          isOpen={zoomImage !== null}
+          onClose={() => setZoomImage(null)}
+          title="Producto"
+        >
+          {zoomImage && (
+            <img
+              src={zoomImage}
+              alt="Producto"
+              className="w-full h-auto max-h-[70vh] object-contain rounded-lg bg-slate-100"
+            />
+          )}
+        </Modal>
+
+        <Modal
           isOpen={lastSale !== null}
           onClose={() => setLastSale(null)}
           title="Venta registrada"
@@ -212,7 +374,7 @@ export function SalesRegisterPage() {
               <Check className="h-6 w-6" />
             </div>
             <p className="text-sm text-slate-700 text-center">
-              {lastSale ? `Venta de ${formatBs(lastSale.totalCents)} registrada.` : ''}
+              {lastSale ? `Venta de ${formatBsBig(lastSale.totalCents)} registrada.` : ''}
             </p>
             <Button
               type="button"
@@ -227,19 +389,5 @@ export function SalesRegisterPage() {
         </Modal>
       </main>
     </AppShell>
-  );
-}
-
-interface StatProps {
-  label: string;
-  value: string;
-}
-
-function Stat({ label, value }: StatProps) {
-  return (
-    <div className="flex items-center justify-between rounded-md border border-surface-border px-2 py-1.5">
-      <span className="text-xs text-slate-500">{label}</span>
-      <span className="text-sm font-mono font-semibold text-slate-900">{value}</span>
-    </div>
   );
 }

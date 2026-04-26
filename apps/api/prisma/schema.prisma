@@ -81,6 +81,7 @@ model Store {
   deliveriesIn   Delivery[] @relation("DeliveryDest")
   deliveriesOut  Delivery[] @relation("DeliveryOrigin")
   sales          Sale[]
+  dailyReports   DailyReport[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -147,6 +148,7 @@ model User {
   editPermissions   StoreEditPermission[]
   deliveriesCreated Delivery[]
   salesRecorded     Sale[]
+  dailyReportsClosed DailyReport[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -322,4 +324,27 @@ model SaleItem {
   @@index([saleId])
   @@index([variantId])
   @@map("sale_items")
+}
+
+// Local-day midnight in Bolivia (UTC-4); used as the natural day key.
+model DailyReport {
+  id                 String   @id @default(cuid())
+  storeId            String   @map("store_id")
+  date               DateTime @db.Date
+  totalCents         Int      @map("total_cents")
+  qrCents            Int      @map("qr_cents")
+  cardCents          Int      @map("card_cents")
+  cashCents          Int      @map("cash_cents")
+  itemCount          Int      @map("item_count")
+  transactionsCount  Int      @map("transactions_count")
+  closedByUserId     String?  @map("closed_by_user_id")
+  closedAt           DateTime @map("closed_at")
+  autoClosed         Boolean  @default(false) @map("auto_closed")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user  User? @relation(fields: [closedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([storeId, date])
+  @@index([date])
+  @@map("daily_reports")
 }

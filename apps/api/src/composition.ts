@@ -41,6 +41,12 @@ import { buildSaleRepository } from './modules/sales/repository';
 import { buildSaleService } from './modules/sales/service';
 import { buildSaleController } from './modules/sales/controller';
 import { buildSalesPerStoreRouter } from './modules/sales/routes';
+import { buildDailyReportRepository } from './modules/dailyReports/repository';
+import { buildDailyReportService } from './modules/dailyReports/service';
+import { buildDailyReportController } from './modules/dailyReports/controller';
+import { buildDailyReportsPerStoreRouter } from './modules/dailyReports/routes';
+import type { DailyReportRepository } from './modules/dailyReports/repository';
+import type { DailyReportService } from './modules/dailyReports/service';
 
 export interface Composition {
   db: Database;
@@ -55,6 +61,9 @@ export interface Composition {
   deliveriesPerStoreRouter: Router;
   deliveriesByIdRouter: Router;
   salesPerStoreRouter: Router;
+  dailyReportsPerStoreRouter: Router;
+  dailyReportRepository: DailyReportRepository;
+  dailyReportService: DailyReportService;
 }
 
 /**
@@ -158,6 +167,18 @@ export function buildComposition(): Composition {
   const saleController = buildSaleController(saleService);
   const salesPerStoreRouter = buildSalesPerStoreRouter(saleController);
 
+  const dailyReportRepository = buildDailyReportRepository(db);
+  const dailyReportService = buildDailyReportService({
+    reports: dailyReportRepository,
+    assignments: {
+      async hasAnyEncargadaRole(userId) {
+        return inventoryRepo.hasAnyEncargadaRole(userId);
+      },
+    },
+  });
+  const dailyReportController = buildDailyReportController(dailyReportService);
+  const dailyReportsPerStoreRouter = buildDailyReportsPerStoreRouter(dailyReportController);
+
   return {
     db,
     auditService,
@@ -171,5 +192,8 @@ export function buildComposition(): Composition {
     deliveriesPerStoreRouter,
     deliveriesByIdRouter,
     salesPerStoreRouter,
+    dailyReportsPerStoreRouter,
+    dailyReportRepository,
+    dailyReportService,
   };
 }
