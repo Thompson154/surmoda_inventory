@@ -645,17 +645,25 @@ export function buildDeliveryService({
       }
 
       const deliveryId = await deliveries.runSerializable(async (tx) => {
-        // 1. Upsert product. If new, create with provided name (or default to code).
+        // 1. Upsert product. If new, create with provided name + description.
+        //    If existing and a productDescription was sent, update it (encargada
+        //    can refine the description on each intake).
         let product = await products.findByCode(input.productCode, tx);
+        const desc = input.productDescription?.trim() || null;
         if (!product) {
           product = await products.create(
             {
               code: input.productCode,
               name: (input.productName?.trim() || input.productCode),
-              description: null,
+              description: desc,
             },
             tx,
           );
+        } else if (desc !== null && desc !== product.description) {
+          await tx.product.update({
+            where: { id: product.id },
+            data: { description: desc },
+          });
         }
 
         // 2. For each payload variant: find or create. Resolve final priceCents

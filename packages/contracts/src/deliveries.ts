@@ -173,6 +173,9 @@ export interface WarehouseIntakePayload {
   productCode: string;
   /** Si productCode no existe lo creamos con este nombre. Opcional → default = code. */
   productName?: string;
+  /** Descripción libre del modelo. Cuando se envía actualiza Product.description
+   *  (alta o existente). Habilita búsqueda por texto en inventario y entregas. */
+  productDescription?: string;
   /** Título descriptivo de la entrega (ej: "Mercadería nueva de Chile"). */
   title?: string;
   note?: string;

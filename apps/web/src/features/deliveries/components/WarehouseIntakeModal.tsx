@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Plus, Trash2, X } from 'lucide-react';
 import type { WarehouseIntakeVariantPayload } from '@surmoda/contracts';
 import {
   Alert,
@@ -15,7 +15,7 @@ import {
   useWarehouseIntakeLookup,
 } from '../hooks/useDeliveries';
 import { sizeLabel } from '@/shared/format/sizeLabel';
-import { formatBs } from '@/shared/format/currency';
+import { formatBsShort } from '@/shared/format/currency';
 import { getImageUrl } from '@/features/products/services/productsService';
 
 interface WarehouseIntakeModalProps {
@@ -31,16 +31,17 @@ const SIZE_OPTIONS: SizeKey[] = ['s', 'm', 'l', 'xl', 'xxl', '28', '30', '32', '
 interface DraftVariant {
   size: SizeKey;
   color: string;
+  /** Quantity to add. For existing variants this is "extra units arriving"; for
+   *  new variants this is the initial stock. */
   quantity: number;
+  /** Price in cents (integers — no decimals). Locked when variant exists. */
   priceCents: number;
-  /** Local preview URL (revoked on cleanup). */
   previewUrl: string | null;
-  /** Base64 data URL ready for the BE. */
   imageBase64: string | null;
-  /** True when this row matches an existing variant — disables price + image edits. */
   matchesExisting: boolean;
   existingVariantId: string | null;
   existingWarehouseQuantity: number;
+  existingImagePath: string | null;
 }
 
 function emptyVariant(): DraftVariant {
@@ -54,6 +55,7 @@ function emptyVariant(): DraftVariant {
     matchesExisting: false,
     existingVariantId: null,
     existingWarehouseQuantity: 0,
+    existingImagePath: null,
   };
 }
 
@@ -69,6 +71,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIntakeModalProps) {
   const [code, setCode] = useState('');
   const [productName, setProductName] = useState('');
+  const [productDescription, setProductDescription] = useState('');
   const [title, setTitle] = useState('');
   const [variants, setVariants] = useState<DraftVariant[]>([emptyVariant()]);
 
@@ -77,39 +80,56 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
   const intake = useWarehouseIntake(warehouseId);
   const errorMsg = useErrorMessage(intake.error as HttpError | null);
 
-  // When the lookup result lands, mark variants whose (size,color) match an
-  // existing one. We don't override what the operator typed — just lock the
-  // price field and surface a "ya existe" hint.
+  // When the lookup lands and the model exists, prefill the variant list with
+  // every existing variant (quantity=0 by default — the operator just sums on
+  // top). New rows the operator adds remain "alta de variante nueva".
   useEffect(() => {
     if (!lookup.data) return;
-    setVariants((prev) =>
-      prev.map((v) => {
-        const match = lookup.data?.variants.find(
-          (e) =>
-            e.size === v.size &&
-            e.color.trim().toLowerCase() === v.color.trim().toLowerCase(),
-        );
-        if (!match) {
-          return {
-            ...v,
-            matchesExisting: false,
-            existingVariantId: null,
-            existingWarehouseQuantity: 0,
-          };
-        }
-        return {
+    const data = lookup.data;
+    if (!data.exists) {
+      // New model — wipe matches if any.
+      setVariants((prev) =>
+        prev.map((v) => ({
           ...v,
-          matchesExisting: true,
-          existingVariantId: match.variantId,
-          existingWarehouseQuantity: match.warehouseQuantity,
-          // Snap price to the live value so the operator sees what's locked in.
-          priceCents: match.priceCents,
-        };
-      }),
-    );
-  }, [lookup.data]);
+          matchesExisting: false,
+          existingVariantId: null,
+          existingWarehouseQuantity: 0,
+          existingImagePath: null,
+        })),
+      );
+      return;
+    }
+    // Build a fresh list: one row per existing variant, then keep any extra
+    // user-added rows that didn't match (e.g. brand new size+color combos).
+    setVariants((prev) => {
+      const incoming: DraftVariant[] = data.variants.map((e) => ({
+        size: e.size as SizeKey,
+        color: e.color,
+        quantity: 0,
+        priceCents: e.priceCents,
+        previewUrl: null,
+        imageBase64: null,
+        matchesExisting: true,
+        existingVariantId: e.variantId,
+        existingWarehouseQuantity: e.warehouseQuantity,
+        existingImagePath: e.imagePath,
+      }));
+      // Carry user-added rows whose (size, color) is NOT among existing ones.
+      const existingKeys = new Set(
+        data.variants.map((e) => `${e.size}|${e.color.trim().toLowerCase()}`),
+      );
+      const extras = prev.filter(
+        (v) =>
+          !v.matchesExisting &&
+          v.color.trim() !== '' &&
+          !existingKeys.has(`${v.size}|${v.color.trim().toLowerCase()}`),
+      );
+      return [...incoming, ...extras];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookup.data?.productId, lookup.data?.exists]);
 
-  // When the modal closes, blow away local preview URLs to avoid leaks.
+  // Reset everything when the modal closes.
   useEffect(() => {
     if (open) return;
     for (const v of variants) {
@@ -117,6 +137,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
     }
     setCode('');
     setProductName('');
+    setProductDescription('');
     setTitle('');
     setVariants([emptyVariant()]);
     intake.reset();
@@ -143,7 +164,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
 
   const handleImage = async (idx: number, file: File | null) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return; // Hard match BE limit
+    if (file.size > 5 * 1024 * 1024) return;
     const previous = variants[idx]?.previewUrl;
     if (previous) URL.revokeObjectURL(previous);
     const previewUrl = URL.createObjectURL(file);
@@ -151,12 +172,19 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
     updateVariant(idx, { previewUrl, imageBase64 });
   };
 
+  const clearImage = (idx: number) => {
+    const previous = variants[idx]?.previewUrl;
+    if (previous) URL.revokeObjectURL(previous);
+    updateVariant(idx, { previewUrl: null, imageBase64: null });
+  };
+
   const submit = () => {
-    const valid = variants.every(
+    // Drop variants the operator left at 0 — they don't represent stock to add.
+    const nonZero = variants.filter((v) => v.quantity > 0);
+    if (nonZero.length === 0) return;
+    const valid = nonZero.every(
       (v) =>
-        v.color.trim().length > 0 &&
-        v.quantity > 0 &&
-        (v.matchesExisting || v.priceCents > 0),
+        v.color.trim().length > 0 && (v.matchesExisting || v.priceCents > 0),
     );
     if (!valid) return;
     if (!upperCode) return;
@@ -165,21 +193,17 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
       {
         productCode: upperCode,
         productName: productName.trim() || undefined,
+        productDescription: productDescription.trim() || undefined,
         title: title.trim() || undefined,
-        variants: variants.map((v) => ({
+        variants: nonZero.map((v) => ({
           size: v.size,
           color: v.color.trim(),
           quantity: v.quantity,
           priceCents: v.priceCents,
-          // Sólo enviamos la imagen si la variante es nueva (matchesExisting=false).
-          // Si ya existe, el BE igual ignora salvo que imagePath sea null, pero
-          // para reposiciones evitamos la transferencia.
           imageBase64: v.matchesExisting ? null : v.imageBase64,
         })),
       },
-      {
-        onSuccess: () => onClose(),
-      },
+      { onSuccess: () => onClose() },
     );
   };
 
@@ -187,7 +211,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
 
   return (
     <Modal isOpen={open} onClose={onClose} title="Entrega de mercadería">
-      <div className="flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
+      <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
         {/* Code */}
         <div>
           <label htmlFor="intake-code" className="text-sm font-semibold block">
@@ -206,10 +230,28 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
           {upperCode.length >= 2 && lookup.data && (
             <p className="text-xs mt-1 text-slate-600">
               {exists
-                ? `Modelo "${lookup.data.productName ?? upperCode}" ya existe — se sumará stock.`
+                ? `Modelo "${lookup.data.productName ?? upperCode}" ya existe — variantes pre-cargadas para sumar stock.`
                 : 'Código nuevo — se creará el modelo.'}
             </p>
           )}
+        </div>
+
+        <div>
+          <label htmlFor="intake-desc" className="text-sm font-semibold block">
+            Descripción del modelo <span className="text-slate-400 font-normal">(opcional)</span>
+          </label>
+          <Input
+            id="intake-desc"
+            type="text"
+            value={productDescription}
+            onChange={(e) => setProductDescription(e.target.value)}
+            placeholder="Ej: Jean clásico bota recta, denim azul"
+            maxLength={500}
+            className="mt-1"
+          />
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Aparece en búsquedas además del código.
+          </p>
         </div>
 
         {!exists && upperCode.length >= 2 && (
@@ -229,7 +271,6 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
           </div>
         )}
 
-        {/* Title */}
         <div>
           <label htmlFor="intake-title" className="text-sm font-semibold block">
             Título de la entrega
@@ -263,25 +304,22 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
 
           <ul className="flex flex-col gap-2">
             {variants.map((v, idx) => {
-              const liveImage = v.previewUrl
-                ?? (v.matchesExisting && v.existingVariantId
-                  ? getImageUrl(
-                      lookup.data?.variants.find((e) => e.variantId === v.existingVariantId)?.imagePath ?? null,
-                    )
-                  : null);
+              const liveImage =
+                v.previewUrl ?? (v.matchesExisting ? getImageUrl(v.existingImagePath) : null);
+              const hasOwnImage = v.previewUrl !== null;
               return (
                 <li
-                  key={idx}
+                  key={`${v.matchesExisting ? `e-${v.existingVariantId}` : `n-${idx}`}`}
                   className="rounded-lg border border-surface-border bg-white p-3 flex flex-col gap-2"
                 >
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                        Cantidad
+                        {v.matchesExisting ? 'Sumar' : 'Cantidad'}
                       </p>
                       <Input
                         type="number"
-                        min={1}
+                        min={0}
                         value={String(v.quantity)}
                         onChange={(e) =>
                           updateVariant(idx, { quantity: Math.max(0, Number(e.target.value) || 0) })
@@ -296,7 +334,8 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                         onChange={(e) =>
                           updateVariant(idx, { size: e.target.value as SizeKey })
                         }
-                        className="mt-0.5 w-full rounded-md border border-surface-border bg-white text-sm py-1 px-2"
+                        disabled={v.matchesExisting}
+                        className="mt-0.5 w-full rounded-md border border-surface-border bg-white text-sm py-1 px-2 disabled:bg-surface-sunken"
                       >
                         {SIZE_OPTIONS.map((s) => (
                           <option key={s} value={s}>
@@ -313,21 +352,22 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                         onChange={(e) => updateVariant(idx, { color: e.target.value })}
                         placeholder="Azul"
                         maxLength={32}
+                        disabled={v.matchesExisting}
                         className="text-sm py-1 mt-0.5"
                       />
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                        Precio {v.matchesExisting ? '(actual)' : '(Bs)'}
+                        Precio {v.matchesExisting ? '(actual)' : 'Bs'}
                       </p>
                       <Input
                         type="number"
                         min={0}
-                        step={0.01}
-                        value={(v.priceCents / 100).toFixed(2)}
+                        step={1}
+                        value={String(Math.round(v.priceCents / 100))}
                         onChange={(e) =>
                           updateVariant(idx, {
-                            priceCents: Math.max(0, Math.round((Number(e.target.value) || 0) * 100)),
+                            priceCents: Math.max(0, Math.round(Number(e.target.value) || 0)) * 100,
                           })
                         }
                         disabled={v.matchesExisting}
@@ -351,10 +391,22 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                           className="absolute inset-0 opacity-0 cursor-pointer"
                           onChange={(e) => {
                             void handleImage(idx, e.target.files?.[0] ?? null);
+                            e.target.value = '';
                           }}
                         />
                       </div>
                     </label>
+
+                    {hasOwnImage && (
+                      <button
+                        type="button"
+                        onClick={() => clearImage(idx)}
+                        className="text-[11px] text-rose-600 hover:underline inline-flex items-center gap-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                        Quitar imagen
+                      </button>
+                    )}
 
                     {v.matchesExisting && (
                       <p className="text-[11px] text-slate-500">
@@ -365,7 +417,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                     <div className="ml-auto">
                       <IconButton
                         icon={<Trash2 className="h-4 w-4" />}
-                        label="Quitar"
+                        label="Quitar fila"
                         variant="ghost"
                         size="sm"
                         onClick={() => removeVariant(idx)}
@@ -379,9 +431,8 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
           </ul>
         </div>
 
-        {/* Footer summary */}
         <div className="flex items-center justify-between rounded-lg bg-violet-50 text-violet-700 px-3 py-2">
-          <span className="text-sm font-semibold">Total prendas</span>
+          <span className="text-sm font-semibold">Total prendas a sumar</span>
           <span className="text-2xl font-bold">{totalUnits}</span>
         </div>
 
@@ -400,33 +451,28 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             disabled={
               intake.isPending ||
               upperCode.length < 2 ||
-              variants.length === 0 ||
-              variants.some((v) => v.color.trim().length === 0 || v.quantity <= 0)
+              totalUnits === 0 ||
+              variants.some(
+                (v) =>
+                  v.quantity > 0 &&
+                  (v.color.trim().length === 0 ||
+                    (!v.matchesExisting && v.priceCents <= 0)),
+              )
             }
           >
-            Entregar {totalUnits > 0 && `· ${totalUnits} prenda${totalUnits === 1 ? '' : 's'}`}
+            Entregar {totalUnits > 0 && `· ${totalUnits} u.`}
           </Button>
         </div>
-        {/* Hint usage of the existing-warehouse summary so non-empty lookups
-            never feel "ghosted" — always show what's currently in store. */}
+
         {exists && lookup.data && lookup.data.variants.length > 0 && (
-          <details className="rounded border border-surface-border bg-surface-sunken px-3 py-2">
-            <summary className="text-xs font-semibold text-slate-700 cursor-pointer">
-              Variantes actuales en almacén ({lookup.data.variants.length})
-            </summary>
-            <ul className="mt-2 flex flex-col gap-1 text-xs">
-              {lookup.data.variants.map((e) => (
-                <li key={e.variantId} className="flex items-center justify-between">
-                  <span>
-                    {sizeLabel(e.size)} · <span className="capitalize">{e.color}</span>
-                  </span>
-                  <span className="font-mono text-slate-500">
-                    {formatBs(e.priceCents)} · {e.warehouseQuantity} u.
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </details>
+          <p className="text-[11px] text-slate-500 text-center">
+            Stock total actual del modelo en almacén:{' '}
+            {lookup.data.variants.reduce((s, v) => s + v.warehouseQuantity, 0)} prendas en{' '}
+            {lookup.data.variants.length} variantes
+            {lookup.data.variants.some((v) => v.priceCents) &&
+              ` · precios desde ${formatBsShort(Math.min(...lookup.data.variants.map((v) => v.priceCents)))}`}
+            .
+          </p>
         )}
       </div>
     </Modal>

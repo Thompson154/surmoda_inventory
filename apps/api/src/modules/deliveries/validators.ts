@@ -70,6 +70,7 @@ export const WarehouseIntakeSchema = z
       .toUpperCase()
       .regex(PRODUCT_CODE_REGEX, 'Código debe ser 2..15 chars mayús/núm/guion bajo'),
     productName: z.string().trim().min(2).max(PRODUCT_NAME_MAX).optional(),
+    productDescription: z.string().trim().max(500).optional(),
     title: z.string().trim().max(TITLE_MAX).optional(),
     note: z.string().trim().max(NOTE_MAX).optional(),
     variants: z
