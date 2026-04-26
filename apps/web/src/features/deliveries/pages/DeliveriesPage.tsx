@@ -15,6 +15,7 @@ import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import { useDeliveriesList } from '../hooks/useDeliveries';
 import { DeliveryDetailDrawer } from '../components/DeliveryDetailDrawer';
 import { NewDeliveryModal } from '../components/NewDeliveryModal';
+import { WarehouseIntakeModal } from '../components/WarehouseIntakeModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import type { DeliveryStatus } from '@surmoda/contracts';
@@ -212,9 +213,16 @@ export function DeliveriesPage() {
           onClose={() => setOpenDeliveryId(null)}
         />
 
-        {canCreate && (
+        {canCreate && !isWarehouse && (
           <NewDeliveryModal
             storeId={storeId}
+            open={newOpen}
+            onClose={() => setNewOpen(false)}
+          />
+        )}
+        {canCreate && isWarehouse && (
+          <WarehouseIntakeModal
+            warehouseId={storeId}
             open={newOpen}
             onClose={() => setNewOpen(false)}
           />

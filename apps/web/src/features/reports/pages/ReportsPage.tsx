@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Banknote, CreditCard, QrCode, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Banknote, CreditCard, QrCode, TrendingUp } from 'lucide-react';
 import {
   Alert,
   Card,
@@ -11,6 +12,7 @@ import { AppShell } from '@/shared/layout/AppShell';
 import { formatBs, formatBsShort } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { useReportSummary } from '../hooks/useReports';
+import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 
 type Preset = 'today' | '7d' | '30d' | 'custom';
 
@@ -44,12 +46,24 @@ export function ReportsPage() {
 
   const summary = useReportSummary(range);
   const data = summary.data;
+  // Admins land here from /admin; encargadas land from /sedes. Send each one
+  // back to where they came from rather than dumping encargadas on a 403 page.
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false);
+  const backTo = isAdmin ? '/admin' : '/sedes';
+  const backLabel = isAdmin ? 'Volver al panel admin' : 'Volver a sucursales';
 
   return (
     <AppShell>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 text-slate-900">
         <header className="flex items-center justify-between gap-2">
-          <div>
+          <div className="flex flex-col gap-1">
+            <Link
+              to={backTo}
+              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {backLabel}
+            </Link>
             <h1 className="text-xl font-semibold">Reportes</h1>
             <p className="text-xs text-slate-500">Análisis cross-sucursal — admin / encargada</p>
           </div>
@@ -131,7 +145,10 @@ export function ReportsPage() {
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <Stat label="Transacciones" value={data.totals.transactionsCount.toLocaleString('es-BO')} />
                 <Stat label="Ítems" value={data.totals.itemCount.toLocaleString('es-BO')} />
-                <Stat label="Ticket prom." value={formatBs(data.totals.averageTicketCents)} />
+                <Stat
+                  label="Descuentos"
+                  value={formatBs(data.totals.discountCents)}
+                />
                 <Stat
                   label="Sucursales activas"
                   value={data.byStore.length.toString()}

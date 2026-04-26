@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, ChevronRight, ChevronLeft, Users } from 'lucide-react';
+import { ArrowLeft, Plus, Search, ChevronRight, ChevronLeft, Users } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
 import {
   Alert,
@@ -25,7 +25,16 @@ export function UsersListPage() {
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
       {/* Header */}
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold">Usuarios</h1>
+        <div className="flex flex-col gap-1">
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al panel admin
+          </Link>
+          <h1 className="text-xl font-semibold">Usuarios</h1>
+        </div>
         <Link to="/users/new">
           <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>
             Nuevo

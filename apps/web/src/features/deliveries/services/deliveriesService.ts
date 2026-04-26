@@ -8,6 +8,8 @@ import type {
   PaginatedDeliveryGroups,
   ReceiveDeliveryPayload,
   UpdateDraftDeliveryPayload,
+  WarehouseIntakeLookupResponse,
+  WarehouseIntakePayload,
 } from '@surmoda/contracts';
 
 function buildQS(filters: ListDeliveriesFilters): string {
@@ -42,6 +44,12 @@ export const deliveriesService = {
     httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/confirm`, payload),
   receive: (deliveryId: string, payload: ReceiveDeliveryPayload) =>
     httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/receive`, payload),
+  intakeLookup: (warehouseId: string, code: string) =>
+    httpClient.get<WarehouseIntakeLookupResponse>(
+      `/stores/${warehouseId}/deliveries/intake/lookup?code=${encodeURIComponent(code)}`,
+    ),
+  intake: (warehouseId: string, payload: WarehouseIntakePayload) =>
+    httpClient.post<DeliveryWithItems>(`/stores/${warehouseId}/deliveries/intake`, payload),
 };
 
 export const deliveriesQueryKeys = {

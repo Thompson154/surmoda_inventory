@@ -55,6 +55,44 @@ export const ReceiveDeliverySchema = z
 
 export type ReceiveDeliveryInput = z.infer<typeof ReceiveDeliverySchema>;
 
+const PRODUCT_CODE_REGEX = /^[A-Z0-9_]{2,15}$/;
+const SIZE_VALUES = ['s', 'm', 'l', 'xl', 'xxl', '28', '30', '32', '34', 'standard'] as const;
+const COLOR_MAX = 32;
+const PRICE_MIN_CENTS = 1;
+const PRICE_MAX_CENTS = 10_000_000;
+const PRODUCT_NAME_MAX = 120;
+
+export const WarehouseIntakeSchema = z
+  .object({
+    productCode: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(PRODUCT_CODE_REGEX, 'Código debe ser 2..15 chars mayús/núm/guion bajo'),
+    productName: z.string().trim().min(2).max(PRODUCT_NAME_MAX).optional(),
+    productDescription: z.string().trim().max(500).optional(),
+    title: z.string().trim().max(TITLE_MAX).optional(),
+    note: z.string().trim().max(NOTE_MAX).optional(),
+    variants: z
+      .array(
+        z.object({
+          size: z.enum(SIZE_VALUES),
+          color: z.string().trim().min(1).max(COLOR_MAX),
+          quantity: z.coerce.number().int().min(1).max(QUANTITY_MAX),
+          priceCents: z.coerce.number().int().min(PRICE_MIN_CENTS).max(PRICE_MAX_CENTS),
+          imageBase64: z
+            .string()
+            .max(8 * 1024 * 1024) // ~6MB raw → safety cap on transport size
+            .nullable()
+            .optional(),
+        }),
+      )
+      .min(1, 'Al menos una variante es requerida'),
+  })
+  .strict();
+
+export type WarehouseIntakeInput = z.infer<typeof WarehouseIntakeSchema>;
+
 export const ListDeliveriesQuerySchema = z.object({
   q: z.string().trim().min(1).optional(),
   status: z

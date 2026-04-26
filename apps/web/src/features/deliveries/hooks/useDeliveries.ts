@@ -5,6 +5,7 @@ import type {
   ListDeliveriesFilters,
   ReceiveDeliveryPayload,
   UpdateDraftDeliveryPayload,
+  WarehouseIntakePayload,
 } from '@surmoda/contracts';
 import { deliveriesQueryKeys, deliveriesService } from '../services/deliveriesService';
 import { inventoryQueryKeys } from '@/features/inventory/services/inventoryService';
@@ -77,6 +78,28 @@ export function useConfirmDraftDelivery() {
       deliveriesService.confirmDraft(deliveryId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
+    },
+  });
+}
+
+export function useWarehouseIntakeLookup(warehouseId: string | undefined, code: string) {
+  return useQuery({
+    queryKey: ['deliveries', 'intake-lookup', warehouseId, code.toUpperCase()],
+    queryFn: () => deliveriesService.intakeLookup(warehouseId as string, code),
+    enabled: Boolean(warehouseId) && code.trim().length >= 2,
+    staleTime: 30_000,
+  });
+}
+
+export function useWarehouseIntake(warehouseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: WarehouseIntakePayload) =>
+      deliveriesService.intake(warehouseId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: ['products'] });
     },
   });
 }

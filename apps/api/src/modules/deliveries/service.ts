@@ -19,6 +19,20 @@ import {
   type StoreScopeRepo,
 } from '../../shared/auth/storeScope';
 import type { DeliveryRepository, DeliveryTx } from './repository';
+import type { ProductRepository } from '../products/repository.product';
+import type { VariantRepository } from '../products/repository.variant';
+import { generateBarcode } from '../products/barcode';
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_IMAGE_BYTES,
+  extensionFromMime,
+  type ImageMimeType,
+  type ImageStorage,
+} from '../products/imageStorage/types';
+import type {
+  WarehouseIntakeLookupResponse,
+  WarehouseIntakePayload,
+} from '@surmoda/contracts';
 import type {
   AuthContext,
   ConfirmDraftDTO,
@@ -40,6 +54,10 @@ export interface DeliveryServiceDeps {
   deliveries: DeliveryRepository;
   stores: StoreLookup;
   assignments: StoreScopeRepo;
+  /** Optional — only required for the warehouse-intake endpoints. */
+  products?: ProductRepository;
+  variants?: VariantRepository;
+  imageStorage?: ImageStorage;
 }
 
 export interface DeliveryService {
@@ -54,12 +72,17 @@ export interface DeliveryService {
   updateDraft(deliveryId: string, input: UpdateDraftDeliveryDTO, auth: AuthContext): Promise<DeliveryWithItems>;
   confirmDraft(deliveryId: string, input: ConfirmDraftDTO, auth: AuthContext): Promise<DeliveryWithItems>;
   receive(deliveryId: string, input: ReceiveDeliveryDTO, auth: AuthContext): Promise<DeliveryWithItems>;
+  intakeLookup(warehouseId: string, productCode: string, auth: AuthContext): Promise<WarehouseIntakeLookupResponse>;
+  intake(warehouseId: string, input: WarehouseIntakePayload, auth: AuthContext): Promise<DeliveryWithItems>;
 }
 
 export function buildDeliveryService({
   deliveries,
   stores,
   assignments,
+  products,
+  variants,
+  imageStorage,
 }: DeliveryServiceDeps): DeliveryService {
   async function ensureCanReadStore(storeId: string, auth: AuthContext): Promise<void> {
     await assertCanActOnStore(
@@ -500,6 +523,261 @@ export function buildDeliveryService({
         return deliveryId;
       });
       const full = await deliveries.findDelivery(id);
+      if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      return full;
+    },
+
+    async intakeLookup(warehouseId, productCode, auth) {
+      // Both endpoints (lookup + intake) are warehouse-only and require
+      // encargada/admin. Vendedoras don't intake from supplier.
+      await ensureCanWriteStore(warehouseId, auth);
+      const store = await stores.findById(warehouseId);
+      if (!store) throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Sede no encontrada.');
+      if (store.kind !== 'warehouse') {
+        throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, 'Lookup sólo aplica al almacén.');
+      }
+      if (!products || !variants) {
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Intake deps not wired.');
+      }
+
+      const product = await products.findByCode(productCode);
+      if (!product) {
+        return {
+          exists: false,
+          productId: null,
+          productCode,
+          productName: null,
+          variants: [],
+        };
+      }
+
+      // Pull variants + their warehouse stock in one query for the FE table.
+      const stockRows = await deliveries.runSerializable(async (tx) => {
+        return tx.stockBySite.findMany({
+          where: {
+            storeId: warehouseId,
+            variant: {
+              productId: product.id,
+              deletedAt: null,
+              isActive: true,
+            },
+          },
+          include: { variant: true },
+        });
+      });
+
+      return {
+        exists: true,
+        productId: product.id,
+        productCode: product.code,
+        productName: product.name,
+        variants: stockRows.map((r) => ({
+          variantId: r.variantId,
+          size: r.variant.size as WarehouseIntakeLookupResponse['variants'][number]['size'],
+          color: r.variant.color,
+          priceCents: r.variant.priceCents,
+          warehouseQuantity: r.quantity,
+          imagePath: r.variant.imagePath,
+        })),
+      };
+    },
+
+    async intake(warehouseId, input, auth) {
+      await ensureCanWriteStore(warehouseId, auth);
+      const store = await stores.findById(warehouseId);
+      if (!store) throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Sede no encontrada.');
+      if (store.kind !== 'warehouse') {
+        throw new AppError(
+          400,
+          ERROR_CODES.VALIDATION_ERROR,
+          'La toma de mercadería sólo aplica al almacén.',
+        );
+      }
+      if (!products || !variants || !imageStorage) {
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Intake deps not wired.');
+      }
+
+      // Reject duplicates within the same submission (same size+color twice).
+      const seen = new Set<string>();
+      for (const v of input.variants) {
+        const key = `${v.size}|${v.color.trim().toLowerCase()}`;
+        if (seen.has(key)) {
+          throw new AppError(
+            400,
+            ERROR_CODES.VALIDATION_ERROR,
+            `Variante duplicada en el formulario: ${v.size} · ${v.color}`,
+          );
+        }
+        seen.add(key);
+      }
+
+      // Decode + validate images BEFORE the transaction (cheap fail-fast).
+      type PreparedImage = { buffer: Buffer; mimetype: ImageMimeType };
+      const imagesByIndex = new Map<number, PreparedImage>();
+      for (let i = 0; i < input.variants.length; i += 1) {
+        const v = input.variants[i]!;
+        if (!v.imageBase64) continue;
+        const match = /^data:(image\/\w+);base64,(.*)$/.exec(v.imageBase64);
+        if (!match) {
+          throw new AppError(
+            400,
+            ERROR_CODES.VARIANT_IMAGE_INVALID_TYPE,
+            `Imagen ${i + 1}: formato inválido (esperado data URL base64).`,
+          );
+        }
+        const mime = match[1] as ImageMimeType;
+        if (!ALLOWED_MIME_TYPES.has(mime)) {
+          throw new AppError(
+            400,
+            ERROR_CODES.VARIANT_IMAGE_INVALID_TYPE,
+            `Imagen ${i + 1}: formato no soportado.`,
+          );
+        }
+        const buf = Buffer.from(match[2]!, 'base64');
+        if (buf.byteLength > MAX_IMAGE_BYTES) {
+          throw new AppError(
+            400,
+            ERROR_CODES.VARIANT_IMAGE_TOO_LARGE,
+            `Imagen ${i + 1}: supera ${MAX_IMAGE_BYTES} bytes.`,
+          );
+        }
+        imagesByIndex.set(i, { buffer: buf, mimetype: mime });
+      }
+
+      const deliveryId = await deliveries.runSerializable(async (tx) => {
+        // 1. Upsert product. If new, create with provided name + description.
+        //    If existing and a productDescription was sent, update it (encargada
+        //    can refine the description on each intake).
+        let product = await products.findByCode(input.productCode, tx);
+        const desc = input.productDescription?.trim() || null;
+        if (!product) {
+          product = await products.create(
+            {
+              code: input.productCode,
+              name: (input.productName?.trim() || input.productCode),
+              description: desc,
+            },
+            tx,
+          );
+        } else if (desc !== null && desc !== product.description) {
+          await tx.product.update({
+            where: { id: product.id },
+            data: { description: desc },
+          });
+        }
+
+        // 2. For each payload variant: find or create. Resolve final priceCents
+        //    + imagePath (preserving existing values per the product decision).
+        type ResolvedLine = { variantId: string; quantity: number };
+        const lines: ResolvedLine[] = [];
+        for (let i = 0; i < input.variants.length; i += 1) {
+          const v = input.variants[i]!;
+          const existing = await variants.findActiveByTuple(
+            product.id,
+            v.size,
+            v.color,
+            tx,
+          );
+
+          let variantId: string;
+          if (existing) {
+            // Reposición: keep DB price; only set image if currently null and
+            // the operator provided one in this intake.
+            if (!existing.imagePath && imagesByIndex.has(i)) {
+              const img = imagesByIndex.get(i)!;
+              const path = await imageStorage.save(
+                {
+                  buffer: img.buffer,
+                  mimetype: img.mimetype,
+                  originalName: `intake.${extensionFromMime(img.mimetype)}`,
+                },
+                { productCode: product.code, size: v.size, color: v.color },
+              );
+              await tx.variant.update({
+                where: { id: existing.id },
+                data: { imagePath: path },
+              });
+            }
+            variantId = existing.id;
+          } else {
+            // Nueva variante. Use provided price + (optional) image.
+            let imagePath: string | null = null;
+            if (imagesByIndex.has(i)) {
+              const img = imagesByIndex.get(i)!;
+              imagePath = await imageStorage.save(
+                {
+                  buffer: img.buffer,
+                  mimetype: img.mimetype,
+                  originalName: `intake.${extensionFromMime(img.mimetype)}`,
+                },
+                { productCode: product.code, size: v.size, color: v.color },
+              );
+            }
+            const created = await variants.create(
+              {
+                productId: product.id,
+                size: v.size,
+                color: v.color,
+                barcode: generateBarcode(product.code, v.size, v.color),
+                priceCents: v.priceCents,
+                imagePath,
+              },
+              tx,
+            );
+            variantId = created.id;
+          }
+          lines.push({ variantId, quantity: v.quantity });
+        }
+
+        // 3. Aggregate any duplicates the form snuck through (defensive — the
+        //    pre-check should have caught them).
+        const aggregated = new Map<string, number>();
+        for (const l of lines) {
+          aggregated.set(l.variantId, (aggregated.get(l.variantId) ?? 0) + l.quantity);
+        }
+
+        // 4. Create the reception delivery in `received` state — applies stock.
+        const created = await deliveries.createDelivery(
+          {
+            kind: 'reception',
+            status: 'received',
+            title: input.title ?? null,
+            fromStoreId: null,
+            toStoreId: warehouseId,
+            createdByUserId: auth.userId,
+            note: input.note ?? null,
+            receivedAtNow: true,
+          },
+          Array.from(aggregated.entries()).map(([variantId, quantity]) => ({
+            variantId,
+            quantity,
+          })),
+          tx,
+        );
+
+        // 5. Apply stock + write delivery_in movements (kind=reception).
+        const fresh = await deliveries.loadForUpdate(created.id, tx);
+        if (!fresh) {
+          throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Entrega recién creada no se pudo recuperar.');
+        }
+        const qtyMap = new Map(
+          fresh.items.map((i) => [i.id, { variantId: i.variantId, receivedQuantity: i.quantity }]),
+        );
+        await applyStockForReception(
+          {
+            kind: 'reception',
+            fromStoreId: null,
+            toStoreId: warehouseId,
+            quantitiesByItem: qtyMap,
+            userId: auth.userId,
+          },
+          tx,
+        );
+
+        return created.id;
+      });
+
+      const full = await deliveries.findDelivery(deliveryId);
       if (!full) throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },

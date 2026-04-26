@@ -133,6 +133,7 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
         variantWhere.OR = [
           { product: { code: { contains: upper } } },
           { product: { name: { contains: ci, mode: 'insensitive' } } },
+          { product: { description: { contains: ci, mode: 'insensitive' } } },
           { barcode: { contains: upper } },
         ];
       }
@@ -274,6 +275,7 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
           OR: [
             { product: { code: { contains: upper } } },
             { product: { name: { contains: ci, mode: 'insensitive' } } },
+            { product: { description: { contains: ci, mode: 'insensitive' } } },
             { barcode: { contains: upper } },
           ],
         };

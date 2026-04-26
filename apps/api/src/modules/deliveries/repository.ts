@@ -393,6 +393,7 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
                   OR: [
                     { product: { code: { contains: upper } } },
                     { product: { name: { contains: ci, mode: 'insensitive' } } },
+                    { product: { description: { contains: ci, mode: 'insensitive' } } },
                     { barcode: { contains: upper } },
                   ],
                 },
@@ -465,6 +466,7 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
           OR: [
             { product: { code: { contains: upper } } },
             { product: { name: { contains: ci, mode: 'insensitive' } } },
+            { product: { description: { contains: ci, mode: 'insensitive' } } },
             { barcode: { contains: upper } },
           ],
         };

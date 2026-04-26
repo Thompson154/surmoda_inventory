@@ -8,6 +8,7 @@ import {
   ListDeliveriesQuerySchema,
   ReceiveDeliverySchema,
   UpdateDraftDeliverySchema,
+  WarehouseIntakeSchema,
 } from './validators';
 import type { AuthContext } from './types';
 import type { DeliveryService } from './service';
@@ -20,6 +21,8 @@ export interface DeliveryController {
   updateDraft(req: Request, res: Response, next: NextFunction): Promise<void>;
   confirmDraft(req: Request, res: Response, next: NextFunction): Promise<void>;
   receive(req: Request, res: Response, next: NextFunction): Promise<void>;
+  intakeLookup(req: Request, res: Response, next: NextFunction): Promise<void>;
+  intake(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 
 function requireAuth(req: Request): AuthContext {
@@ -141,6 +144,45 @@ export function buildDeliveryController(service: DeliveryService): DeliveryContr
           },
         });
         res.status(200).json(confirmed);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async intakeLookup(req, res, next) {
+      try {
+        const auth = requireAuth(req);
+        const storeId = requireParam(req, 'storeId');
+        const code = String(req.query.code ?? '').trim().toUpperCase();
+        if (!code) throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, 'code es requerido');
+        const result = await service.intakeLookup(storeId, code, auth);
+        res.status(200).json(result);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async intake(req, res, next) {
+      try {
+        const auth = requireAuth(req);
+        const storeId = requireParam(req, 'storeId');
+        const input = WarehouseIntakeSchema.parse(req.body);
+        const created = await service.intake(storeId, input, auth);
+        emitAudit(req, {
+          userId: auth.userId,
+          action: 'DELIVERY_CREATED',
+          entity: 'Delivery',
+          entityId: created.id,
+          payload: {
+            number: created.number,
+            kind: 'reception',
+            mode: 'intake',
+            productCode: input.productCode,
+            variantCount: input.variants.length,
+            totalUnits: created.totalUnits,
+          },
+        });
+        res.status(201).json(created);
       } catch (err) {
         next(err);
       }
