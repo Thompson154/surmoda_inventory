@@ -52,6 +52,18 @@ const EnvSchema = z.object({
       });
     }
   }
+  // Tier 1 — bcrypt rounds in production must meet OWASP ASVS 4.0 V2.4.1
+  // (≥10 rounds; we lift the floor to 12 to align with the user-creation
+  // policy). Lower rounds remain allowed in dev/test for fast hashing
+  // during the test suite.
+  if (data.NODE_ENV === 'production' && data.BCRYPT_SALT_ROUNDS < 12) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['BCRYPT_SALT_ROUNDS'],
+      message:
+        'BCRYPT_SALT_ROUNDS must be ≥12 in production (OWASP ASVS 4.0 V2.4.1).',
+    });
+  }
 });
 
 export type AppConfig = z.infer<typeof EnvSchema>;
