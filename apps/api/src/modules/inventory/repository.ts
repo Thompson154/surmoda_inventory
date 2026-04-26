@@ -164,6 +164,7 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
           imagePath: string | null;
           totalQuantity: number;
           variantsCount: number;
+          representativeBarcode: string | null;
         }
       >();
 
@@ -178,11 +179,11 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
             imagePath: row.variant.imagePath,
             totalQuantity: row.quantity,
             variantsCount: 1,
+            representativeBarcode: row.variant.barcode,
           });
         } else {
           existing.totalQuantity += row.quantity;
           existing.variantsCount += 1;
-          // Keep the first non-null image we encounter for the product card.
           if (!existing.imagePath && row.variant.imagePath) {
             existing.imagePath = row.variant.imagePath;
           }

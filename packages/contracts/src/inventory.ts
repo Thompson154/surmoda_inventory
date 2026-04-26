@@ -36,6 +36,8 @@ export interface GroupedInventoryItem {
   imagePath: string | null;
   totalQuantity: number;
   variantsCount: number;
+  /** Barcode of one of the variants (first encountered). Null if no variants. */
+  representativeBarcode: string | null;
 }
 
 export interface PaginatedGroupedInventory {

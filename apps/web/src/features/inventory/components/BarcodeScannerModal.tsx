@@ -77,13 +77,14 @@ export function BarcodeScannerModal({ storeId, open, onClose, onResolved }: Barc
             ref={inputRef}
             type="text"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void submit();
             }}
             placeholder="Pegá o escribí el código..."
-            className="mt-1 font-mono"
+            className="mt-1 font-mono uppercase"
             autoComplete="off"
+            autoCapitalize="characters"
           />
         </div>
 
