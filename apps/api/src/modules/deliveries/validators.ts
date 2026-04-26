@@ -16,6 +16,12 @@ export const CreateDeliverySchema = z
     note: z.string().trim().max(NOTE_MAX).optional(),
     title: z.string().trim().max(TITLE_MAX).optional(),
     asDraft: z.boolean().optional(),
+    /**
+     * Origin store id. When omitted the warehouse is used (legacy behavior).
+     * When provided AND the destination is another branch (or the warehouse),
+     * a lateral transfer or a return-to-warehouse is recorded — module 11.
+     */
+    fromStoreId: z.string().min(1).optional(),
   })
   .strict();
 
@@ -102,6 +108,13 @@ export const ListDeliveriesQuerySchema = z.object({
     ])
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
+  /**
+   * Direction of the delivery relative to the path :storeId.
+   * - `incoming` (default): toStoreId = :storeId — the store RECEIVES.
+   * - `outgoing`           : fromStoreId = :storeId — the store SENT.
+   * - `both`               : either side matches — useful for an unfiltered view.
+   */
+  direction: z.enum(['incoming', 'outgoing', 'both']).optional().default('incoming'),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });

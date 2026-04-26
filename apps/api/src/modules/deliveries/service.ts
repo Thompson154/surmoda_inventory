@@ -254,17 +254,51 @@ export function buildDeliveryService({
       const deliveryId = await deliveries.runSerializable(async (tx) => {
         const aggregated = await aggregateAndValidateItems(input.items, tx);
 
+        // Resolve origin (`fromStoreId`):
+        //   - reception (intake): no origin, stock is born at the warehouse.
+        //   - distribution from explicit origin (module 11 — lateral / return):
+        //       caller passed `input.fromStoreId`. Validate it exists and the
+        //       actor can write to it (encargada-of-origin or admin per Q1=A).
+        //   - distribution legacy (warehouse → branch): caller omitted
+        //       `fromStoreId`; we resolve it from the active warehouse.
         let fromStoreId: string | null = null;
         if (!isReception) {
-          const wh = await deliveries.findActiveWarehouse(tx);
-          if (!wh) {
-            throw new AppError(
-              409,
-              ERROR_CODES.DELIVERY_NO_WAREHOUSE,
-              'No hay un almacén activo configurado.',
+          if (input.fromStoreId) {
+            const fromStore = await stores.findById(input.fromStoreId);
+            if (!fromStore) {
+              throw new AppError(
+                404,
+                ERROR_CODES.STORE_NOT_FOUND,
+                'Sede de origen no encontrada.',
+              );
+            }
+            if (fromStore.id === toStoreId) {
+              throw new AppError(
+                400,
+                ERROR_CODES.VALIDATION_ERROR,
+                'La sede de origen no puede ser la misma que la destino.',
+              );
+            }
+            // Encargada-of-origin (or admin) authorizes per locked decision Q1=A.
+            await assertCanActOnStore(
+              assignments,
+              fromStore.id,
+              auth,
+              'DELIVERY_FORBIDDEN',
+              'Sólo la encargada de la sede de origen puede iniciar la transferencia.',
             );
+            fromStoreId = fromStore.id;
+          } else {
+            const wh = await deliveries.findActiveWarehouse(tx);
+            if (!wh) {
+              throw new AppError(
+                409,
+                ERROR_CODES.DELIVERY_NO_WAREHOUSE,
+                'No hay un almacén activo configurado.',
+              );
+            }
+            fromStoreId = wh.id;
           }
-          fromStoreId = wh.id;
         }
 
         const created = await deliveries.createDelivery(

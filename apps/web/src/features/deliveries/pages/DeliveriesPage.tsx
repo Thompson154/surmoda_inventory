@@ -15,6 +15,7 @@ import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import { useDeliveriesList } from '../hooks/useDeliveries';
 import { DeliveryDetailDrawer } from '../components/DeliveryDetailDrawer';
 import { NewDeliveryModal } from '../components/NewDeliveryModal';
+import { TransferToStoreModal } from '../components/TransferToStoreModal';
 import { WarehouseIntakeModal } from '../components/WarehouseIntakeModal';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
@@ -66,12 +67,15 @@ export function DeliveriesPage() {
 
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [direction, setDirection] = useState<'incoming' | 'outgoing'>('incoming');
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const list = useDeliveriesList(storeId, {
     q: q || undefined,
     status: FILTER_TO_STATUS[filter],
+    direction,
     page: 1,
     pageSize: PAGE_SIZE,
   });
@@ -122,6 +126,37 @@ export function DeliveriesPage() {
             aria-label="Buscar entregas"
           />
         </div>
+
+        {/* Direction tabs — Recibidas vs Enviadas. Module 11 surfaces what
+            this store SENT (lateral transfers / returns) in addition to the
+            historical "incoming" view. Hidden for the warehouse since it is
+            always the origin of legacy distributions. */}
+        {!isWarehouse && (
+          <div className="flex items-center gap-1 rounded-full bg-surface-sunken p-1 self-start">
+            {(
+              [
+                { value: 'incoming' as const, label: 'Recibidas' },
+                { value: 'outgoing' as const, label: 'Enviadas' },
+              ]
+            ).map((d) => {
+              const active = direction === d.value;
+              return (
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() => setDirection(d.value)}
+                  className={
+                    active
+                      ? 'rounded-full bg-white text-slate-900 text-xs font-semibold px-3 py-1 shadow-sm'
+                      : 'rounded-full text-slate-500 text-xs px-3 py-1 hover:text-slate-700'
+                  }
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {filterTabs.map((t) => {
@@ -220,6 +255,13 @@ export function DeliveriesPage() {
             onClose={() => setNewOpen(false)}
           />
         )}
+        {canCreate && !isWarehouse && (
+          <TransferToStoreModal
+            fromStoreId={storeId}
+            open={transferOpen}
+            onClose={() => setTransferOpen(false)}
+          />
+        )}
         {canCreate && isWarehouse && (
           <WarehouseIntakeModal
             warehouseId={storeId}
@@ -229,17 +271,31 @@ export function DeliveriesPage() {
         )}
       </main>
 
-      {/* FAB Nueva entrega — visible solo a admin/encargada. */}
+      {/* FAB Nueva entrega — visible solo a admin/encargada.
+          Para sucursales se ofrece además "Transferir a sede" (módulo 11). */}
       {canCreate && (
-        <button
-          type="button"
-          onClick={() => setNewOpen(true)}
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white px-5 py-3 shadow-lg hover:shadow-xl active:scale-[0.98] transition"
-          aria-label="Nueva entrega"
-        >
-          <span className="text-xl leading-none">+</span>
-          <span className="font-semibold">Nueva entrega</span>
-        </button>
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white px-5 py-3 shadow-lg hover:shadow-xl active:scale-[0.98] transition"
+            aria-label="Nueva entrega"
+          >
+            <span className="text-xl leading-none">+</span>
+            <span className="font-semibold">Nueva entrega</span>
+          </button>
+          {!isWarehouse && (
+            <button
+              type="button"
+              onClick={() => setTransferOpen(true)}
+              className="flex items-center gap-2 rounded-full bg-white border border-surface-border text-slate-700 px-4 py-3 shadow hover:bg-surface-sunken active:scale-[0.98] transition"
+              aria-label="Transferir a sede"
+            >
+              <Truck className="h-4 w-4" />
+              <span className="font-semibold text-sm">Transferir</span>
+            </button>
+          )}
+        </div>
       )}
     </AppShell>
   );

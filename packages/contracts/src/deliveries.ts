@@ -29,6 +29,13 @@ export interface CreateDeliveryPayload {
   /** When true the BE creates the delivery in `draft` instead of skipping
    *  straight to `received`. Only valid for distribution kind. */
   asDraft?: boolean;
+  /**
+   * Module 11 — explicit origin store id. When omitted the active warehouse
+   * is used (legacy behavior). When set, the encargada-of-origin authorizes
+   * the lateral transfer (or the sucursal → almacén return) per the locked
+   * decision Q1=A. The destination is taken from the URL path :storeId.
+   */
+  fromStoreId?: string;
 }
 
 /** Update of a delivery currently in `draft`. */
@@ -219,6 +226,13 @@ export interface ListDeliveriesFilters {
   q?: string;
   /** Filter by lifecycle status. Multiple values OR'd. */
   status?: DeliveryStatus | DeliveryStatus[];
+  /**
+   * Module 11 — direction relative to the path :storeId.
+   *   incoming → :storeId is destination (default).
+   *   outgoing → :storeId is origin (lateral transfer / return).
+   *   both     → either side matches.
+   */
+  direction?: 'incoming' | 'outgoing' | 'both';
   page?: number;
   pageSize?: number;
 }

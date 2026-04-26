@@ -19,6 +19,7 @@ function buildQS(filters: ListDeliveriesFilters): string {
     const arr = Array.isArray(filters.status) ? filters.status : [filters.status];
     for (const s of arr) params.append('status', s);
   }
+  if (filters.direction) params.set('direction', filters.direction);
   if (filters.page) params.set('page', String(filters.page));
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
   const qs = params.toString();
