@@ -14,7 +14,10 @@ export type ListDailyReportsInput = z.infer<typeof ListDailyReportsQuerySchema>;
 export const DailyReportDateParamSchema = z.string().regex(ISO_DATE_REGEX);
 
 export const CloseDayPayloadSchema = z.object({
-  attendedUserIds: z.array(z.string().min(1)).default([]),
+  attendedNames: z
+    .array(z.string().trim().min(1).max(100))
+    .max(50)
+    .default([]),
 });
 
 export type CloseDayInput = z.infer<typeof CloseDayPayloadSchema>;

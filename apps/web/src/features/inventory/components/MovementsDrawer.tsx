@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Alert, Badge, Card, CardContent, IconButton, Modal, Skeleton } from '@/shared/ui';
 import { useStockMovements } from '../hooks/useInventory';
 
@@ -22,16 +22,7 @@ export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps
   return (
     <Modal isOpen={open} onClose={onClose} title="Movimientos">
       <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-500">Últimas modificaciones de inventario.</p>
-          <IconButton
-            icon={<X className="h-4 w-4" />}
-            label="Cerrar"
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-          />
-        </div>
+        <p className="text-xs text-slate-500">Últimas modificaciones de inventario.</p>
 
         {query.isLoading && (
           <>
@@ -71,23 +62,32 @@ export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps
                 </div>
                 {isAdjustment ? (
                   <>
-                    <p className="text-sm text-slate-700">
+                    <p className="text-sm text-slate-700 break-words">
                       <span className="font-mono">{m.productCode ?? '—'}</span>
                       {m.barcode && (
                         <>
                           {' · '}
-                          <span className="font-mono text-slate-400">{m.barcode}</span>
+                          <span className="font-mono text-slate-400 break-all">{m.barcode}</span>
                         </>
                       )}
                     </p>
-                    <p className="text-xs text-slate-500">
-                      {m.payload.previous ?? 0} → {m.payload.next ?? 0} · por {m.userFullName}
-                      {m.payload.reason && ` · ${m.payload.reason}`}
+                    <p className="text-xs text-slate-500 break-words">
+                      <span className="font-mono">
+                        {m.payload.previous ?? 0} → {m.payload.next ?? 0}
+                      </span>
+                      <span> · por </span>
+                      <span className="font-medium text-slate-600">{m.userFullName}</span>
                     </p>
+                    {m.payload.reason && (
+                      <p className="text-xs text-slate-500 italic break-words whitespace-pre-wrap">
+                        “{m.payload.reason}”
+                      </p>
+                    )}
                   </>
                 ) : (
-                  <p className="text-sm text-slate-700">
-                    Edición vendedora {m.payload.isEnabled ? 'habilitada' : 'deshabilitada'} por {m.userFullName}
+                  <p className="text-sm text-slate-700 break-words">
+                    Edición vendedora {m.payload.isEnabled ? 'habilitada' : 'deshabilitada'} por{' '}
+                    <span className="font-medium">{m.userFullName}</span>
                   </p>
                 )}
               </CardContent>

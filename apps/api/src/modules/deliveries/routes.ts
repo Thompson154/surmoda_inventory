@@ -17,5 +17,8 @@ export function buildDeliveriesByIdRouter(controller: DeliveryController): Route
   const router = Router();
   router.use(authGuard);
   router.get('/:deliveryId', (req, res, next) => controller.getById(req, res, next));
+  router.patch('/:deliveryId/draft', (req, res, next) => controller.updateDraft(req, res, next));
+  router.post('/:deliveryId/confirm', (req, res, next) => controller.confirmDraft(req, res, next));
+  router.post('/:deliveryId/receive', (req, res, next) => controller.receive(req, res, next));
   return router;
 }

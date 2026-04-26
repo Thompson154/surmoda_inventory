@@ -25,7 +25,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useEditPermission, useToggleEditPermission } from '../hooks/useInventory';
 import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
-import type { InventoryRow, ListInventoryFilters } from '@surmoda/contracts';
+import type { InventoryRow } from '@surmoda/contracts';
 import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { MovementsDrawer } from '../components/MovementsDrawer';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
@@ -49,8 +49,6 @@ export function SedeInventoryPage() {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [stockStatus, setStockStatus] = useState<'all' | 'low' | 'zero'>('all');
-  const [size, setSize] = useState<string>('');
-  const [color, setColor] = useState<string>('');
   const [movementsOpen, setMovementsOpen] = useState(false);
   const [openProductId, setOpenProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -59,8 +57,6 @@ export function SedeInventoryPage() {
   const filteredQuery = useInventoryGrouped(storeId, {
     q: q || undefined,
     stockStatus: stockStatus === 'all' ? undefined : stockStatus,
-    size: (size || undefined) as ListInventoryFilters['size'],
-    color: color || undefined,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -232,41 +228,6 @@ export function SedeInventoryPage() {
               </button>
             );
           })}
-
-          <select
-            value={size}
-            onChange={(e) => {
-              setSize(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-md border border-surface-border bg-white text-xs px-2 py-1.5"
-            aria-label="Talla"
-          >
-            <option value="">Todas las tallas</option>
-            <option value="s">S</option>
-            <option value="m">M</option>
-            <option value="l">L</option>
-            <option value="xl">XL</option>
-            <option value="xxl">XXL</option>
-            <option value="28">28</option>
-            <option value="30">30</option>
-            <option value="32">32</option>
-            <option value="34">34</option>
-            <option value="standard">Estándar</option>
-          </select>
-
-          <Input
-            id="inventory-color-filter"
-            type="search"
-            placeholder="Color..."
-            value={color}
-            onChange={(e) => {
-              setColor(e.target.value);
-              setPage(1);
-            }}
-            className="w-32 text-xs"
-            aria-label="Filtrar por color"
-          />
         </div>
 
         {filteredQuery.isLoading && !inventory.data && (
@@ -351,6 +312,20 @@ export function SedeInventoryPage() {
                                   ? '1 variante'
                                   : `${row.variantsCount} variantes`}
                               </p>
+                              {(row.lowVariantsCount > 0 || row.zeroVariantsCount > 0) && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {row.zeroVariantsCount > 0 && (
+                                    <span className="rounded-full bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5">
+                                      {row.zeroVariantsCount} sin stock
+                                    </span>
+                                  )}
+                                  {row.lowVariantsCount > 0 && (
+                                    <span className="rounded-full bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5">
+                                      {row.lowVariantsCount} variante{row.lowVariantsCount === 1 ? '' : 's'} con stock bajo
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="flex flex-col items-end shrink-0">
                               <span className="text-base font-semibold text-slate-900">

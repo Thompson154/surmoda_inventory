@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import type { DailyReportDTO } from '@surmoda/contracts';
-import { Alert, Button, Modal, Skeleton } from '@/shared/ui';
+import { Alert, Button, Input, Modal, Skeleton } from '@/shared/ui';
+import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { formatBs } from '@/shared/format/currency';
 import type { HttpError } from '@/shared/services/httpClient';
 import {
   useCloseToday,
   useDailyReportByDate,
-  useStoreStaff,
 } from '../hooks/useDailyReports';
 
 interface CloseDayModalProps {
   storeId: string;
   open: boolean;
   onClose: () => void;
+  /** Optional callback fired when the cierre succeeds. Lets the page wipe the
+   *  visible "today" state without persisting a real lock yet. */
+  onClosedToday?: () => void;
 }
 
 function todayIsoBolivia(): string {
@@ -22,26 +26,33 @@ function todayIsoBolivia(): string {
   return local.toISOString().slice(0, 10);
 }
 
-export function CloseDayModal({ storeId, open, onClose }: CloseDayModalProps) {
+export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDayModalProps) {
   const today = useMemo(() => todayIsoBolivia(), []);
   const existing = useDailyReportByDate(open ? storeId : undefined, open ? today : undefined);
-  const staff = useStoreStaff(open ? storeId : undefined);
   const closeMutation = useCloseToday(storeId);
+  const currentUser = useAuthStore((s) => s.user);
 
   const [confirmed, setConfirmed] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [primary, setPrimary] = useState(''); // encargada / cuenta principal
+  const [extras, setExtras] = useState<string[]>([]);
+  const [extraInput, setExtraInput] = useState('');
 
-  // When the modal opens (or the existing report loads with a roster), prefill
-  // the checkbox set so the encargada starts from the previous list, not blank.
+  // When the modal opens, prefill from previous cierre OR from the auth user's
+  // own name (the encargada most likely closing the day).
   useEffect(() => {
     if (!open) {
       setConfirmed(false);
-      setSelected(new Set());
+      setExtraInput('');
       closeMutation.reset();
       return;
     }
-    if (existing.data) {
-      setSelected(new Set(existing.data.attendees.map((a) => a.userId)));
+    if (existing.data && existing.data.attendees.length > 0) {
+      const [head, ...tail] = existing.data.attendees;
+      setPrimary(head?.fullName ?? '');
+      setExtras(tail.map((a) => a.fullName));
+    } else {
+      setPrimary(currentUser?.fullName ?? '');
+      setExtras([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing.data?.id]);
@@ -50,16 +61,33 @@ export function CloseDayModal({ storeId, open, onClose }: CloseDayModalProps) {
   const isAlreadyClosed = !confirmed && Boolean(existing.data);
   const errorMsg = useErrorMessage(closeMutation.error as HttpError | null);
 
-  const toggle = (userId: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(userId) ? next.delete(userId) : next.add(userId);
-      return next;
-    });
+  const addExtra = () => {
+    const v = extraInput.trim();
+    if (!v) return;
+    if (extras.some((x) => x.toLowerCase() === v.toLowerCase())) {
+      setExtraInput('');
+      return;
+    }
+    setExtras((prev) => [...prev, v]);
+    setExtraInput('');
+  };
+
+  const removeExtra = (idx: number) =>
+    setExtras((prev) => prev.filter((_, i) => i !== idx));
 
   const submit = () => {
     setConfirmed(true);
-    closeMutation.mutate({ attendedUserIds: Array.from(selected) });
+    const names = [primary.trim(), ...extras].filter((n) => n.length > 0);
+    closeMutation.mutate(
+      { attendedNames: names },
+      {
+        onSuccess: () => {
+          // FUTURE: persist a real "no more sales after cierre" lock here. For
+          // now we just let the page wipe its visible state via the callback.
+          onClosedToday?.();
+        },
+      },
+    );
   };
 
   return (
@@ -95,34 +123,61 @@ export function CloseDayModal({ storeId, open, onClose }: CloseDayModalProps) {
         )}
 
         <div>
-          <p className="text-sm font-semibold mb-1">Personal que atendió hoy</p>
-          <p className="text-xs text-slate-500 mb-2">
-            Marcá a quienes estuvieron en la sucursal — podés incluir ayudantes que no
-            registraron ventas en su sesión.
+          <label htmlFor="close-day-primary" className="text-sm font-semibold block">
+            Encargada / cuenta asociada
+          </label>
+          <p className="text-xs text-slate-500 mb-1">
+            Nombre principal responsable del cierre del día.
           </p>
-          {staff.isLoading && <Skeleton className="h-20 w-full" />}
-          {staff.isError && (
-            <Alert variant="error">No pudimos cargar el personal de la sede.</Alert>
-          )}
-          {staff.data && staff.data.items.length === 0 && (
-            <p className="text-xs text-slate-500">Esta sede no tiene personal asignado.</p>
-          )}
-          {staff.data && staff.data.items.length > 0 && (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {staff.data.items.map((s) => (
-                <li key={s.userId}>
-                  <label className="flex items-center gap-2 rounded border border-surface-border px-2 py-1.5 cursor-pointer hover:bg-surface-sunken">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(s.userId)}
-                      onChange={() => toggle(s.userId)}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm flex-1 truncate">{s.fullName}</span>
-                    <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                      {s.role}
-                    </span>
-                  </label>
+          <Input
+            id="close-day-primary"
+            type="text"
+            value={primary}
+            onChange={(e) => setPrimary(e.target.value)}
+            placeholder="Ej: María Pérez"
+            maxLength={100}
+            className="text-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="close-day-extras" className="text-sm font-semibold block">
+            Otros nombres que atendieron hoy
+          </label>
+          <p className="text-xs text-slate-500 mb-1">
+            Escribí cada nombre y presioná Enter (o coma) para agregarlo.
+          </p>
+          <Input
+            id="close-day-extras"
+            type="text"
+            value={extraInput}
+            onChange={(e) => setExtraInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                addExtra();
+              }
+            }}
+            placeholder="Ej: Lucía"
+            maxLength={100}
+            className="text-sm"
+          />
+          {extras.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5 mt-2">
+              {extras.map((name, i) => (
+                <li
+                  key={`${name}-${i}`}
+                  className="inline-flex items-center gap-1 rounded-full bg-violet-100 text-violet-700 text-xs px-2 py-0.5"
+                >
+                  <span>{name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeExtra(i)}
+                    className="hover:text-violet-900"
+                    aria-label={`Quitar ${name}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -139,7 +194,7 @@ export function CloseDayModal({ storeId, open, onClose }: CloseDayModalProps) {
             type="button"
             variant="primary"
             size="md"
-            disabled={closeMutation.isPending || existing.isLoading}
+            disabled={closeMutation.isPending || existing.isLoading || !primary.trim()}
             onClick={submit}
           >
             {closeMutation.isPending

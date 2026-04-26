@@ -23,14 +23,14 @@ export interface DailyReportService {
   closeToday(
     storeId: string,
     auth: AuthContext,
-    attendedUserIds: string[],
+    attendedNames: string[],
   ): Promise<DailyReportDTO>;
   closeForDay(
     storeId: string,
     day: Date,
     closedByUserId: string | null,
     autoClosed: boolean,
-    attendedUserIds: string[],
+    attendedNames: string[],
   ): Promise<DailyReportDTO>;
   list(storeId: string, query: ListDailyReportsQuery, auth: AuthContext): Promise<PaginatedDailyReports>;
   getByDate(storeId: string, isoDay: string, auth: AuthContext): Promise<DailyReportDTO>;
@@ -57,7 +57,7 @@ export function buildDailyReportService({
     day: Date,
     closedByUserId: string | null,
     autoClosed: boolean,
-    attendedUserIds: string[] = [],
+    attendedNames: string[] = [],
   ): Promise<DailyReportDTO> {
     return reports.runSerializable(async (tx) => {
       const aggregate = await reports.aggregateDay(storeId, day, tx);
@@ -69,7 +69,7 @@ export function buildDailyReportService({
           closedByUserId,
           closedAt: new Date(),
           autoClosed,
-          attendedUserIds,
+          attendedNames,
         },
         tx,
       );
@@ -79,14 +79,14 @@ export function buildDailyReportService({
   return {
     closeForDay,
 
-    async closeToday(storeId, auth, attendedUserIds) {
+    async closeToday(storeId, auth, attendedNames) {
       await ensureEncargadaOrAdmin(auth);
       return closeForDay(
         storeId,
         boliviaDayKey(new Date()),
         auth.userId,
         false,
-        attendedUserIds,
+        attendedNames,
       );
     },
 

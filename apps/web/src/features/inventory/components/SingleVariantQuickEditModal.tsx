@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Camera, Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
 import { Alert, Badge, Button, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useAdjustQuantity } from '../hooks/useInventory';
-import { getImageUrl } from '@/features/products/services/productsService';
+import { getImageUrl, productsService, productsQueryKeys } from '@/features/products/services/productsService';
+import { inventoryQueryKeys } from '../services/inventoryService';
 import { formatBs as formatPrice } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 
@@ -27,17 +29,57 @@ export function SingleVariantQuickEditModal({
   onClose,
 }: SingleVariantQuickEditModalProps) {
   const adjust = useAdjustQuantity(storeId);
+  const qc = useQueryClient();
   const [draft, setDraft] = useState(row?.quantity ?? 0);
   const [reason, setReason] = useState('');
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const errorMessage = useErrorMessage(adjust.error as HttpError | null | undefined);
+
+  const updateImage = useMutation({
+    mutationFn: (file: File) =>
+      productsService.updateVariant(row!.variantId, {
+        priceCents: row!.priceCents,
+        image: file,
+      }),
+    onSuccess: () => {
+      // Invalidate everything that renders the variant image — products list,
+      // detail drawers, both inventory views (rows + grouped).
+      void qc.invalidateQueries({ queryKey: productsQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
+      setPendingImage(null);
+      setPreviewUrl(null);
+    },
+  });
+  const imageError = useErrorMessage(updateImage.error as HttpError | null | undefined);
 
   useEffect(() => {
     if (row) {
       setDraft(row.quantity);
       setReason('');
+      setPendingImage(null);
+      setPreviewUrl(null);
       adjust.reset();
+      updateImage.reset();
     }
   }, [row?.variantId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revoke object URL when component unmounts or preview changes — avoids
+  // leaking blob URLs across the app's lifetime.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPendingImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
 
   if (!row) {
     return <Modal isOpen={false} onClose={onClose} title="Variante" children={null} />;
@@ -45,7 +87,7 @@ export function SingleVariantQuickEditModal({
 
   const isDirty = draft !== row.quantity;
   const label = sizeLabel(row.size);
-  const imageUrl = getImageUrl(row.imagePath);
+  const imageUrl = previewUrl ?? getImageUrl(row.imagePath);
 
   const submit = () => {
     if (!canEdit || !isDirty) return;
@@ -59,13 +101,32 @@ export function SingleVariantQuickEditModal({
     <Modal isOpen onClose={onClose} title={`${row.productCode} · ${row.barcode}`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 rounded-lg border border-surface-border p-3">
-          <div className="h-16 w-16 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
+          <button
+            type="button"
+            onClick={() => canEdit && fileInputRef.current?.click()}
+            disabled={!canEdit}
+            className="h-16 w-16 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden relative group disabled:cursor-not-allowed"
+            aria-label="Cambiar imagen"
+          >
             {imageUrl ? (
               <img src={imageUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <ImageIcon className="h-6 w-6 text-slate-400" />
             )}
-          </div>
+            {canEdit && (
+              <span className="absolute inset-0 bg-black/40 text-white text-[10px] font-semibold flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera className="h-3.5 w-3.5" />
+                Cambiar
+              </span>
+            )}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={onPickImage}
+          />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-900 truncate">{row.productName}</p>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -76,6 +137,41 @@ export function SingleVariantQuickEditModal({
           </div>
           {!canEdit && <Badge variant="default">Solo lectura</Badge>}
         </div>
+
+        {pendingImage && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-800">
+              Nueva imagen lista — pesa {(pendingImage.size / 1024).toFixed(0)} KB.
+            </p>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (previewUrl) URL.revokeObjectURL(previewUrl);
+                  setPendingImage(null);
+                  setPreviewUrl(null);
+                }}
+                disabled={updateImage.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => updateImage.mutate(pendingImage)}
+                isLoading={updateImage.isPending}
+                disabled={updateImage.isPending}
+              >
+                Guardar imagen
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {imageError && <Alert variant="error">{imageError}</Alert>}
 
         <div className="flex items-center justify-between">
           <span className="text-sm text-slate-700">Cantidad</span>

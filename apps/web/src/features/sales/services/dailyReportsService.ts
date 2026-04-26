@@ -25,7 +25,7 @@ export const dailyReportsService = {
     httpClient.get<DailyReportDTO>(`/stores/${storeId}/daily-reports/${isoDay}`),
   getItemsByDate: (storeId: string, isoDay: string) =>
     httpClient.get<DailyReportItemsDTO>(`/stores/${storeId}/daily-reports/${isoDay}/items`),
-  closeToday: (storeId: string, payload: CloseDayPayload = { attendedUserIds: [] }) =>
+  closeToday: (storeId: string, payload: CloseDayPayload = { attendedNames: [] }) =>
     httpClient.post<DailyReportDTO>(
       `/stores/${storeId}/daily-reports/close-today`,
       payload,
