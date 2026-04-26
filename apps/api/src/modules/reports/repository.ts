@@ -123,6 +123,7 @@ export function buildReportRepository(db: Database): ReportRepository {
         transactionsCount: 0,
         itemCount: 0,
         averageTicketCents: 0,
+        discountCents: 0,
       };
       const byStoreMap = new Map<string, ReportStoreRowDTO>();
 
@@ -194,7 +195,15 @@ export function buildReportRepository(db: Database): ReportRepository {
         },
       });
       const productAgg = new Map<string, ReportTopProductDTO>();
+      let discountCents = 0;
       for (const it of itemRows) {
+        // Discount per line = (catalog price * qty) - what was actually charged.
+        // Negative-protected: if for any reason subtotal > priceAtSale*qty we
+        // ignore the surplus rather than reporting a negative "discount".
+        const lineCatalog = it.priceAtSaleCents * it.quantity;
+        if (lineCatalog > it.subtotalCents) {
+          discountCents += lineCatalog - it.subtotalCents;
+        }
         const key = it.variantId;
         const lineTotal = it.subtotalCents;
         const existing = productAgg.get(key);
@@ -216,6 +225,7 @@ export function buildReportRepository(db: Database): ReportRepository {
       const topProducts = Array.from(productAgg.values())
         .sort((a, b) => b.totalCents - a.totalCents)
         .slice(0, TOP_PRODUCTS_LIMIT);
+      totals.discountCents = discountCents;
 
       // ── 5. Top sellers (sales they recorded in the date window) ──────────
       const sellerRows = await db.sale.findMany({

@@ -19,6 +19,12 @@ export interface ReportTotalsDTO {
   itemCount: number;
   /** Average cobrado per transaction. Zero when no transactions in range. */
   averageTicketCents: number;
+  /**
+   * Total discount applied across all sales in the range, in cents. Computed as
+   * sum of (priceAtSaleCents * quantity - subtotalCents) per sale_item — i.e.
+   * the difference between catalog price and what the cashier actually charged.
+   */
+  discountCents: number;
 }
 
 export interface ReportStoreRowDTO {

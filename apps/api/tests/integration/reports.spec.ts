@@ -59,6 +59,7 @@ describe('GET /api/v1/reports/summary', () => {
     expect(res.body).toHaveProperty('totals');
     expect(res.body.totals).toHaveProperty('totalCents');
     expect(res.body.totals).toHaveProperty('averageTicketCents');
+    expect(res.body.totals).toHaveProperty('discountCents');
     expect(Array.isArray(res.body.byStore)).toBe(true);
     expect(Array.isArray(res.body.topProducts)).toBe(true);
     expect(Array.isArray(res.body.topSellers)).toBe(true);

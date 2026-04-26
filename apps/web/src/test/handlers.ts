@@ -787,6 +787,7 @@ export const handlers = [
         transactionsCount: 84,
         itemCount: 132,
         averageTicketCents: 18333,
+        discountCents: 25_000,
       },
       byStore: [
         { storeId: 'store-prado-seed', storeName: 'Sucursal Prado', storeCode: 'PRADO', totalCents: 920_000, transactionsCount: 51 },
