@@ -12,7 +12,7 @@ import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { formatBsBig, formatBsShort } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
-import { resolveImageUrl } from '@/shared/format/imageUrl';
+import { getImageUrl } from '@/features/products/services/productsService';
 
 function timeOfDay(iso: string): string {
   const d = new Date(iso);
@@ -111,7 +111,10 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
         ? { bg: 'bg-emerald-100', text: 'text-emerald-600', Icon: Banknote }
         : { bg: 'bg-slate-200', text: 'text-slate-700', Icon: CreditCard };
   const { Icon } = palette;
-  const src = resolveImageUrl(row.imagePath);
+  // Antes usábamos resolveImageUrl (helper que devolvía rutas relativas al FE),
+  // pero las imágenes viven en el BE bajo /static/images. getImageUrl ya hace
+  // ese mapeo y respeta URLs absolutas (Cloudinary) cuando aplica.
+  const src = getImageUrl(row.imagePath);
   const showDiscount = row.subtotalCents !== row.catalogTotalCents;
 
   return (
