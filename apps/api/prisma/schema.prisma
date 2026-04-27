@@ -165,6 +165,14 @@ model Variant {
 
 model User {
   id           String    @id @default(cuid())
+  /// `@unique` genera el índice simple `users_email_key` que Prisma usa para
+  /// `findUnique({ where: { email } })` (auth/service.ts login). En paralelo,
+  /// la migration 014 mantiene un índice funcional `users_email_lower_key`
+  /// sobre `LOWER("email")` que enforcea uniqueness case-insensitive (defense-
+  /// in-depth contra un import bulk que olvide lowercasear). La app además
+  /// hace lowercasing al parsear con Zod, así que tenemos 3 capas. Ambos
+  /// índices coexisten sin conflicto: el funcional es estrictamente más
+  /// restrictivo que el simple.
   email        String    @unique
   passwordHash String    @map("password_hash")
   fullName     String    @map("full_name")
@@ -244,6 +252,11 @@ model AuditLog {
   @@index([userId, timestamp])
   @@index([entity, entityId])
   @@index([action, timestamp])
+  /// GIN sobre payload con jsonb_path_ops — habilita búsquedas tipo
+  /// `payload @> '{"storeId":"..."}'` indexadas (Tier 3.B.1, migration 013).
+  /// jsonb_path_ops es ~50% más chico y ~3x más rápido que jsonb_ops para
+  /// el operador `@>`, que es el único que usamos para el audit log.
+  @@index([payload(ops: JsonbPathOps)], type: Gin)
   @@map("audit_logs")
 }
 
@@ -315,7 +328,11 @@ model Delivery {
   receivedByUserId String?        @map("received_by_user_id")
   note             String?
   createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  /// La columna físicamente tiene DEFAULT now() (migration 011 agregó la
+  /// columna NOT NULL a una tabla con datos pre-existentes). Documentamos el
+  /// default explícitamente para que el schema sea fuente de verdad y no haya
+  /// drift entre Prisma y la DB. `@updatedAt` sigue manejando el incremento.
+  updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at")
 
   fromStore   Store?                    @relation("DeliveryOrigin", fields: [fromStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   toStore     Store                     @relation("DeliveryDest", fields: [toStoreId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -446,8 +463,12 @@ model DailyReport {
   user  User? @relation(fields: [closedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   attendees DailyReportAttendance[]
 
+  /// El compuesto (store_id, date) creado por @@unique cubre tanto el lookup
+  /// del dashboard ("WHERE storeId = ? AND date BETWEEN ?") como el ordering
+  /// por fecha (btree es bidireccional en Postgres). Por eso NO declaramos un
+  /// @@index([date]) standalone — sería redundante y solo serviría queries
+  /// cross-sucursal que la constitución no modela.
   @@unique([storeId, date])
-  @@index([date])
   @@map("daily_reports")
 }
 
