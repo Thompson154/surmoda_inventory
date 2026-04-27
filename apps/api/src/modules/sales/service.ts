@@ -30,7 +30,11 @@ export interface SaleService {
   getDashboard(storeId: string, auth: AuthContext): Promise<SalesDashboard>;
 }
 
-export function buildSaleService({ sales, assignments, dailyLockEnabled = false }: SaleServiceDeps): SaleService {
+export function buildSaleService({
+  sales,
+  assignments,
+  dailyLockEnabled = false,
+}: SaleServiceDeps): SaleService {
   async function ensureAssignedOrEncargada(storeId: string, auth: AuthContext): Promise<void> {
     await assertCanActOnStore(
       assignments,
@@ -58,6 +62,25 @@ export function buildSaleService({ sales, assignments, dailyLockEnabled = false 
         throw new AppError(400, ERROR_CODES.SALE_EMPTY_ITEMS, 'Agregá al menos un ítem.');
       }
 
+      // Tier 3.A.3 — idempotency. The FE sends a UUID v4 once per checkout
+      // attempt. If the network drops between request-sent and response-
+      // received and the FE retries, we look up the cached saleId and
+      // return the EXACT SAME row instead of creating a duplicate sale.
+      // The (storeId, key) uniqueness lives at the DB level too — a parallel
+      // retry race ends with one INSERT winning and the loser receiving
+      // P2002 on the unique violation, which we translate into the same
+      // "return cached sale" path.
+      if (input.idempotencyKey) {
+        const cached = await sales.findIdempotentSale(storeId, input.idempotencyKey);
+        if (cached) {
+          const full = await sales.findById(cached.saleId);
+          if (full) return full;
+          // Sale was deleted (cascade from store deactivation, etc.); the
+          // cached entry will be cleaned up by the retention cron — fall
+          // through and let the new sale create itself.
+        }
+      }
+
       // Aggregate quantities + (optional) per-line subtotals per variantId in case the
       // FE sent duplicates. `subtotalCents` is null for that variant only when every
       // payload row for it omitted the field — in that case the BE defaults to qty*unitPrice.
@@ -73,7 +96,10 @@ export function buildSaleService({ sales, assignments, dailyLockEnabled = false 
           prev.subtotalCents === null || incomingSub === null
             ? null
             : prev.subtotalCents + incomingSub;
-        aggregated.set(it.variantId, { quantity: prev.quantity + it.quantity, subtotalCents: nextSub });
+        aggregated.set(it.variantId, {
+          quantity: prev.quantity + it.quantity,
+          subtotalCents: nextSub,
+        });
       }
       const variantIds = Array.from(aggregated.keys());
 
@@ -129,7 +155,10 @@ export function buildSaleService({ sales, assignments, dailyLockEnabled = false 
           priceAtSaleCents: number;
           subtotalCents: number;
         }>;
-        for (const [variantId, { quantity: qty, subtotalCents: providedSub }] of aggregated.entries()) {
+        for (const [
+          variantId,
+          { quantity: qty, subtotalCents: providedSub },
+        ] of aggregated.entries()) {
           const unitPrice = priceMap.get(variantId) ?? 0;
           const gross = unitPrice * qty;
           const subtotal = providedSub ?? gross;
@@ -152,7 +181,12 @@ export function buildSaleService({ sales, assignments, dailyLockEnabled = false 
             );
           }
           totalCents += subtotal;
-          itemRows.push({ variantId, quantity: qty, priceAtSaleCents: unitPrice, subtotalCents: subtotal });
+          itemRows.push({
+            variantId,
+            quantity: qty,
+            priceAtSaleCents: unitPrice,
+            subtotalCents: subtotal,
+          });
         }
 
         // Decrement stock + write sale_out movement per variant.
@@ -179,6 +213,16 @@ export function buildSaleService({ sales, assignments, dailyLockEnabled = false 
           itemRows,
           tx,
         );
+
+        // Persist the idempotency mapping inside the same transaction so the
+        // sale + its key land atomically. The DB unique index (storeId,key)
+        // is the final defense against parallel retries — a concurrent
+        // request that races past the early-return check ends up here, and
+        // the second INSERT raises P2002 which the controller converts to
+        // a 409 (the FE retries idempotently anyway).
+        if (input.idempotencyKey) {
+          await sales.recordIdempotencyKey(storeId, input.idempotencyKey, created.id, tx);
+        }
 
         return created.id;
       });

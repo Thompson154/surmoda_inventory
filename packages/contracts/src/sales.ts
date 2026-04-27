@@ -14,6 +14,18 @@ export interface SaleItemPayload {
 export interface CreateSalePayload {
   items: SaleItemPayload[];
   paymentMethod: PaymentMethod;
+  /**
+   * Tier 3.A.3 — idempotency key. The FE generates a UUID v4 once per
+   * checkout attempt. If the network drops between request-sent and
+   * response-received and the FE retries the same payload, the BE returns
+   * the originally-created sale instead of inserting a second row. The key
+   * is bound to (storeId, key) at the DB so two stores can technically
+   * reuse the same UUID without colliding.
+   *
+   * Optional today (back-compat with FE versions that don't send it yet).
+   * Will become required after every FE caller adopts it.
+   */
+  idempotencyKey?: string;
 }
 
 export interface SaleItemDTO {

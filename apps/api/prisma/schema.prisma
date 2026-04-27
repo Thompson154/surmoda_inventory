@@ -110,6 +110,7 @@ model Store {
   deliveriesOut  Delivery[] @relation("DeliveryOrigin")
   sales          Sale[]
   dailyReports   DailyReport[]
+  idempotencyKeys IdempotencyKey[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -383,9 +384,29 @@ model Sale {
   store Store      @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   user  User       @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   items SaleItem[]
+  idempotencyKeys IdempotencyKey[]
 
   @@index([storeId, createdAt])
   @@map("sales")
+}
+
+/// Tier 3.A.3 — idempotency keys for POST /sales. The FE generates a UUID v4
+/// per checkout attempt; the BE caches (store, key) → saleId for 24h. On
+/// retry the cached saleId is returned, preventing duplicate sales when the
+/// boutique wifi drops mid-request. Pruned by `idempotencyKeyCleanup` cron.
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  key       String
+  storeId   String   @map("store_id")
+  saleId    String   @map("sale_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sale  Sale  @relation(fields: [saleId],  references: [id], onDelete: Cascade,  onUpdate: Cascade)
+
+  @@unique([storeId, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
 }
 
 model SaleItem {

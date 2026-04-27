@@ -15,7 +15,9 @@ const VENDEDORA_EMAIL = 'vendedora.prado@demo.local';
 const VENDEDORA_ZSUR_EMAIL = 'vendedora.zsur@demo.local';
 const STAFF_PASSWORD = 'Pass1234';
 
-interface LoginResponse { accessToken: string }
+interface LoginResponse {
+  accessToken: string;
+}
 
 async function loginToken(email: string, password: string): Promise<string> {
   const res = await request(app).post('/api/v1/auth/login').send({ email, password });
@@ -201,5 +203,83 @@ describe('GET /api/v1/stores/:storeId/sales/dashboard', () => {
       .set(bearer(vendedoraToken));
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('SALE_DASHBOARD_FORBIDDEN');
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// Tier 3.A.3 — idempotency on POST /sales. Boutique wifi drops mid-request,
+// FE retries. Without an idempotency key, two sales get created. With it,
+// the same sale row is returned for both attempts.
+// ───────────────────────────────────────────────────────────────────────────
+describe('POST /sales — idempotency-key (Tier 3.A.3)', () => {
+  it('returns the same sale on retry with the same idempotencyKey', async () => {
+    // Pre-seed warehouse stock then distribute to PRADO so the test variant
+    // has stock there. resetTestState may zero it out between describes.
+    await db.stockBySite.upsert({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: pradoStoreId } },
+      update: { quantity: 50 },
+      create: { variantId: testVariantA, storeId: pradoStoreId, quantity: 50 },
+    });
+    const idempotencyKey = '11111111-1111-4111-8111-111111111111';
+    const body = {
+      idempotencyKey,
+      items: [{ variantId: testVariantA, quantity: 1 }],
+      paymentMethod: 'cash',
+    };
+
+    const first = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/sales`)
+      .set(bearer(vendedoraToken))
+      .send(body);
+    if (first.status !== 201) {
+      console.error('first POST failed', first.status, first.body);
+    }
+    expect(first.status).toBe(201);
+    const firstSaleId = first.body.id as string;
+
+    const retry = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/sales`)
+      .set(bearer(vendedoraToken))
+      .send(body);
+    expect(retry.status).toBe(201);
+    expect(retry.body.id).toBe(firstSaleId);
+
+    const total = await db.sale.count({ where: { storeId: pradoStoreId } });
+    // Hard to assert exact total because earlier suites created sales. Just
+    // verify the retry didn't double-INSERT by checking no two sales exist
+    // with the same idempotency-key row.
+    const keyRows = await db.idempotencyKey.findMany({
+      where: { storeId: pradoStoreId, key: idempotencyKey },
+    });
+    expect(keyRows).toHaveLength(1);
+    expect(keyRows[0]?.saleId).toBe(firstSaleId);
+    void total;
+  });
+
+  it('two distinct keys produce two distinct sales', async () => {
+    await db.stockBySite.upsert({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: pradoStoreId } },
+      update: { quantity: 50 },
+      create: { variantId: testVariantA, storeId: pradoStoreId, quantity: 50 },
+    });
+    const k1 = '22222222-2222-4222-8222-222222222222';
+    const k2 = '33333333-3333-4333-8333-333333333333';
+    const body = (key: string) => ({
+      idempotencyKey: key,
+      items: [{ variantId: testVariantA, quantity: 1 }],
+      paymentMethod: 'cash' as const,
+    });
+
+    const a = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/sales`)
+      .set(bearer(vendedoraToken))
+      .send(body(k1));
+    const b = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/sales`)
+      .set(bearer(vendedoraToken))
+      .send(body(k2));
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+    expect(a.body.id).not.toBe(b.body.id);
   });
 });
