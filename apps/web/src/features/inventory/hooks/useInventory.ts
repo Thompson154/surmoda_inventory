@@ -39,6 +39,10 @@ export function useStockMovements(storeId: string | undefined, page: number, pag
     // the cold-reopen case where the component remounts with a stale cache.
     staleTime: 0,
     refetchOnMount: 'always',
+    // placeholderData: navegar entre páginas no flickea a Skeletons; React
+    // Query mantiene la página previa visible hasta que la nueva resuelve.
+    // Mismo patrón que useInventory + useDeliveriesList.
+    placeholderData: (prev) => prev,
     refetchInterval: storeId ? INVENTORY_REFETCH_MS : false,
     refetchIntervalInBackground: false,
   });
