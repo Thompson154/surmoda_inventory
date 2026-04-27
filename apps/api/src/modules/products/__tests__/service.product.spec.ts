@@ -1,11 +1,9 @@
 import { Prisma } from '@prisma/client';
-import {
-  buildProductService,
-  type ProductService,
-} from '../service.product';
+import { buildProductService, type ProductService } from '../service.product';
 import type { ProductRepository, ProductTx } from '../repository.product';
 import type { VariantRepository } from '../repository.variant';
 import type { ProductDTO, VariantDTO } from '../types';
+import { generateBarcode } from '../barcode';
 
 interface MockProductsRepo {
   findById: jest.Mock;
@@ -21,11 +19,13 @@ interface MockProductsRepo {
 interface MockVariantsRepo {
   findById: jest.Mock;
   findByBarcode: jest.Mock;
+  findActiveByTuple: jest.Mock;
   listActiveByProduct: jest.Mock;
   listAllByProduct: jest.Mock;
   create: jest.Mock;
   update: jest.Mock;
   setActive: jest.Mock;
+  bulkUpdateBarcodes: jest.Mock;
 }
 
 const FAKE_TX = {} as ProductTx;
@@ -71,11 +71,13 @@ beforeEach(() => {
   variants = {
     findById: jest.fn(),
     findByBarcode: jest.fn(),
+    findActiveByTuple: jest.fn(),
     listActiveByProduct: jest.fn(),
     listAllByProduct: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     setActive: jest.fn(),
+    bulkUpdateBarcodes: jest.fn(),
   };
   service = buildProductService({
     products: products as unknown as ProductRepository,
@@ -104,9 +106,10 @@ describe('ProductService.create', () => {
     });
     products.create.mockRejectedValue(p2002);
 
-    await expect(
-      service.create({ code: 'JN001', name: 'X' }),
-    ).rejects.toMatchObject({ code: 'PRODUCT_DUPLICATE_CODE', statusCode: 409 });
+    await expect(service.create({ code: 'JN001', name: 'X' })).rejects.toMatchObject({
+      code: 'PRODUCT_DUPLICATE_CODE',
+      statusCode: 409,
+    });
   });
 });
 
@@ -131,7 +134,10 @@ describe('ProductService.getById', () => {
 
   it('returns ALL variants when includeInactiveVariants=true', async () => {
     products.findById.mockResolvedValue(buildProduct());
-    variants.listAllByProduct.mockResolvedValue([buildVariant(), buildVariant({ isActive: false })]);
+    variants.listAllByProduct.mockResolvedValue([
+      buildVariant(),
+      buildVariant({ isActive: false }),
+    ]);
 
     const result = await service.getById('prod-1', true);
 
@@ -152,10 +158,11 @@ describe('ProductService.update', () => {
   it('uppercases the code on update and persists the change', async () => {
     products.findById.mockResolvedValue(buildProduct());
     products.update.mockResolvedValue(buildProduct({ code: 'NEW01' }));
+    variants.listActiveByProduct.mockResolvedValue([]);
 
     await service.update('prod-1', { code: 'new01' });
 
-    expect(products.update).toHaveBeenCalledWith('prod-1', { code: 'NEW01' });
+    expect(products.update).toHaveBeenCalledWith('prod-1', { code: 'NEW01' }, expect.anything());
   });
 
   it('maps duplicate code to PRODUCT_DUPLICATE_CODE', async () => {
@@ -166,9 +173,10 @@ describe('ProductService.update', () => {
     });
     products.update.mockRejectedValue(p2002);
 
-    await expect(
-      service.update('prod-1', { code: 'DUP' }),
-    ).rejects.toMatchObject({ code: 'PRODUCT_DUPLICATE_CODE', statusCode: 409 });
+    await expect(service.update('prod-1', { code: 'DUP' })).rejects.toMatchObject({
+      code: 'PRODUCT_DUPLICATE_CODE',
+      statusCode: 409,
+    });
   });
 
   it('throws PRODUCT_NOT_FOUND when product missing', async () => {
@@ -178,6 +186,34 @@ describe('ProductService.update', () => {
       statusCode: 404,
     });
     expect(products.update).not.toHaveBeenCalled();
+  });
+
+  it('regenerates ALL active variant barcodes when code changes', async () => {
+    products.findById.mockResolvedValue(buildProduct({ code: 'OLD01' }));
+    products.update.mockResolvedValue(buildProduct({ code: 'NEW01' }));
+    const v1 = buildVariant({ id: 'var-1', size: '30', color: 'azul' });
+    const v2 = buildVariant({ id: 'var-2', size: 'l', color: 'rojo' });
+    variants.listActiveByProduct.mockResolvedValue([v1, v2]);
+
+    await service.update('prod-1', { code: 'new01' });
+
+    expect(variants.bulkUpdateBarcodes).toHaveBeenCalledWith(
+      'prod-1',
+      {
+        'var-1': generateBarcode('NEW01', '30', 'azul'),
+        'var-2': generateBarcode('NEW01', 'l', 'rojo'),
+      },
+      expect.anything(),
+    );
+  });
+
+  it('does NOT regenerate variant barcodes when code is unchanged', async () => {
+    products.findById.mockResolvedValue(buildProduct({ code: 'KEEP1' }));
+    products.update.mockResolvedValue(buildProduct({ code: 'KEEP1' }));
+
+    await service.update('prod-1', { name: 'Sólo nombre' });
+
+    expect(variants.bulkUpdateBarcodes).not.toHaveBeenCalled();
   });
 });
 

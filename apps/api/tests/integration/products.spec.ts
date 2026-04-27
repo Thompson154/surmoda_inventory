@@ -323,6 +323,105 @@ describe('PATCH /api/v1/variants/:id', () => {
     expect(res.body.priceCents).toBe(22000);
     expect(await waitForAudit('VARIANT_UPDATED', variant.body.id)).toBe(true);
   });
+
+  it('updates size + color and regenerates the barcode', async () => {
+    const code = `${TEST_PREFIX}VSC1`;
+    const product = await request(app)
+      .post('/api/v1/products')
+      .set(await bearer(adminToken))
+      .send({ code, name: 'Producto SizeColor' });
+    const variant = await request(app)
+      .post(`/api/v1/products/${product.body.id}/variants`)
+      .set(await bearer(adminToken))
+      .field('size', 'm')
+      .field('color', 'azul')
+      .field('priceCents', '20000');
+    const originalBarcode = variant.body.barcode;
+
+    const res = await request(app)
+      .patch(`/api/v1/variants/${variant.body.id}`)
+      .set(await bearer(adminToken))
+      .send({ size: 'l', color: 'rojo' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.size).toBe('l');
+    expect(res.body.color).toBe('rojo');
+    expect(res.body.barcode).not.toBe(originalBarcode);
+    expect(typeof res.body.barcode).toBe('string');
+    expect(res.body.barcode.length).toBe(12);
+  });
+
+  it('rejects (size,color) clash with another active variant of the same product (409)', async () => {
+    const code = `${TEST_PREFIX}VCL1`;
+    const product = await request(app)
+      .post('/api/v1/products')
+      .set(await bearer(adminToken))
+      .send({ code, name: 'Producto Clash' });
+    // Variant A occupies (m, blanco)
+    await request(app)
+      .post(`/api/v1/products/${product.body.id}/variants`)
+      .set(await bearer(adminToken))
+      .field('size', 'm')
+      .field('color', 'blanco')
+      .field('priceCents', '15000');
+    // Variant B starts at (s, negro), then we try to move it to (m, blanco)
+    const variantB = await request(app)
+      .post(`/api/v1/products/${product.body.id}/variants`)
+      .set(await bearer(adminToken))
+      .field('size', 's')
+      .field('color', 'negro')
+      .field('priceCents', '15000');
+
+    const res = await request(app)
+      .patch(`/api/v1/variants/${variantB.body.id}`)
+      .set(await bearer(adminToken))
+      .send({ size: 'm', color: 'blanco' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('VARIANT_DUPLICATE_TUPLE');
+  });
+});
+
+describe('PATCH /api/v1/products/:id (code change cascade)', () => {
+  it('regenerates barcodes of all active variants when product code changes', async () => {
+    const code = `${TEST_PREFIX}CC01`;
+    const product = await request(app)
+      .post('/api/v1/products')
+      .set(await bearer(adminToken))
+      .send({ code, name: 'Producto Code Cascade' });
+    const v1 = await request(app)
+      .post(`/api/v1/products/${product.body.id}/variants`)
+      .set(await bearer(adminToken))
+      .field('size', 'm')
+      .field('color', 'azul')
+      .field('priceCents', '15000');
+    const v2 = await request(app)
+      .post(`/api/v1/products/${product.body.id}/variants`)
+      .set(await bearer(adminToken))
+      .field('size', 'l')
+      .field('color', 'rojo')
+      .field('priceCents', '15000');
+
+    const newCode = `${TEST_PREFIX}CC02`;
+    const res = await request(app)
+      .patch(`/api/v1/products/${product.body.id}`)
+      .set(await bearer(adminToken))
+      .send({ code: newCode });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe(newCode);
+
+    const v1After = await request(app)
+      .get(`/api/v1/products/${product.body.id}`)
+      .set(await bearer(adminToken));
+    const variantsAfter = v1After.body.variants as Array<{ id: string; barcode: string }>;
+    const v1Reloaded = variantsAfter.find((v) => v.id === v1.body.id);
+    const v2Reloaded = variantsAfter.find((v) => v.id === v2.body.id);
+    expect(v1Reloaded?.barcode).toBeDefined();
+    expect(v2Reloaded?.barcode).toBeDefined();
+    expect(v1Reloaded?.barcode).not.toBe(v1.body.barcode);
+    expect(v2Reloaded?.barcode).not.toBe(v2.body.barcode);
+  });
 });
 
 describe('POST /api/v1/products/:id/deactivate', () => {

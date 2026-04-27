@@ -203,17 +203,22 @@ describe('VariantService.create', () => {
 });
 
 describe('VariantService.update', () => {
-  it('updates priceCents only', async () => {
-    variants.findById.mockResolvedValue(buildVariant());
-    variants.update.mockResolvedValue(buildVariant({ priceCents: 30000 }));
+  it('updates priceCents only — barcode is NOT regenerated (regression)', async () => {
+    const current = buildVariant({ barcode: 'KEEPSAMEBARC' });
+    variants.findById.mockResolvedValue(current);
+    variants.update.mockImplementation(async (_id, data) =>
+      buildVariant({ ...current, ...data, barcode: current.barcode }),
+    );
 
     const result = await service.update('var-1', { priceCents: 30000 });
 
+    // Only price + (undefined) imagePath — no size/color/barcode props
     expect(variants.update).toHaveBeenCalledWith('var-1', {
       priceCents: 30000,
       imagePath: undefined,
     });
     expect(result.priceCents).toBe(30000);
+    expect(result.barcode).toBe('KEEPSAMEBARC');
   });
 
   it('uploads new image and persists path on re-upload', async () => {
@@ -237,6 +242,82 @@ describe('VariantService.update', () => {
       statusCode: 404,
     });
     expect(variants.update).not.toHaveBeenCalled();
+  });
+
+  it('updates size only — barcode regenerates, color is preserved', async () => {
+    const current = buildVariant({ size: '30', color: 'azul' });
+    variants.findById.mockResolvedValue(current);
+    products.findById.mockResolvedValue(buildProduct({ code: 'JN001' }));
+    variants.findActiveByTuple.mockResolvedValue(null);
+    variants.update.mockImplementation(async (_id, data) => buildVariant({ ...current, ...data }));
+
+    const result = await service.update('var-1', { size: '32' });
+
+    const expectedBarcode = generateBarcode('JN001', '32', 'azul');
+    expect(variants.update).toHaveBeenCalledWith(
+      'var-1',
+      {
+        priceCents: undefined,
+        imagePath: undefined,
+        size: '32',
+        barcode: expectedBarcode,
+      },
+      FAKE_TX,
+    );
+    expect(result.size).toBe('32');
+    expect(result.barcode).toBe(expectedBarcode);
+  });
+
+  it('updates color only — barcode regenerates, size is preserved', async () => {
+    const current = buildVariant({ size: '30', color: 'azul' });
+    variants.findById.mockResolvedValue(current);
+    products.findById.mockResolvedValue(buildProduct({ code: 'JN001' }));
+    variants.findActiveByTuple.mockResolvedValue(null);
+    variants.update.mockImplementation(async (_id, data) => buildVariant({ ...current, ...data }));
+
+    const result = await service.update('var-1', { color: '  Rojo  ' });
+
+    const expectedBarcode = generateBarcode('JN001', '30', 'Rojo');
+    expect(variants.update).toHaveBeenCalledWith(
+      'var-1',
+      {
+        priceCents: undefined,
+        imagePath: undefined,
+        color: 'Rojo',
+        barcode: expectedBarcode,
+      },
+      FAKE_TX,
+    );
+    expect(result.color).toBe('Rojo');
+    expect(result.barcode).toBe(expectedBarcode);
+  });
+
+  it('throws VARIANT_DUPLICATE_TUPLE when (size,color) clashes with another active variant', async () => {
+    const current = buildVariant({ id: 'var-1', size: '30', color: 'azul' });
+    variants.findById.mockResolvedValue(current);
+    products.findById.mockResolvedValue(buildProduct({ code: 'JN001' }));
+    // Another variant already owns the new tuple.
+    variants.findActiveByTuple.mockResolvedValue(
+      buildVariant({ id: 'var-2', size: 'l', color: 'rojo' }),
+    );
+
+    await expect(service.update('var-1', { size: 'l', color: 'rojo' })).rejects.toMatchObject({
+      code: 'VARIANT_DUPLICATE_TUPLE',
+      statusCode: 409,
+    });
+    expect(variants.update).not.toHaveBeenCalled();
+  });
+
+  it('allows updating to the SAME (size,color) currently held by THIS variant (no-op tuple)', async () => {
+    const current = buildVariant({ id: 'var-1', size: '30', color: 'azul' });
+    variants.findById.mockResolvedValue(current);
+    products.findById.mockResolvedValue(buildProduct({ code: 'JN001' }));
+    // findActiveByTuple returns THIS variant — that's fine, no clash.
+    variants.findActiveByTuple.mockResolvedValue(current);
+    variants.update.mockImplementation(async (_id, data) => buildVariant({ ...current, ...data }));
+
+    await service.update('var-1', { priceCents: 27000 });
+    expect(variants.update).toHaveBeenCalled();
   });
 });
 

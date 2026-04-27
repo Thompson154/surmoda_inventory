@@ -78,9 +78,11 @@ export type CreateVariantInput = z.infer<typeof CreateVariantSchema>;
 export const UpdateVariantSchema = z
   .object({
     priceCents: z.coerce.number().int().min(PRICE_MIN_CENTS).max(PRICE_MAX_CENTS).optional(),
+    size: SizeEnum.optional(),
+    color: z.string().trim().min(1).max(COLOR_MAX).optional(),
   })
   .strict()
-  .refine((d) => d.priceCents !== undefined, {
+  .refine((d) => d.priceCents !== undefined || d.size !== undefined || d.color !== undefined, {
     message: 'Al menos un campo es requerido',
   });
 
