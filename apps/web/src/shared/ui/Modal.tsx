@@ -10,25 +10,71 @@ export interface ModalProps {
   ariaLabelledBy?: string;
 }
 
-// NOTE: This implements a minimal focus-on-open approach (close button gets focus).
-// A full focus trap (cycling Tab within the modal) would require an additional
-// library (e.g. focus-trap-react) — documented here as a known limitation.
+// All elements that the browser considers tabbable. Used by the focus trap
+// below. Elements with a negative tabindex or that are disabled / hidden are
+// excluded.
+const TABBABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'textarea:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
+function getTabbables(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute('disabled') && el.offsetParent !== null,
+  );
+}
+
 export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: ModalProps) {
   const titleId = ariaLabelledBy ?? 'modal-title';
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Saves whatever was focused before the modal opened so we can restore on close.
+  const previouslyFocusedRef = useRef<Element | null>(null);
 
-  // WHY: focus management runs ONLY on open transitions — not on every parent re-render.
-  // Tying focus to a callback dep (onClose) causes the close button to steal focus mid-typing.
+  // Focus management on open / close. Runs ONLY on the boolean transition so
+  // updates to onClose don't steal focus mid-typing.
   useEffect(() => {
-    if (!isOpen) return;
-    closeButtonRef.current?.focus();
+    if (isOpen) {
+      previouslyFocusedRef.current = document.activeElement;
+      // The close button is a stable, always-present anchor. Inner pages can
+      // re-focus a more natural target after mount if they want.
+      closeButtonRef.current?.focus();
+      return;
+    }
+    // Modal closed — restore focus to whatever opened it (Save/Edit button etc.)
+    const prev = previouslyFocusedRef.current;
+    if (prev instanceof HTMLElement) prev.focus();
   }, [isOpen]);
 
+  // Keyboard contract: Escape closes; Tab cycles within the dialog. The cycle
+  // is what makes screen-reader / keyboard users not lose context to the page
+  // behind the dialog.
   useEffect(() => {
     if (!isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const tabbables = getTabbables(dialogRef.current);
+      if (tabbables.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = tabbables[0]!;
+      const last = tabbables[tabbables.length - 1]!;
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
       }
     }
     document.addEventListener('keydown', handleKeyDown);
@@ -45,9 +91,14 @@ export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: Moda
         'fixed inset-0 z-50 flex items-center justify-center',
         'bg-slate-900/60 backdrop-blur-sm animate-fade-in',
       )}
+      // Backdrop click closes the modal. Keyboard equivalent is Escape, which
+      // is wired in the effect above — the static-element jsx-a11y warning is
+      // a known acceptable pattern for modal scrims.
+
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -59,10 +110,7 @@ export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: Moda
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-surface-border">
-          <h2
-            id={titleId}
-            className="text-lg font-semibold text-slate-900"
-          >
+          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
             {title}
           </h2>
           <button
@@ -81,9 +129,7 @@ export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: Moda
         </div>
 
         {/* Body */}
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );

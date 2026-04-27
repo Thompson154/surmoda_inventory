@@ -68,9 +68,7 @@ export const handlers = [
 
   http.post(`${BASE}/auth/logout`, () => new HttpResponse(null, { status: 204 })),
 
-  http.post(`${BASE}/auth/refresh`, () =>
-    HttpResponse.json({ accessToken: 'fresh-jwt' }),
-  ),
+  http.post(`${BASE}/auth/refresh`, () => HttpResponse.json({ accessToken: 'fresh-jwt' })),
 
   http.get(`${BASE}/auth/me`, () => HttpResponse.json(fakeAuthUser)),
 
@@ -100,27 +98,28 @@ export const handlers = [
 
   http.patch(`${BASE}/users/:id`, () => HttpResponse.json(fakeUser)),
 
-  http.post(`${BASE}/users/:id/deactivate`, () => HttpResponse.json({ ...fakeUser, isActive: false })),
+  http.post(`${BASE}/users/:id/deactivate`, () =>
+    HttpResponse.json({ ...fakeUser, isActive: false }),
+  ),
 
-  http.post(`${BASE}/users/:id/reactivate`, () => HttpResponse.json({ ...fakeUser, isActive: true })),
+  http.post(`${BASE}/users/:id/reactivate`, () =>
+    HttpResponse.json({ ...fakeUser, isActive: true }),
+  ),
 
   http.post(`${BASE}/users/:id/password-reset`, () => new HttpResponse(null, { status: 204 })),
 
   // Assignments
-  http.get(`${BASE}/users/:userId/assignments`, () =>
-    HttpResponse.json({ items: [] }),
-  ),
+  http.get(`${BASE}/users/:userId/assignments`, () => HttpResponse.json({ items: [] })),
 
   http.post(`${BASE}/users/:userId/assignments`, () =>
     HttpResponse.json(fakeAssignment, { status: 201 }),
   ),
 
-  http.patch(`${BASE}/users/:userId/assignments/:id`, () =>
-    HttpResponse.json(fakeAssignment),
-  ),
+  http.patch(`${BASE}/users/:userId/assignments/:id`, () => HttpResponse.json(fakeAssignment)),
 
-  http.delete(`${BASE}/users/:userId/assignments/:id`, () =>
-    new HttpResponse(null, { status: 204 }),
+  http.delete(
+    `${BASE}/users/:userId/assignments/:id`,
+    () => new HttpResponse(null, { status: 204 }),
   ),
 
   // Stores
@@ -766,7 +765,12 @@ export const handlers = [
           message: 'Stock bajo en Sucursal Prado: JN001 · 30 · azul (3 u.)',
           link: '/sedes/store-prado-seed/inventario',
           detectedAt: new Date().toISOString(),
-          meta: { storeId: 'store-prado-seed', variantId: 'v-1', productCode: 'JN001', quantity: 3 },
+          meta: {
+            storeId: 'store-prado-seed',
+            variantId: 'v-1',
+            productCode: 'JN001',
+            quantity: 3,
+          },
         },
       ],
       countsByKind: { STOCK_LOW: 1, STOCK_OUT_HOT: 0, CIERRE_MISSING: 1 },
@@ -790,16 +794,54 @@ export const handlers = [
         discountCents: 25_000,
       },
       byStore: [
-        { storeId: 'store-prado-seed', storeName: 'Sucursal Prado', storeCode: 'PRADO', totalCents: 920_000, transactionsCount: 51 },
-        { storeId: 'store-zsur-seed', storeName: 'Sucursal Zona Sur', storeCode: 'ZSUR', totalCents: 620_000, transactionsCount: 33 },
+        {
+          storeId: 'store-prado-seed',
+          storeName: 'Sucursal Prado',
+          storeCode: 'PRADO',
+          totalCents: 920_000,
+          transactionsCount: 51,
+        },
+        {
+          storeId: 'store-zsur-seed',
+          storeName: 'Sucursal Zona Sur',
+          storeCode: 'ZSUR',
+          totalCents: 620_000,
+          transactionsCount: 33,
+        },
       ],
       topProducts: [
-        { variantId: 'v-1', productCode: 'JN001', productName: 'Jeans clásico', size: '30', color: 'azul', quantitySold: 12, totalCents: 360_000 },
-        { variantId: 'v-2', productCode: 'CHQ001', productName: 'Chaqueta clásica', size: 'm', color: 'negro', quantitySold: 6, totalCents: 270_000 },
+        {
+          variantId: 'v-1',
+          productCode: 'JN001',
+          productName: 'Jeans clásico',
+          size: '30',
+          color: 'azul',
+          quantitySold: 12,
+          totalCents: 360_000,
+        },
+        {
+          variantId: 'v-2',
+          productCode: 'CHQ001',
+          productName: 'Chaqueta clásica',
+          size: 'm',
+          color: 'negro',
+          quantitySold: 6,
+          totalCents: 270_000,
+        },
       ],
       topSellers: [
-        { userId: 'user-vendedora-1', fullName: 'Lucía Vendedora', transactionsCount: 30, totalCents: 540_000 },
-        { userId: 'user-vendedora-2', fullName: 'Sofía Vendedora', transactionsCount: 24, totalCents: 410_000 },
+        {
+          userId: 'user-vendedora-1',
+          fullName: 'Lucía Vendedora',
+          transactionsCount: 30,
+          totalCents: 540_000,
+        },
+        {
+          userId: 'user-vendedora-2',
+          fullName: 'Sofía Vendedora',
+          transactionsCount: 24,
+          totalCents: 410_000,
+        },
       ],
     });
   }),
@@ -838,4 +880,47 @@ export const handlers = [
       })),
     }),
   ),
+
+  http.get(`${BASE}/audit-logs`, ({ request }) => {
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+    const storeId = url.searchParams.get('storeId');
+    const items = [
+      {
+        id: 'a1',
+        timestamp: '2026-04-26T10:00:00.000Z',
+        userId: 'user-1',
+        userLabel: 'Lucía Vendedora',
+        action: 'SALE_CREATED',
+        entity: 'Sale',
+        entityId: 'sale-1',
+        payload: { storeId: 'store-prado-seed', totalCents: 12000 },
+        ip: '190.1.2.3',
+        userAgent: 'Mozilla',
+      },
+      {
+        id: 'a2',
+        timestamp: '2026-04-26T09:55:00.000Z',
+        userId: 'user-2',
+        userLabel: 'Sofía Encargada',
+        action: 'DELIVERY_CONFIRMED',
+        entity: 'Delivery',
+        entityId: 'd-99',
+        payload: { fromStoreId: 'store-almacen-seed', toStoreId: 'store-zsur-seed' },
+        ip: '190.1.2.4',
+        userAgent: 'Mozilla',
+      },
+    ];
+    const filtered = items.filter((it) => {
+      if (userId && it.userId !== userId) return false;
+      if (storeId) {
+        const p = it.payload as Record<string, unknown>;
+        const matches =
+          p.storeId === storeId || p.toStoreId === storeId || p.fromStoreId === storeId;
+        if (!matches) return false;
+      }
+      return true;
+    });
+    return HttpResponse.json({ items: filtered, total: filtered.length, page: 1, pageSize: 50 });
+  }),
 ];

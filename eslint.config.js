@@ -27,6 +27,12 @@ export default tseslint.config(
       '**/node_modules/**',
       'apps/api/prisma/migrations/**',
       'apps/web/dev-dist/**',
+      // Playwright E2E suite — outside any tsconfig project; lint via the
+      // standalone playwright config when a polish pass needs it.
+      'tests/e2e/**',
+      'playwright.config.ts',
+      'playwright-report/**',
+      'test-results/**',
     ],
   },
   js.configs.recommended,

@@ -20,6 +20,7 @@ import {
   type StoreScopeRepo,
 } from '../../shared/auth/storeScope';
 import type { DeliveryRepository, DeliveryTx } from './repository';
+import { applyDestinationCredit, applyOriginDebit } from './stockOps';
 import type { ProductRepository } from '../products/repository.product';
 import type { VariantRepository } from '../products/repository.variant';
 import { generateBarcode } from '../products/barcode';
@@ -154,86 +155,19 @@ export function buildDeliveryService({
     return agg;
   }
 
-  /**
-   * Apply stock for a delivery: decrement source warehouse + increment destination,
-   * emit movement rows. Used when a delivery transitions to received|partial,
-   * and also for reception-kind deliveries at creation time.
-   *
-   * `quantitiesByItem` is the map of receivedQuantity per delivery line.
-   */
-  async function applyStockForReception(
-    args: {
-      kind: 'reception' | 'distribution';
-      fromStoreId: string | null;
-      toStoreId: string;
-      quantitiesByItem: Map<string, { variantId: string; receivedQuantity: number }>;
-      userId: string;
-    },
-    tx: DeliveryTx,
-  ): Promise<void> {
-    const aggregated = new Map<string, number>();
-    for (const { variantId, receivedQuantity } of args.quantitiesByItem.values()) {
-      aggregated.set(variantId, (aggregated.get(variantId) ?? 0) + receivedQuantity);
+  // Stock movement primitives (origin debit + destination credit) live in
+  // `./stockOps` so the lifecycle service stays focused on transitions and
+  // RBAC. Q2-D split-timing semantics documented there.
+  // Helper preserved here for the receive() call: collapse the per-line
+  // received-quantity map to an aggregated [{variantId, quantity}] list.
+  function aggregateReceived(
+    qtyByItem: Map<string, { variantId: string; receivedQuantity: number }>,
+  ): Array<{ variantId: string; quantity: number }> {
+    const map = new Map<string, number>();
+    for (const { variantId, receivedQuantity } of qtyByItem.values()) {
+      map.set(variantId, (map.get(variantId) ?? 0) + receivedQuantity);
     }
-
-    if (args.kind === 'distribution') {
-      if (!args.fromStoreId) {
-        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Distribución sin sede de origen.');
-      }
-      // Re-check stock at receive time — between draft and reception inventory
-      // could have moved (other deliveries, manual adjustments).
-      const stockMap = await deliveries.loadStockForVariants(
-        args.fromStoreId,
-        Array.from(aggregated.keys()),
-        tx,
-      );
-      for (const [variantId, qty] of aggregated.entries()) {
-        if (qty <= 0) continue;
-        const available = stockMap.get(variantId) ?? 0;
-        if (available < qty) {
-          throw new AppError(
-            409,
-            ERROR_CODES.DELIVERY_INSUFFICIENT_STOCK,
-            'Stock insuficiente en el almacén al confirmar la recepción.',
-            { variantId, available, requested: qty },
-          );
-        }
-      }
-      for (const [variantId, qty] of aggregated.entries()) {
-        if (qty <= 0) continue;
-        const after = await deliveries.decrementStock(args.fromStoreId, variantId, qty, tx);
-        await deliveries.createMovement(
-          {
-            storeId: args.fromStoreId,
-            variantId,
-            userId: args.userId,
-            type: 'delivery_out',
-            payload: { quantity: qty, balanceAfter: after, toStoreId: args.toStoreId },
-          },
-          tx,
-        );
-      }
-    }
-
-    for (const [variantId, qty] of aggregated.entries()) {
-      if (qty <= 0) continue;
-      const after = await deliveries.incrementStock(args.toStoreId, variantId, qty, tx);
-      await deliveries.createMovement(
-        {
-          storeId: args.toStoreId,
-          variantId,
-          userId: args.userId,
-          type: 'delivery_in',
-          payload: {
-            quantity: qty,
-            balanceAfter: after,
-            fromStoreId: args.fromStoreId,
-            kind: args.kind,
-          },
-        },
-        tx,
-      );
-    }
+    return Array.from(map.entries()).map(([variantId, quantity]) => ({ variantId, quantity }));
   }
 
   function assertDistributionTransition(current: DeliveryStatus, target: DeliveryStatus): void {
@@ -340,29 +274,36 @@ export function buildDeliveryService({
           tx,
         );
 
-        // Stock is applied only when the delivery is born `received` (legacy
-        // reception flow). Draft + sent leave stock untouched until reception.
-        if (targetStatus === 'received') {
-          // Reload items so we have the freshly-generated DeliveryItem ids.
-          const fresh = await deliveries.loadForUpdate(created.id, tx);
-          if (!fresh)
-            throw new AppError(
-              500,
-              ERROR_CODES.INTERNAL_ERROR,
-              'Entrega recién creada no se pudo recuperar.',
-            );
-          const qtyMap = new Map(
-            fresh.items.map((i) => [
-              i.id,
-              { variantId: i.variantId, receivedQuantity: i.quantity },
-            ]),
+        // Q2-D timing — see stockOps.ts for the rationale.
+        //   targetStatus === 'sent'     → debit origin now (born-sent path).
+        //   targetStatus === 'received' → credit destination now (intake).
+        //   targetStatus === 'draft'    → no movement; deferred to confirmDraft.
+        if (targetStatus === 'sent') {
+          if (!fromStoreId) {
+            throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Distribución sin sede de origen.');
+          }
+          const items = Array.from(aggregated.entries()).map(([variantId, quantity]) => ({
+            variantId,
+            quantity,
+          }));
+          await applyOriginDebit(
+            deliveries,
+            { fromStoreId, toStoreId, items, userId: auth.userId },
+            tx,
           );
-          await applyStockForReception(
+        } else if (targetStatus === 'received') {
+          // Intake: only destination credit. fromStoreId is null for reception kind.
+          const items = Array.from(aggregated.entries()).map(([variantId, quantity]) => ({
+            variantId,
+            quantity,
+          }));
+          await applyDestinationCredit(
+            deliveries,
             {
               kind: isReception ? 'reception' : 'distribution',
               fromStoreId,
               toStoreId,
-              quantitiesByItem: qtyMap,
+              items,
               userId: auth.userId,
             },
             tx,
@@ -459,6 +400,30 @@ export function buildDeliveryService({
         if (input.title && input.title !== current.title) {
           await deliveries.updateDraftHeader(deliveryId, { title: finalTitle }, tx);
         }
+
+        // Q2-D — origin stock leaves AT confirm (not at receive). Validates
+        // origin balance; throws DELIVERY_INSUFFICIENT_STOCK on shortage so
+        // the encargada catches it before the truck leaves.
+        if (current.kind === 'distribution') {
+          if (!current.fromStoreId) {
+            throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Distribución sin sede de origen.');
+          }
+          const items = current.items.map((i) => ({
+            variantId: i.variantId,
+            quantity: i.quantity,
+          }));
+          await applyOriginDebit(
+            deliveries,
+            {
+              fromStoreId: current.fromStoreId,
+              toStoreId: current.toStoreId,
+              items,
+              userId: auth.userId,
+            },
+            tx,
+          );
+        }
+
         await deliveries.setStatus(deliveryId, 'sent', { sentAt: new Date() }, null, tx);
         return deliveryId;
       });
@@ -567,12 +532,20 @@ export function buildDeliveryService({
 
         await deliveries.recordAdjustments(deliveryId, adjustments, tx);
 
-        await applyStockForReception(
+        // Q2-D — only destination credit here. Origin already debited at
+        // sent time (full sent quantity). Lines where receivedQuantity is
+        // less than sent are LOST IN TRANSIT and stay out of both stocks;
+        // the gap is captured by `delivery_received_adjusted` movements
+        // emitted above per partial line — admin can reconcile via stock
+        // adjustment if the missing units later turn up.
+        const aggregated = aggregateReceived(qtyMap);
+        await applyDestinationCredit(
+          deliveries,
           {
             kind: current.kind,
             fromStoreId: current.fromStoreId,
             toStoreId: current.toStoreId,
-            quantitiesByItem: qtyMap,
+            items: aggregated,
             userId: auth.userId,
           },
           tx,
@@ -818,7 +791,7 @@ export function buildDeliveryService({
           tx,
         );
 
-        // 5. Apply stock + write delivery_in movements (kind=reception).
+        // 5. Credit destination (warehouse) — intake has no origin.
         const fresh = await deliveries.loadForUpdate(created.id, tx);
         if (!fresh) {
           throw new AppError(
@@ -827,15 +800,17 @@ export function buildDeliveryService({
             'Entrega recién creada no se pudo recuperar.',
           );
         }
-        const qtyMap = new Map(
-          fresh.items.map((i) => [i.id, { variantId: i.variantId, receivedQuantity: i.quantity }]),
-        );
-        await applyStockForReception(
+        const items = fresh.items.map((i) => ({
+          variantId: i.variantId,
+          quantity: i.quantity,
+        }));
+        await applyDestinationCredit(
+          deliveries,
           {
             kind: 'reception',
             fromStoreId: null,
             toStoreId: warehouseId,
-            quantitiesByItem: qtyMap,
+            items,
             userId: auth.userId,
           },
           tx,

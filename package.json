@@ -24,12 +24,16 @@
     "format:check": "prettier --check .",
     "prisma:migrate": "npm run prisma:migrate -w @proyecto-degrado/api",
     "prisma:seed": "npm run prisma:seed -w @proyecto-degrado/api",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install --with-deps",
     "prepare": "husky"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.2",
     "@commitlint/config-conventional": "^20.5.0",
     "@eslint/js": "^9.18.0",
+    "@playwright/test": "^1.59.1",
     "eslint": "^9.18.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
