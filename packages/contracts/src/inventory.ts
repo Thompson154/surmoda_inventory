@@ -88,7 +88,17 @@ export interface StockMovement {
   type: StockMovementType;
   payload: StockMovementPayload;
   productCode: string | null;
+  /** Nombre del producto al momento de leer el movimiento. Permite que la
+   *  UI del drawer muestre algo legible ("Polera azul talla M") en vez de
+   *  solo un código alfanumérico. Null cuando el movimiento no tiene
+   *  variante asociada (edit_permission_toggled). */
+  productName: string | null;
   barcode: string | null;
+  /** Tamaño + color de la variante para que el drawer muestre la
+   *  identificación humana sin un fetch extra. Null para movimientos sin
+   *  variante. */
+  variantSize: string | null;
+  variantColor: string | null;
   createdAt: string;
 }
 
