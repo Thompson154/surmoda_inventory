@@ -1,14 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  ChevronRight,
-  ChevronLeft,
-  Package,
-  ArrowLeft,
-} from 'lucide-react';
+import { Plus, Search, ChevronRight, ChevronLeft, Package, ArrowLeft } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
+import { getImageUrl } from '../services/productsService';
 import {
   Alert,
   Badge,
@@ -134,36 +128,48 @@ export function ProductsListPage() {
               <Card>
                 <CardContent className="p-0">
                   <ul>
-                    {query.data.items.map((p) => (
-                      <li
-                        key={p.id}
-                        className="border-b border-surface-border last:border-b-0"
-                      >
-                        <Link
-                          to={`/products/${p.id}`}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors duration-150"
-                        >
-                          <div className="h-10 w-10 rounded-md bg-surface-sunken text-slate-600 flex items-center justify-center shrink-0">
-                            <Package className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{p.name}</p>
-                            <p className="text-xs text-slate-500 truncate font-mono">{p.code}</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant="default">
-                              {p.variantsCount === 0
-                                ? 'Sin variantes'
-                                : p.variantsCount === 1
-                                ? '1 variante'
-                                : `${p.variantsCount} variantes`}
-                            </Badge>
-                            {!p.isActive && <Badge variant="default">Inactivo</Badge>}
-                            <ChevronRight className="h-4 w-4 text-slate-400" />
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
+                    {query.data.items.map((p) => {
+                      const imageUrl = getImageUrl(p.representativeImagePath);
+                      return (
+                        <li key={p.id} className="border-b border-surface-border last:border-b-0">
+                          <Link
+                            to={`/products/${p.id}`}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors duration-150"
+                          >
+                            <div className="h-10 w-10 rounded-md bg-surface-sunken text-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Package className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">
+                                {p.name}
+                              </p>
+                              <p className="text-xs text-slate-500 truncate font-mono">{p.code}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Badge variant="default">
+                                {p.variantsCount === 0
+                                  ? 'Sin variantes'
+                                  : p.variantsCount === 1
+                                    ? '1 variante'
+                                    : `${p.variantsCount} variantes`}
+                              </Badge>
+                              {!p.isActive && <Badge variant="default">Inactivo</Badge>}
+                              <ChevronRight className="h-4 w-4 text-slate-400" />
+                            </div>
+                          </Link>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </CardContent>
 
