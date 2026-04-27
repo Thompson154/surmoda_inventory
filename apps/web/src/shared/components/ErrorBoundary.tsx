@@ -52,17 +52,22 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div
         role="alert"
-        className="min-h-screen flex items-center justify-center bg-surface-base p-6"
+        className="min-h-[100dvh] flex items-center justify-center bg-surface-base p-6"
       >
         <div className="max-w-md w-full rounded-xl border border-surface-border bg-white p-6 shadow-sm flex flex-col gap-3">
           <h1 className="text-xl font-semibold text-slate-900">Algo salió mal</h1>
           <p className="text-sm text-slate-600">
-            La aplicación encontró un error inesperado. Probá recargar la página
-            o volver al inicio. Si el problema persiste, avisale al admin.
+            La aplicación encontró un error inesperado. Probá recargar la página o volver al inicio.
+            Si el problema persiste, avisale al admin.
           </p>
-          <p className="text-[11px] font-mono text-slate-400 break-words">
-            {error.message}
-          </p>
+          {/* Tier 3.C.9 — error.message can leak internal function names,
+              line numbers, or API shape that's useful for an attacker.
+              Show it only in dev (vite.import.meta.env.DEV); in prod the
+              user gets the friendly Spanish copy above and the actual
+              error goes to the APM via the onError telemetry hook. */}
+          {import.meta.env.DEV && (
+            <p className="text-[11px] font-mono text-slate-400 break-words">{error.message}</p>
+          )}
           <div className="flex gap-2 mt-2">
             <button
               type="button"

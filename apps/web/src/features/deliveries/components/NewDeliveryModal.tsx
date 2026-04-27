@@ -238,6 +238,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                     </div>
                     <Input
                       type="number"
+                      inputMode="numeric"
                       min={0}
                       max={isReception ? undefined : i.available}
                       value={String(i.quantity)}

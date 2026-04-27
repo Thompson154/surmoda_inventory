@@ -106,7 +106,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="fixed bottom-24 right-3 z-[60] flex flex-col gap-2 max-w-[calc(100vw-1.5rem)] sm:max-w-sm pointer-events-none"
+        // Tier 3.C.8 — clamp the bottom offset above the iOS virtual keyboard.
+        // `env(keyboard-inset-height,0px)` returns the keyboard height when
+        // it's open and 0 otherwise; we still keep a 96px floor so the toast
+        // clears the BottomNav + iOS home bar with a comfortable margin.
+        className="fixed bottom-[max(6rem,env(keyboard-inset-height,0px))] right-3 z-[60] flex flex-col gap-2 max-w-[calc(100vw-1.5rem)] sm:max-w-sm pointer-events-none"
         role="region"
         aria-label="Notificaciones"
       >

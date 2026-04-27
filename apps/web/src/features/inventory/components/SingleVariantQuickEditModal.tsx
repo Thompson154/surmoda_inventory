@@ -190,6 +190,7 @@ export function SingleVariantQuickEditModal({
             />
             <Input
               type="number"
+              inputMode="numeric"
               min={0}
               value={String(draft)}
               onChange={(e) => setDraft(Math.max(0, Number(e.target.value) || 0))}

@@ -307,6 +307,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       </p>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         value={String(v.quantity)}
                         onChange={(e) =>
@@ -348,6 +349,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       </p>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         step={1}
                         value={String(Math.round(v.priceCents / 100))}

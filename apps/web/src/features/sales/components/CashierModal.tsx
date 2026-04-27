@@ -272,6 +272,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                     <td className="px-2 py-2 text-right">
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={i.available}
                         value={String(i.quantity)}
@@ -286,6 +287,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                     <td className="px-2 py-2 text-right">
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         step={0.01}
                         value={(i.subtotalCents / 100).toFixed(2)}
