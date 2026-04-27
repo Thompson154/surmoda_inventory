@@ -68,7 +68,9 @@ export function BarcodePrintModal({
 
   const handlePrint = () => window.print();
 
-  const sheetTitle = productCode + (productDescription ? ` — ${productDescription}` : productName ? ` — ${productName}` : '');
+  const sheetTitle =
+    productCode +
+    (productDescription ? ` — ${productDescription}` : productName ? ` — ${productName}` : '');
   const variantLine = `${sizeLabel(size)} · ${color}`;
 
   return (
@@ -93,6 +95,7 @@ export function BarcodePrintModal({
           <Input
             id="bc-copies"
             type="number"
+            inputMode="numeric"
             min={MIN_COPIES}
             max={MAX_COPIES}
             value={String(copies)}
@@ -207,7 +210,9 @@ function BarcodeCell({
     <div className="print-cell">
       <svg ref={ref} />
       <p className="code">{value}</p>
-      <p className="desc">{productCode} · {variantLine}</p>
+      <p className="desc">
+        {productCode} · {variantLine}
+      </p>
     </div>
   );
 }

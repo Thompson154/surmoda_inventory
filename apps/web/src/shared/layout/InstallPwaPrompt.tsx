@@ -22,14 +22,33 @@ type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
 };
 
-const DISMISS_KEY = 'surmoda:pwa-install-dismissed';
+// Tier 3.C.10 — store an ISO timestamp instead of a boolean. Each dismiss
+// silences the prompt for 7 days; after that it shows again. Catches the
+// case where staff dismiss during onboarding then never see the option to
+// install (the original "forever-dismissed" model was too aggressive for
+// a B2B tool where install genuinely benefits users every day).
+const DISMISS_KEY = 'surmoda:pwa-install-dismissed-until';
+const SNOOZE_DAYS = 7;
+
+function readDismissUntil(): number {
+  if (typeof window === 'undefined') return Number.MAX_SAFE_INTEGER;
+  const raw = window.localStorage.getItem(DISMISS_KEY);
+  if (!raw) return 0;
+  // Legacy: '1' means dismissed-forever from the Tier 1 implementation.
+  // Treat as a 7-day snooze starting now so we don't permanently lock
+  // out users who upgraded the bundle.
+  if (raw === '1') {
+    const until = Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+    window.localStorage.setItem(DISMISS_KEY, String(until));
+    return until;
+  }
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export function InstallPwaPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem(DISMISS_KEY) === '1';
-  });
+  const [dismissedUntil, setDismissedUntil] = useState<number>(() => readDismissUntil());
 
   useEffect(() => {
     function onBeforeInstall(e: Event): void {
@@ -38,8 +57,12 @@ export function InstallPwaPrompt() {
     }
     function onInstalled(): void {
       setDeferred(null);
-      setDismissed(true);
-      window.localStorage.setItem(DISMISS_KEY, '1');
+      // Hard-stop: an already-installed app should never see the prompt.
+      // Use the year-3000 sentinel so the SNOOZE_DAYS check treats it as
+      // permanently dismissed.
+      const forever = new Date('3000-01-01T00:00:00Z').getTime();
+      setDismissedUntil(forever);
+      window.localStorage.setItem(DISMISS_KEY, String(forever));
     }
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
@@ -49,11 +72,18 @@ export function InstallPwaPrompt() {
     };
   }, []);
 
-  if (!deferred || dismissed) return null;
+  // Reading Date.now() in render is technically impure per react-hooks/purity,
+  // but the visibility flag genuinely depends on wall-clock time relative to
+  // the user-set snooze. The component naturally re-renders when state changes
+  // (deferred/dismissedUntil), and a stale read here just means the banner
+  // shows up to one render late — which is the desired behaviour anyway.
+  // eslint-disable-next-line react-hooks/purity
+  if (!deferred || Date.now() < dismissedUntil) return null;
 
   const dismiss = (): void => {
-    setDismissed(true);
-    window.localStorage.setItem(DISMISS_KEY, '1');
+    const until = Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+    setDismissedUntil(until);
+    window.localStorage.setItem(DISMISS_KEY, String(until));
   };
 
   const install = async (): Promise<void> => {

@@ -1,0 +1,20 @@
+# Tier 3.C.11 — gitleaks config. Kept minimal: rely on the default ruleset
+# which already covers AWS / GCP / Azure / Stripe / Cloudinary / generic
+# private-key patterns. Add allowlist entries here when a known false-
+# positive surfaces (CI workflow placeholder secrets etc.).
+
+[allowlist]
+# CI test JWT secret is intentionally a 64-char placeholder marked as
+# test-only. It's a real bcrypt-grade format but useless because nobody
+# can sign with it (it's public in the workflow file).
+regexes = [
+  '''ci-only-secret-do-not-use-in-prod-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa''',
+  '''replace-me-with-a-random-64-char-hex-string''',
+  '''test-only-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa''',
+]
+paths = [
+  # Generated client + lockfile churn surface random hashes that look
+  # secret-shaped to gitleaks but aren't.
+  '''package-lock\.json''',
+  '''apps/api/prisma/migrations/.*\.sql''',
+]

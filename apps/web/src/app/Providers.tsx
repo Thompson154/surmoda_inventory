@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 import { ToastProvider } from '@/shared/ui';
+import { useOfflineSaleSync } from '@/features/sales/hooks/useOfflineSaleSync';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -10,6 +11,16 @@ const queryClient = new QueryClient({
     mutations: { retry: 0 },
   },
 });
+
+/** Internal child so the offline-sync hook (which depends on the QueryClient
+ *  and BrowserRouter being mounted) can run inside the provider tree. */
+function ProvidersInner({ children }: { children: ReactNode }) {
+  // Tier 3.A.2 — drain pending offline sales every time the browser fires
+  // 'online' (and once on mount). Mounted Provider-level so it runs even
+  // when the user is on a different tab when wifi returns.
+  useOfflineSaleSync();
+  return <BrowserRouter>{children}</BrowserRouter>;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   // ErrorBoundary wraps EVERYTHING so a render bug in any provider, route, or
@@ -19,7 +30,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <BrowserRouter>{children}</BrowserRouter>
+          <ProvidersInner>{children}</ProvidersInner>
         </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>

@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { buildAuthService, type AuthService } from '../service';
 import {
   InvalidCredentialsError,
@@ -71,6 +71,22 @@ describe('AuthService.login', () => {
       service.login({ email: 'missing@test.local', password: 'x' }),
     ).rejects.toBeInstanceOf(InvalidCredentialsError);
     expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('login on missing user still runs bcrypt.compare (timing-equalisation)', async () => {
+    // The login flow MUST NOT short-circuit when no user matches: skipping
+    // bcrypt makes the response near-instant and lets attackers enumerate
+    // registered emails by measuring response delay. Verify the dummy
+    // bcrypt.compare path runs by spying on it.
+    const spy = jest.spyOn(bcrypt, 'compare');
+    db.user.findUnique.mockResolvedValue(null);
+    await service.login({ email: 'never@test.local', password: 'x' }).catch(() => undefined);
+    expect(spy).toHaveBeenCalledTimes(1);
+    // First arg is the candidate password; second is the (decoy) hash.
+    expect(spy.mock.calls[0]?.[0]).toBe('x');
+    expect(typeof spy.mock.calls[0]?.[1]).toBe('string');
+    expect((spy.mock.calls[0]?.[1] as string).startsWith('$2')).toBe(true); // bcrypt prefix
+    spy.mockRestore();
   });
 
   it('throws InvalidCredentialsError when password mismatches', async () => {

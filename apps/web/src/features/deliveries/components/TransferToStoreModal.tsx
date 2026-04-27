@@ -247,6 +247,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
                   </div>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     max={i.available}
                     value={String(i.quantity)}

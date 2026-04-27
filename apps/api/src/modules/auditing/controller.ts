@@ -5,12 +5,14 @@ import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import type { AuthContext } from '../../shared/auth/storeScope';
 import type { AuditQueryService } from './queryService';
 
-const ListAuditLogsQuerySchema = z.object({
-  userId: z.string().min(1).optional(),
-  storeId: z.string().min(1).optional(),
-  page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(200).optional(),
-});
+const ListAuditLogsQuerySchema = z
+  .object({
+    userId: z.string().min(1).max(64).optional(),
+    storeId: z.string().min(1).max(64).optional(),
+    page: z.coerce.number().int().min(1).optional(),
+    pageSize: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
 
 export interface AuditController {
   list(req: Request, res: Response, next: NextFunction): Promise<void>;

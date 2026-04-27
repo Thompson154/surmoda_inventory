@@ -1,0 +1,56 @@
+# Tier 3.B.12 — automated dependency hygiene.
+#
+# Renovate is more powerful but requires an external app install + config
+# overhead; Dependabot is built into GitHub, zero-config beyond this file,
+# and covers our supply-chain needs:
+#   - npm: weekly bumps grouped by minor/major so PR noise is bounded
+#   - github-actions: keeps `actions/checkout@v4` etc. current (Tier 3.B.11
+#     references this as the rotation channel for first-party action pins)
+#
+# Each ecosystem opens at most 5 PRs/day so a security cliff doesn't spam
+# the queue. PRs are labeled and assigned to the maintainer (TODO: replace
+# placeholder once the GitHub username is settled in CONTRIBUTING.md).
+
+version: 2
+updates:
+  # Root + workspaces. `package-ecosystem: npm` walks the lockfile from
+  # /; that single config covers every workspace package.
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/La_Paz
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - npm
+    groups:
+      production-minor-and-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development-all:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    # Major bumps land as separate PRs so each one gets its own review +
+    # changelog inspection. React 19, Prisma 7, Express 5 are all majors
+    # that deserve dedicated branches.
+
+  # First-party GitHub Actions get tag-bumped here. CI workflow notes
+  # explicitly delegate SHA-pinning concerns to this stream.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/La_Paz
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions

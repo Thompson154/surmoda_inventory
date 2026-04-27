@@ -6,12 +6,20 @@ import type {
 } from '@surmoda/contracts';
 import { inventoryQueryKeys, inventoryService } from '../services/inventoryService';
 
+// Tier 3.B.16 — periodic refetch so two cashiers at the same store see each
+// other's stock changes within ~10s without needing a websocket. Cheap on
+// our scale (5 stores × 5-15 concurrent users); React Query dedupes inflight
+// requests so navigating between tabs doesn't multiply the polling.
+const INVENTORY_REFETCH_MS = 10_000;
+
 export function useInventory(storeId: string | undefined, filters: ListInventoryFilters = {}) {
   return useQuery({
     queryKey: storeId ? inventoryQueryKeys.list(storeId, filters) : ['inventory', 'list', 'noop'],
     queryFn: () => inventoryService.list(storeId as string, filters),
     enabled: Boolean(storeId),
     placeholderData: (prev) => prev,
+    refetchInterval: INVENTORY_REFETCH_MS,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -27,7 +35,9 @@ export function useStockMovements(storeId: string | undefined, page: number, pag
 
 export function useEditPermission(storeId: string | undefined) {
   return useQuery({
-    queryKey: storeId ? inventoryQueryKeys.permission(storeId) : ['inventory', 'permission', 'noop'],
+    queryKey: storeId
+      ? inventoryQueryKeys.permission(storeId)
+      : ['inventory', 'permission', 'noop'],
     queryFn: () => inventoryService.getEditPermission(storeId as string),
     enabled: Boolean(storeId),
   });

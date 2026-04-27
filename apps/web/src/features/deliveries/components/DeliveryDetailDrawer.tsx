@@ -175,6 +175,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                             <span className="text-xs text-slate-400">de {it.quantity}</span>
                             <input
                               type="number"
+                              inputMode="numeric"
                               min={0}
                               max={it.quantity}
                               value={value}

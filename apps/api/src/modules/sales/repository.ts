@@ -39,16 +39,33 @@ export interface SaleRepository {
   loadStoreLockState(storeId: string, tx: SaleTx): Promise<{ salesLockedAt: Date | null } | null>;
   loadVariantPrices(variantIds: string[], tx: SaleTx): Promise<Map<string, number>>;
   variantsExistAndActive(variantIds: string[], tx: SaleTx): Promise<Set<string>>;
-  loadStockForVariants(storeId: string, variantIds: string[], tx: SaleTx): Promise<Map<string, number>>;
+  loadStockForVariants(
+    storeId: string,
+    variantIds: string[],
+    tx: SaleTx,
+  ): Promise<Map<string, number>>;
   decrementStock(storeId: string, variantId: string, qty: number, tx: SaleTx): Promise<number>;
-  createMovement(input: {
-    storeId: string;
-    variantId: string;
-    userId: string;
-    payload: Record<string, unknown>;
-  }, tx: SaleTx): Promise<void>;
-  createSale(header: CreateSaleHeaderInput, items: CreateSaleItemRow[], tx: SaleTx): Promise<{ id: string }>;
+  createMovement(
+    input: {
+      storeId: string;
+      variantId: string;
+      userId: string;
+      payload: Record<string, unknown>;
+    },
+    tx: SaleTx,
+  ): Promise<void>;
+  createSale(
+    header: CreateSaleHeaderInput,
+    items: CreateSaleItemRow[],
+    tx: SaleTx,
+  ): Promise<{ id: string }>;
   findSale(saleId: string): Promise<SaleWithItems | null>;
+  /** Tier 3.A.3 — alias for findSale used by the idempotency replay path. */
+  findById(saleId: string): Promise<SaleWithItems | null>;
+  /** Tier 3.A.3 — lookup an existing (storeId, key) → saleId mapping. */
+  findIdempotentSale(storeId: string, key: string): Promise<{ saleId: string } | null>;
+  /** Tier 3.A.3 — record the idempotency key in the same tx as the sale. */
+  recordIdempotencyKey(storeId: string, key: string, saleId: string, tx: SaleTx): Promise<void>;
   list(storeId: string, query: ListSalesQuery): Promise<PaginatedSales>;
   buildDashboard(storeId: string, now: Date): Promise<SalesDashboard>;
   runSerializable<T>(fn: (tx: SaleTx) => Promise<T>): Promise<T>;
@@ -171,6 +188,24 @@ export function buildSaleRepository(db: Database): SaleRepository {
       return loadSale(db, saleId);
     },
 
+    async findById(saleId) {
+      return loadSale(db, saleId);
+    },
+
+    async findIdempotentSale(storeId, key) {
+      const row = await db.idempotencyKey.findUnique({
+        where: { storeId_key: { storeId, key } },
+        select: { saleId: true },
+      });
+      return row;
+    },
+
+    async recordIdempotencyKey(storeId, key, saleId, tx) {
+      await tx.idempotencyKey.create({
+        data: { storeId, key, saleId },
+      });
+    },
+
     async list(storeId, query) {
       const skip = (query.page - 1) * query.pageSize;
       const [rows, total] = await Promise.all([
@@ -267,7 +302,10 @@ export function buildSaleRepository(db: Database): SaleRepository {
         },
       });
 
-      const dayMap = new Map<string, { qr: number; card: number; cash: number; total: number; count: number }>();
+      const dayMap = new Map<
+        string,
+        { qr: number; card: number; cash: number; total: number; count: number }
+      >();
       for (const r of closedReports) {
         const key = r.date.toISOString().slice(0, 10);
         dayMap.set(key, {
@@ -356,9 +394,7 @@ export function buildSaleRepository(db: Database): SaleRepository {
       void startFourWeeksAgo;
 
       const deltaPct =
-        yesterdayCents === 0
-          ? null
-          : ((todayCents - yesterdayCents) / yesterdayCents) * 100;
+        yesterdayCents === 0 ? null : ((todayCents - yesterdayCents) / yesterdayCents) * 100;
 
       const averageTicketCents = weekCount === 0 ? 0 : Math.round(weekCents / weekCount);
 

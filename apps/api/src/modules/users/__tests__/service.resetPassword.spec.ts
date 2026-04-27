@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { buildUserService, type UserService } from '../service';
 import type { UserRepository } from '../repository';
 import type { RefreshTokenRepository } from '../../auth/repository';
