@@ -48,13 +48,24 @@ export interface CreateMovementInput {
 }
 
 export interface InventoryRepository {
-  findUserAssignment(userId: string, storeId: string, tx?: InventoryTx): Promise<UserAssignmentRow | null>;
+  findUserAssignment(
+    userId: string,
+    storeId: string,
+    tx?: InventoryTx,
+  ): Promise<UserAssignmentRow | null>;
   hasAnyEncargadaRole(userId: string, tx?: InventoryTx): Promise<boolean>;
   list(storeId: string, query: ListInventoryQuery): Promise<PaginatedInventory>;
-  listGroupedByProduct(storeId: string, query: ListInventoryQuery): Promise<PaginatedGroupedInventory>;
+  listGroupedByProduct(
+    storeId: string,
+    query: ListInventoryQuery,
+  ): Promise<PaginatedGroupedInventory>;
   listVariantsForProductInStore(storeId: string, productId: string): Promise<InventoryRowDTO[]>;
   findRow(storeId: string, variantId: string, tx?: InventoryTx): Promise<InventoryRowDTO | null>;
-  findByBarcode(storeId: string, barcode: string, tx?: InventoryTx): Promise<InventoryRowDTO | null>;
+  findByBarcode(
+    storeId: string,
+    barcode: string,
+    tx?: InventoryTx,
+  ): Promise<InventoryRowDTO | null>;
   upsertQuantity(
     storeId: string,
     variantId: string,
@@ -110,7 +121,11 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
         select: { userId: true, storeId: true, role: true },
       });
       if (!row) return null;
-      return { userId: row.userId, storeId: row.storeId, role: row.role as 'encargada' | 'vendedora' };
+      return {
+        userId: row.userId,
+        storeId: row.storeId,
+        role: row.role as 'encargada' | 'vendedora',
+      };
     },
 
     async hasAnyEncargadaRole(userId, tx) {
@@ -140,8 +155,15 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
       if (query.size) {
         // Map contract size string back to the Prisma enum value.
         const SIZE_TO_PRISMA: Record<string, string> = {
-          s: 's', m: 'm', l: 'l', xl: 'xl', xxl: 'xxl',
-          '28': 'size_28', '30': 'size_30', '32': 'size_32', '34': 'size_34',
+          s: 's',
+          m: 'm',
+          l: 'l',
+          xl: 'xl',
+          xxl: 'xxl',
+          '28': 'size_28',
+          '30': 'size_30',
+          '32': 'size_32',
+          '34': 'size_34',
           standard: 'standard',
         };
         const prismaSize = SIZE_TO_PRISMA[query.size];
@@ -362,7 +384,17 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
           where: { storeId },
           include: {
             user: { select: { fullName: true } },
-            variant: { select: { barcode: true, product: { select: { code: true } } } },
+            // Incluimos product.name + variant.size/color para que el drawer
+            // muestre identificación humana ("Polera azul · M") en lugar de
+            // solo el código alfanumérico — sin un round-trip extra.
+            variant: {
+              select: {
+                barcode: true,
+                size: true,
+                color: true,
+                product: { select: { code: true, name: true } },
+              },
+            },
           },
           orderBy: { createdAt: 'desc' },
           skip,
@@ -381,7 +413,10 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
           type: MOVEMENT_TYPE_FROM_PRISMA[row.type],
           payload: (row.payload ?? {}) as StockMovementPayload,
           productCode: row.variant?.product.code ?? null,
+          productName: row.variant?.product.name ?? null,
           barcode: row.variant?.barcode ?? null,
+          variantSize: row.variant ? SIZE_FROM_PRISMA[row.variant.size] : null,
+          variantColor: row.variant?.color ?? null,
           createdAt: row.createdAt.toISOString(),
         })),
         total,
@@ -425,4 +460,3 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
     },
   };
 }
-
