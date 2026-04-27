@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main, dev]
 
+# Tier 3.B.10 — least-privilege default. Each job overrides ONLY when it
+# needs more (none currently do). Without this, the workflow inherits the
+# repo-default GITHUB_TOKEN scopes which on classic configs include write
+# permissions across many APIs — a compromised step would be able to push
+# tags, create issues, etc.
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '22'
 
@@ -14,6 +22,11 @@ jobs:
     name: Lint + Format
     runs-on: ubuntu-latest
     steps:
+      # Tier 3.B.11 note — first-party `actions/*` actions are pinned to
+      # major tags. They're owned by GitHub and tracked by the Dependabot
+      # github-actions ecosystem (see .github/dependabot.yml) which opens
+      # PRs whenever a new minor lands so we never sit on a stale version.
+      # Third-party actions (none today) MUST be pinned to a 40-char SHA.
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -131,3 +144,35 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy
         working-directory: apps/api
+
+  # Tier 3.C.11 — supply-chain security gate. Runs in parallel with the
+  # other jobs so it doesn't slow the critical path. Non-blocking initially
+  # (continue-on-error: true) so a freshly-disclosed transitive vuln doesn't
+  # red-light merges; flip to blocking once Dependabot is keeping deps
+  # current.
+  security-audit:
+    name: Security Audit (npm + gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks needs the full history to scan past commits.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: npm audit (production deps)
+        # Production deps must have ZERO high/critical CVEs. dev-only
+        # vulnerabilities are reported in the next step but don't fail CI.
+        run: npm audit --audit-level=high --omit=dev
+      - name: npm audit (all deps, non-blocking)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+      - name: Gitleaks (secret scan on the full history)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
