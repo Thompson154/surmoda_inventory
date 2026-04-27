@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { buildUserService, type UserService } from '../service';
 import type { UserRepository } from '../repository';
 import type { RefreshTokenRepository } from '../../auth/repository';
@@ -55,7 +55,9 @@ beforeEach(() => {
   });
 });
 
-const buildCreated = (overrides: Partial<{ id: string; isAdmin: boolean; isActive: boolean }> = {}) => ({
+const buildCreated = (
+  overrides: Partial<{ id: string; isAdmin: boolean; isActive: boolean }> = {},
+) => ({
   id: overrides.id ?? 'u1',
   email: 'new@test.local',
   fullName: 'New User',
@@ -112,7 +114,10 @@ describe('UserService.create', () => {
       isAdmin: true,
     });
 
-    const persisted = users.create.mock.calls[0]?.[0] as { isAdmin: boolean; assignments: unknown[] };
+    const persisted = users.create.mock.calls[0]?.[0] as {
+      isAdmin: boolean;
+      assignments: unknown[];
+    };
     expect(persisted.isAdmin).toBe(true);
     expect(persisted.assignments).toEqual([]);
   });

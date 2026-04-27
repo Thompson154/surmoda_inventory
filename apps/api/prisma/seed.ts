@@ -1,5 +1,5 @@
 import { PrismaClient, Role, Size, StoreKind } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { generateBarcode } from '../src/modules/products/barcode';
 
 const prisma = new PrismaClient();

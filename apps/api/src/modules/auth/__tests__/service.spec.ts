@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { buildAuthService, type AuthService } from '../service';
 import {
   InvalidCredentialsError,

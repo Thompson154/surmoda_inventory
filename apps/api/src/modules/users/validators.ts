@@ -13,19 +13,25 @@ const StrongPassword = z
   .min(PASSWORD_MIN_LENGTH, PASSWORD_RULES_MESSAGE)
   .regex(PASSWORD_PATTERN, PASSWORD_RULES_MESSAGE);
 
-const AssignmentInputSchema = z.object({
-  storeId: z.string().min(1, 'storeId is required'),
-  role: RoleEnum,
-});
+const AssignmentInputSchema = z
+  .object({
+    storeId: z.string().min(1, 'storeId is required'),
+    role: RoleEnum,
+  })
+  .strict();
 
 export const CreateUserSchema = z
   .object({
-    email: z.string().email().transform((v) => v.toLowerCase()),
+    email: z
+      .string()
+      .email()
+      .transform((v) => v.toLowerCase()),
     password: StrongPassword,
     fullName: z.string().trim().min(1).max(120),
     isAdmin: z.boolean().optional().default(false),
     assignments: z.array(AssignmentInputSchema).optional(),
   })
+  .strict()
   .superRefine((data, ctx) => {
     if (!data.isAdmin) {
       if (!data.assignments || data.assignments.length === 0) {
@@ -46,31 +52,37 @@ export const CreateUserSchema = z
 
 export type CreateUserInput = z.infer<typeof CreateUserSchema>;
 
-export const ListUsersQuerySchema = z.object({
-  q: z.string().trim().min(1).optional(),
-  isActive: z
-    .union([z.boolean(), z.string()])
-    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
-    .optional(),
-  isAdmin: z
-    .union([z.boolean(), z.string()])
-    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
-    .optional(),
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+export const ListUsersQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(200).optional(),
+    isActive: z
+      .union([z.boolean(), z.string()])
+      .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+      .optional(),
+    isAdmin: z
+      .union([z.boolean(), z.string()])
+      .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+      .optional(),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+  })
+  .strict();
 
 export type ListUsersInput = z.infer<typeof ListUsersQuerySchema>;
 
-export const UpdateUserSchema = z.object({
-  fullName: z.string().trim().min(1).max(120).optional(),
-  isAdmin: z.boolean().optional(),
-});
+export const UpdateUserSchema = z
+  .object({
+    fullName: z.string().trim().min(1).max(120).optional(),
+    isAdmin: z.boolean().optional(),
+  })
+  .strict();
 
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
-export const ResetPasswordSchema = z.object({
-  newPassword: StrongPassword,
-});
+export const ResetPasswordSchema = z
+  .object({
+    newPassword: StrongPassword,
+  })
+  .strict();
 
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

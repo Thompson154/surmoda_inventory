@@ -3,7 +3,7 @@
 //      not all tokens for the user.
 
 import request from 'supertest';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { buildServer } from '../../src/server';
 import { getPrisma, disconnectPrisma } from '../../src/infrastructure/database';
 
@@ -46,21 +46,15 @@ describe('Logout: per-session revocation (multi-device)', () => {
     expect(accessTokenB).toBeTruthy();
 
     // Device A logs out
-    const logoutRes = await request(app)
-      .post('/api/v1/auth/logout')
-      .set('Cookie', cookieA);
+    const logoutRes = await request(app).post('/api/v1/auth/logout').set('Cookie', cookieA);
     expect(logoutRes.status).toBe(204);
 
     // Device A's refresh token is now revoked → refresh fails
-    const refreshA = await request(app)
-      .post('/api/v1/auth/refresh')
-      .set('Cookie', cookieA);
+    const refreshA = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookieA);
     expect(refreshA.status).not.toBe(200);
 
     // Device B's refresh token is still valid → refresh succeeds
-    const refreshB = await request(app)
-      .post('/api/v1/auth/refresh')
-      .set('Cookie', cookieB);
+    const refreshB = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookieB);
     expect(refreshB.status).toBe(200);
     expect((refreshB.body as { accessToken?: string }).accessToken).toBeTruthy();
   });

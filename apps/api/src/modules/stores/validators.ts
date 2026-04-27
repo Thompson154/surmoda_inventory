@@ -8,16 +8,18 @@ const STORE_NAME_MAX = 80;
 
 const StoreKindEnum = z.enum(['warehouse', 'branch']);
 
-export const CreateStoreSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(STORE_CODE_MIN)
-    .max(STORE_CODE_MAX)
-    .regex(STORE_CODE_REGEX, 'Código debe ser mayúsculas, números o guion bajo'),
-  name: z.string().trim().min(STORE_NAME_MIN).max(STORE_NAME_MAX),
-  kind: StoreKindEnum,
-});
+export const CreateStoreSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .min(STORE_CODE_MIN)
+      .max(STORE_CODE_MAX)
+      .regex(STORE_CODE_REGEX, 'Código debe ser mayúsculas, números o guion bajo'),
+    name: z.string().trim().min(STORE_NAME_MIN).max(STORE_NAME_MAX),
+    kind: StoreKindEnum,
+  })
+  .strict();
 
 export type CreateStoreInput = z.infer<typeof CreateStoreSchema>;
 
@@ -44,13 +46,15 @@ const booleanFromQuery = z
   .union([z.boolean(), z.string()])
   .transform((v) => (typeof v === 'boolean' ? v : v === 'true'));
 
-export const ListStoresQuerySchema = z.object({
-  q: z.string().trim().min(1).optional(),
-  kind: StoreKindEnum.optional(),
-  isActive: booleanFromQuery.optional(),
-  includeInactive: booleanFromQuery.optional(),
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+export const ListStoresQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(200).optional(),
+    kind: StoreKindEnum.optional(),
+    isActive: booleanFromQuery.optional(),
+    includeInactive: booleanFromQuery.optional(),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+  })
+  .strict();
 
 export type ListStoresInput = z.infer<typeof ListStoresQuerySchema>;

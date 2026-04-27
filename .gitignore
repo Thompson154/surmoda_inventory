@@ -20,9 +20,17 @@ pnpm-debug.log*
 # Env files (templates `*.env.example` ARE committed — only secrets are ignored)
 .env
 .env.local
+# Wildcard catches future devs adding `.env.staging.local`, `.env.qa.local`,
+# `.env.<anything>.local`, etc. without having to remember to update this list.
+.env.*.local
 .env.development.local
 .env.production.local
 .env.test.local
+
+# Playwright / browser test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
 
 # OS / editor
 .DS_Store

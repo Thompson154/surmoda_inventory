@@ -2,7 +2,7 @@
 // WHY: verifies the HTTP layer clears the cookie and is idempotent (second call still 204).
 
 import request from 'supertest';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { buildServer } from '../../src/server';
 import { getPrisma, disconnectPrisma } from '../../src/infrastructure/database';
 

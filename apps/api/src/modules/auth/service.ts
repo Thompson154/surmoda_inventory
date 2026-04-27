@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import type { Database } from '../../infrastructure/database';
 import {
   generateRefreshTokenOpaque,
@@ -28,8 +28,14 @@ export interface AuthServiceDeps {
 }
 
 export interface AuthService {
-  login(input: LoginDTO, meta?: { ip?: string; userAgent?: string }): Promise<LoginResponse & { refreshToken: IssuedRefreshToken }>;
-  refresh(plaintext: string, meta?: { ip?: string; userAgent?: string }): Promise<RefreshResponse & { refreshToken: IssuedRefreshToken }>;
+  login(
+    input: LoginDTO,
+    meta?: { ip?: string; userAgent?: string },
+  ): Promise<LoginResponse & { refreshToken: IssuedRefreshToken }>;
+  refresh(
+    plaintext: string,
+    meta?: { ip?: string; userAgent?: string },
+  ): Promise<RefreshResponse & { refreshToken: IssuedRefreshToken }>;
   logout(plaintext: string): Promise<void>;
   me(userId: string): Promise<AuthUserDTO>;
 }
