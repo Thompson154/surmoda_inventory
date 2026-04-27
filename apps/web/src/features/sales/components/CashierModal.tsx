@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Banknote, CreditCard, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
 import { useCreateSale } from '../hooks/useSales';
-import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
+import { Alert, Button, IconButton, Input, Modal, useToast } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { httpClient } from '@/shared/services/httpClient';
+import { enqueueSale } from '@/shared/services/offlineQueue';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
@@ -44,6 +45,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   const inputRef = useRef<HTMLInputElement>(null);
   const scannerRef = useRef<BarcodeScannerHandle | null>(null);
   const create = useCreateSale(storeId);
+  const toast = useToast();
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
 
   useEffect(() => {
@@ -161,17 +163,54 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   const submit = () => {
     const toSend = cart.filter((i) => i.quantity > 0);
     if (toSend.length === 0) return;
-    create.mutate(
-      {
-        items: toSend.map((i) => ({
-          variantId: i.variantId,
-          quantity: i.quantity,
-          subtotalCents: i.subtotalCents,
-        })),
-        paymentMethod,
+    // Tier 3.A.2 — every submit gets an idempotency key. The BE caches
+    // (storeId, key) → saleId so a network-retry doesn't double-create.
+    // The same key is reused if the request gets queued and replayed by
+    // useOfflineSaleSync — the BE returns the originally-cached sale on
+    // the eventual successful drain.
+    const idempotencyKey = crypto.randomUUID();
+    const payload = {
+      idempotencyKey,
+      items: toSend.map((i) => ({
+        variantId: i.variantId,
+        quantity: i.quantity,
+        subtotalCents: i.subtotalCents,
+      })),
+      paymentMethod,
+    };
+
+    // Tier 3.A.2 offline path: if the browser reports offline at submit
+    // time, skip the live POST and queue the sale immediately. The
+    // useOfflineSaleSync hook drains it as soon as the 'online' event
+    // fires. We close the modal optimistically because (a) the cashier
+    // needs to keep helping customers and (b) the queued payload is now
+    // safe in localStorage even if the page reloads.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const entry = enqueueSale(storeId, payload);
+      toast.info(
+        `Sin conexión — venta encolada (#${entry.id.slice(0, 6)}). Se enviará al volver el wifi.`,
+      );
+      onClose();
+      return;
+    }
+
+    create.mutate(payload, {
+      onSuccess: (sale) => onSold(sale),
+      onError: (err) => {
+        // Network-level failure (no HTTP status because the request never
+        // got a response): enqueue and let the user keep working. HTTP
+        // errors from the BE (4xx/5xx) bubble through useErrorMessage as
+        // before — they're real errors the cashier should see.
+        const status = (err as { status?: number } | null)?.status;
+        if (status === undefined) {
+          const entry = enqueueSale(storeId, payload);
+          toast.info(
+            `Conexión interrumpida — venta encolada (#${entry.id.slice(0, 6)}). Se reintentará.`,
+          );
+          onClose();
+        }
       },
-      { onSuccess: (sale) => onSold(sale) },
-    );
+    });
   };
 
   return (
