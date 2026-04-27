@@ -69,6 +69,16 @@ export function buildProductRepository(db: Database): ProductRepository {
           take: query.pageSize,
           include: {
             _count: { select: { variants: { where: { deletedAt: null } } } },
+            // Una sola variante activa por producto para resolver la miniatura
+            // del catálogo admin sin un fetch extra por fila. Orden por createdAt
+            // asc para que sea estable: la primera variante creada es la "cara"
+            // del producto. take:1 mantiene la query barata.
+            variants: {
+              where: { deletedAt: null, isActive: true, imagePath: { not: null } },
+              orderBy: { createdAt: 'asc' },
+              take: 1,
+              select: { imagePath: true },
+            },
           },
         }),
         db.product.count({ where }),
@@ -81,6 +91,7 @@ export function buildProductRepository(db: Database): ProductRepository {
           name: p.name,
           isActive: p.isActive,
           variantsCount: p._count.variants,
+          representativeImagePath: p.variants[0]?.imagePath ?? null,
           createdAt: p.createdAt.toISOString(),
         })),
         total,

@@ -49,6 +49,10 @@ export interface ProductListItem {
   name: string;
   isActive: boolean;
   variantsCount: number;
+  /** Path/URL de la imagen de UNA variante (la primera activa por orden de creación)
+   *  para que el catálogo admin pueda mostrar miniatura sin un fetch extra por fila.
+   *  Null cuando no hay variantes activas o ninguna tiene imagen. */
+  representativeImagePath?: string | null;
   createdAt: string;
 }
 
