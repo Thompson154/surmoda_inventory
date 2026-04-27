@@ -7,6 +7,7 @@ import { loadConfig } from './infrastructure/config';
 import { errorHandler } from './middleware/errorHandler';
 import { attachAuditEmitter } from './middleware/auditLogger';
 import { requestIdMiddleware } from './middleware/requestId';
+import { requestTimeout } from './middleware/requestTimeout';
 import { buildComposition } from './composition';
 import { getPrisma } from './infrastructure/database';
 
@@ -26,6 +27,11 @@ export function buildServer(): Express {
   app.set('trust proxy', 1);
 
   app.use(requestIdMiddleware);
+  // Tier 3.B.9 — bound every request to 30s so a stuck Prisma query doesn't
+  // hold a pool slot indefinitely. Skips the health endpoints below since
+  // those should never be slow and a 503 from a hung health probe would
+  // ironically take the service out of rotation.
+  app.use(requestTimeout());
 
   // Production-grade HTTP hardening. Reasoning per directive:
   //   - contentSecurityPolicy: this API serves only JSON (no HTML), so the
@@ -56,9 +62,10 @@ export function buildServer(): Express {
           upgradeInsecureRequests: [],
         },
       },
-      hsts: config.NODE_ENV === 'production'
-        ? { maxAge: 31_536_000, includeSubDomains: true, preload: false }
-        : false,
+      hsts:
+        config.NODE_ENV === 'production'
+          ? { maxAge: 31_536_000, includeSubDomains: true, preload: false }
+          : false,
       frameguard: { action: 'deny' },
       referrerPolicy: { policy: 'no-referrer' },
       crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -89,7 +96,8 @@ export function buildServer(): Express {
 
   // Static images: only mounted in `local` storage mode so prod (cloudinary) doesn't expose the disk.
   if (config.IMAGE_STORAGE === 'local') {
-    const imagesDir = config.IMAGE_STORAGE_LOCAL_DIR ?? resolve(process.cwd(), '..', '..', 'imagesTest');
+    const imagesDir =
+      config.IMAGE_STORAGE_LOCAL_DIR ?? resolve(process.cwd(), '..', '..', 'imagesTest');
     app.use('/static/images', express.static(imagesDir));
   }
 
