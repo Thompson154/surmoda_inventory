@@ -30,6 +30,17 @@ export function useStockMovements(storeId: string | undefined, page: number, pag
       : ['inventory', 'movements', 'noop'],
     queryFn: () => inventoryService.listMovements(storeId as string, { page, pageSize }),
     enabled: Boolean(storeId),
+    // Movements is the audit feed — staleTime:0 + refetchOnMount:'always' so
+    // every drawer open shows the absolute latest entries. Without this the
+    // Provider-level staleTime:30_000 made the drawer reuse cached data after
+    // a stock adjust, so the just-recorded movement didn't appear until the
+    // user reloaded the page. invalidateQueries from useAdjustQuantity is
+    // still the primary path; this is the belt-and-suspenders that handles
+    // the cold-reopen case where the component remounts with a stale cache.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: storeId ? INVENTORY_REFETCH_MS : false,
+    refetchIntervalInBackground: false,
   });
 }
 
