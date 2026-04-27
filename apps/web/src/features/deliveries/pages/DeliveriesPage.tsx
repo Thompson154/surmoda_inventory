@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, Search, Truck } from 'lucide-react';
+import { ChevronRight, Plus, Search, Truck } from 'lucide-react';
 import type { DeliveryStatus } from '@surmoda/contracts';
 import { useDeliveriesList } from '../hooks/useDeliveries';
 import { DeliveryDetailDrawer } from '../components/DeliveryDetailDrawer';
@@ -118,6 +118,20 @@ export function DeliveriesPage() {
               </Badge>
             )}
           </div>
+          {/* Transferir lateral — secundario al "+" FAB. Se queda en el header
+              como icon-button para mantener la acción accesible sin competir
+              visualmente con la creación de una nueva entrega. */}
+          {canCreate && !isWarehouse && (
+            <button
+              type="button"
+              onClick={() => setTransferOpen(true)}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-white text-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-surface-sunken active:scale-[0.98] transition"
+              aria-label="Transferir a sede"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              <span>Transferir</span>
+            </button>
+          )}
         </header>
 
         <div className="relative">
@@ -267,31 +281,21 @@ export function DeliveriesPage() {
         )}
       </main>
 
-      {/* FAB Nueva entrega — visible solo a admin/encargada.
-          Para sucursales se ofrece además "Transferir a sede" (módulo 11). */}
+      {/* FAB Nueva entrega — círculo "+" en la esquina inferior derecha.
+          Mismo patrón que la Scanner FAB de SalesRegisterPage (bottom: 80px,
+          right: 16px) para que el ojo del usuario aprenda UNA sola posición
+          de acción primaria a través de toda la app. Visible solo a
+          admin/encargada. La acción "Transferir" pasó al header como icon
+          secundario para no competir con esta primaria. */}
       {canCreate && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setNewOpen(true)}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white px-5 py-3 shadow-lg hover:shadow-xl active:scale-[0.98] transition"
-            aria-label="Nueva entrega"
-          >
-            <span className="text-xl leading-none">+</span>
-            <span className="font-semibold">Nueva entrega</span>
-          </button>
-          {!isWarehouse && (
-            <button
-              type="button"
-              onClick={() => setTransferOpen(true)}
-              className="flex items-center gap-2 rounded-full bg-white border border-surface-border text-slate-700 px-4 py-3 shadow hover:bg-surface-sunken active:scale-[0.98] transition"
-              aria-label="Transferir a sede"
-            >
-              <Truck className="h-4 w-4" />
-              <span className="font-semibold text-sm">Transferir</span>
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => setNewOpen(true)}
+          className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition flex items-center justify-center"
+          aria-label="Nueva entrega"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
       )}
     </AppShell>
   );

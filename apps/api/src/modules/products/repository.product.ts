@@ -21,7 +21,7 @@ export interface ProductRepository {
   findByCode(code: string, tx?: ProductTx): Promise<ProductDTO | null>;
   list(query: ListProductsQuery): Promise<PaginatedProducts>;
   create(input: CreateProductPersistInput, tx?: ProductTx): Promise<ProductDTO>;
-  update(id: string, input: UpdateProductPersistInput): Promise<ProductDTO>;
+  update(id: string, input: UpdateProductPersistInput, tx?: ProductTx): Promise<ProductDTO>;
   setActive(id: string, isActive: boolean, tx?: ProductTx): Promise<ProductDTO>;
   countActiveVariants(productId: string, tx?: ProductTx): Promise<number>;
   runSerializable<T>(fn: (tx: ProductTx) => Promise<T>): Promise<T>;
@@ -101,13 +101,13 @@ export function buildProductRepository(db: Database): ProductRepository {
       return toProductDTO(created);
     },
 
-    async update(id, input) {
+    async update(id, input, tx) {
       const data: Prisma.ProductUpdateInput = {};
       if (input.code !== undefined) data.code = input.code;
       if (input.name !== undefined) data.name = input.name;
       if (input.description !== undefined) data.description = input.description;
 
-      const updated = await db.product.update({ where: { id }, data });
+      const updated = await client(tx).product.update({ where: { id }, data });
       return toProductDTO(updated);
     },
 

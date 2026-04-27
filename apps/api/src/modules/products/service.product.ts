@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
+import { generateBarcode } from './barcode';
 import type { ProductRepository } from './repository.product';
 import type {
   CreateProductDTO,
@@ -29,11 +30,7 @@ export interface ProductService {
 export function buildProductService({ products, variants }: ProductServiceDeps): ProductService {
   function mapDuplicateCode(err: unknown): never {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      throw new AppError(
-        409,
-        ERROR_CODES.PRODUCT_DUPLICATE_CODE,
-        'Ese código ya está en uso.',
-      );
+      throw new AppError(409, ERROR_CODES.PRODUCT_DUPLICATE_CODE, 'Ese código ya está en uso.');
     }
     throw err;
   }
@@ -78,11 +75,33 @@ export function buildProductService({ products, variants }: ProductServiceDeps):
       if (input.name !== undefined) data.name = input.name;
       if (input.description !== undefined) data.description = input.description;
 
-      try {
-        return await products.update(id, data);
-      } catch (err) {
-        mapDuplicateCode(err);
-      }
+      const newCode = data.code;
+      const codeChanging = newCode !== undefined && newCode !== current.code;
+
+      // Code is part of the deterministic barcode hash — when it changes we
+      // MUST regenerate barcodes for every active variant of this product so
+      // the printed labels keep matching the DB. Wrap in a serializable tx so
+      // either both writes land or neither.
+      return products.runSerializable(async (tx) => {
+        try {
+          const updated = await products.update(id, data, tx);
+
+          if (codeChanging) {
+            const activeVariants = await variants.listActiveByProduct(id, tx);
+            if (activeVariants.length > 0) {
+              const map: Record<string, string> = {};
+              for (const v of activeVariants) {
+                map[v.id] = generateBarcode(updated.code, v.size, v.color);
+              }
+              await variants.bulkUpdateBarcodes(id, map, tx);
+            }
+          }
+
+          return updated;
+        } catch (err) {
+          mapDuplicateCode(err);
+        }
+      });
     },
 
     async deactivate(id) {

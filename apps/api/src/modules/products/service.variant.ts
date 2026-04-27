@@ -123,9 +123,41 @@ export function buildVariantService({
         throw new AppError(404, ERROR_CODES.VARIANT_NOT_FOUND, 'Variante no encontrada.');
       }
 
-      let imagePath: string | undefined;
-      if (image) {
-        const product = await products.findById(current.productId);
+      const sizeChanging = input.size !== undefined && input.size !== current.size;
+      const normalizedNewColor = input.color !== undefined ? input.color.trim() : undefined;
+      const colorChanging =
+        normalizedNewColor !== undefined && normalizedNewColor !== current.color;
+      const tupleChanging = sizeChanging || colorChanging;
+
+      // Fast path: only price / image — no transaction, no product load.
+      if (!tupleChanging) {
+        let imagePath: string | undefined;
+        if (image) {
+          const product = await products.findById(current.productId);
+          if (!product) {
+            throw new AppError(
+              404,
+              ERROR_CODES.VARIANT_PRODUCT_NOT_FOUND,
+              'El producto no existe o está inactivo.',
+            );
+          }
+          imagePath = await imageStorage.save(image, {
+            productCode: product.code,
+            size: current.size,
+            color: current.color,
+          });
+        }
+
+        return variants.update(id, {
+          priceCents: input.priceCents,
+          imagePath,
+        });
+      }
+
+      // Tuple is moving — wrap in serializable to make the duplicate-tuple
+      // pre-check + persist atomic, mirroring `create`.
+      return products.runSerializable(async (tx) => {
+        const product = await products.findById(current.productId, tx);
         if (!product) {
           throw new AppError(
             404,
@@ -133,16 +165,46 @@ export function buildVariantService({
             'El producto no existe o está inactivo.',
           );
         }
-        imagePath = await imageStorage.save(image, {
-          productCode: product.code,
-          size: current.size,
-          color: current.color,
-        });
-      }
 
-      return variants.update(id, {
-        priceCents: input.priceCents,
-        imagePath,
+        const newSize = sizeChanging ? input.size! : current.size;
+        const newColor = colorChanging ? normalizedNewColor! : current.color;
+
+        // WHY: friendlier 409 wins over BARCODE_COLLISION, same idea as `create`.
+        const clash = await variants.findActiveByTuple(current.productId, newSize, newColor, tx);
+        if (clash && clash.id !== current.id) {
+          throw new AppError(
+            409,
+            ERROR_CODES.VARIANT_DUPLICATE_TUPLE,
+            'Ya existe una variante con esa talla y color.',
+          );
+        }
+
+        const newBarcode = generateBarcode(product.code, newSize, newColor);
+
+        let imagePath: string | undefined;
+        if (image) {
+          imagePath = await imageStorage.save(image, {
+            productCode: product.code,
+            size: newSize,
+            color: newColor,
+          });
+        }
+
+        try {
+          return await variants.update(
+            id,
+            {
+              priceCents: input.priceCents,
+              imagePath,
+              ...(sizeChanging ? { size: newSize } : {}),
+              ...(colorChanging ? { color: newColor } : {}),
+              barcode: newBarcode,
+            },
+            tx,
+          );
+        } catch (err) {
+          mapVariantPersistError(err);
+        }
       });
     },
 

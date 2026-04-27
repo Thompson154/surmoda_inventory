@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Camera, Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
-import type { InventoryRow } from '@surmoda/contracts';
+import { SIZE_VALUES, type InventoryRow, type Size } from '@surmoda/contracts';
 import { useAdjustQuantity } from '../hooks/useInventory';
 import { inventoryQueryKeys } from '../services/inventoryService';
 import { Alert, Badge, Button, IconButton, Input, Modal } from '@/shared/ui';
@@ -22,9 +22,17 @@ interface SingleVariantQuickEditModalProps {
   onClose: () => void;
 }
 
+const PRODUCT_CODE_REGEX = /^[A-Z0-9_]{2,15}$/;
+
 /**
- * Edits stock for ONE variant (resolved by barcode). Renders a compact form so the
- * encargada/vendedora doesn't have to scroll through every variant of the product.
+ * Edits stock + product/variant attributes for ONE variant (resolved by barcode).
+ * Renders a compact form so the encargada/vendedora doesn't have to scroll
+ * through every variant of the product.
+ *
+ * Editable fields (when `canEdit`):
+ *  - código (product-level — regenerates barcodes for ALL variants)
+ *  - talla, color, precio (variant-level — barcode regenerates if size/color change)
+ *  - cantidad (stock movement via inventory.adjust)
  */
 export function SingleVariantQuickEditModal({
   storeId,
@@ -34,22 +42,30 @@ export function SingleVariantQuickEditModal({
 }: SingleVariantQuickEditModalProps) {
   const adjust = useAdjustQuantity(storeId);
   const qc = useQueryClient();
-  const [draft, setDraft] = useState(row?.quantity ?? 0);
+
+  // Drafts — default values come from `row`. Reset on row change.
+  const [draftQty, setDraftQty] = useState(row?.quantity ?? 0);
+  const [draftCode, setDraftCode] = useState(row?.productCode ?? '');
+  const [draftSize, setDraftSize] = useState<Size>(row?.size ?? 'standard');
+  const [draftColor, setDraftColor] = useState(row?.color ?? '');
+  const [draftPriceBs, setDraftPriceBs] = useState(row ? (row.priceCents / 100).toString() : '');
   const [reason, setReason] = useState('');
+
   const [pendingImage, setPendingImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const errorMessage = useErrorMessage(adjust.error as HttpError | null | undefined);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const adjustError = useErrorMessage(adjust.error as HttpError | null | undefined);
 
   const updateImage = useMutation({
     mutationFn: (file: File) =>
       productsService.updateVariant(row!.variantId, {
-        priceCents: row!.priceCents,
         image: file,
       }),
     onSuccess: () => {
-      // Invalidate everything that renders the variant image — products list,
-      // detail drawers, both inventory views (rows + grouped).
       void qc.invalidateQueries({ queryKey: productsQueryKeys.all });
       void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
       setPendingImage(null);
@@ -60,10 +76,15 @@ export function SingleVariantQuickEditModal({
 
   useEffect(() => {
     if (row) {
-      setDraft(row.quantity);
+      setDraftQty(row.quantity);
+      setDraftCode(row.productCode);
+      setDraftSize(row.size);
+      setDraftColor(row.color);
+      setDraftPriceBs((row.priceCents / 100).toString());
       setReason('');
       setPendingImage(null);
       setPreviewUrl(null);
+      setSubmitError(null);
       adjust.reset();
       updateImage.reset();
     }
@@ -85,20 +106,79 @@ export function SingleVariantQuickEditModal({
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  // Compute dirtiness up front so we can render warnings + gate the button.
+  const draftCodeNormalized = draftCode.trim().toUpperCase();
+  const draftColorNormalized = draftColor.trim();
+  const parsedPriceBs = Number(draftPriceBs);
+  const draftPriceCents = Number.isFinite(parsedPriceBs) ? Math.round(parsedPriceBs * 100) : NaN;
+
+  const codeIsDirty = !!row && draftCodeNormalized !== row.productCode;
+  const sizeIsDirty = !!row && draftSize !== row.size;
+  const colorIsDirty = !!row && draftColorNormalized !== row.color;
+  const priceIsDirty =
+    !!row && Number.isFinite(draftPriceCents) && draftPriceCents !== row.priceCents;
+  const qtyIsDirty = !!row && draftQty !== row.quantity;
+
+  const anyDirty = codeIsDirty || sizeIsDirty || colorIsDirty || priceIsDirty || qtyIsDirty;
+
+  // Validation gates: don't allow Guardar when a dirty field is invalid.
+  const codeValid = !codeIsDirty || PRODUCT_CODE_REGEX.test(draftCodeNormalized);
+  const colorValid =
+    !colorIsDirty || (draftColorNormalized.length >= 1 && draftColorNormalized.length <= 32);
+  const priceValid = !priceIsDirty || (Number.isFinite(draftPriceCents) && draftPriceCents >= 1);
+  const allValid = codeValid && colorValid && priceValid;
+
+  const sizeOptions = useMemo(
+    () => SIZE_VALUES.map((s) => ({ value: s, label: sizeLabel(s) })),
+    [],
+  );
+
   if (!row) {
     return <Modal isOpen={false} onClose={onClose} title="Variante" children={null} />;
   }
 
-  const isDirty = draft !== row.quantity;
-  const label = sizeLabel(row.size);
   const imageUrl = previewUrl ?? getImageUrl(row.imagePath);
 
-  const submit = () => {
-    if (!canEdit || !isDirty) return;
-    adjust.mutate(
-      { variantId: row.variantId, payload: { quantity: draft, reason: reason || undefined } },
-      { onSuccess: () => onClose() },
-    );
+  // Sequence: code (cascades) -> variant patch (size/color/price) -> qty.
+  const submit = async () => {
+    if (!canEdit || !anyDirty || !allValid || submitting) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (codeIsDirty) {
+        await productsService.update(row.productId, { code: draftCodeNormalized });
+      }
+
+      if (sizeIsDirty || colorIsDirty || priceIsDirty) {
+        await productsService.updateVariant(row.variantId, {
+          ...(priceIsDirty ? { priceCents: draftPriceCents } : {}),
+          ...(sizeIsDirty ? { size: draftSize } : {}),
+          ...(colorIsDirty ? { color: draftColorNormalized } : {}),
+        });
+      }
+
+      if (qtyIsDirty) {
+        await new Promise<void>((resolve, reject) => {
+          adjust.mutate(
+            {
+              variantId: row.variantId,
+              payload: { quantity: draftQty, reason: reason || undefined },
+            },
+            { onSuccess: () => resolve(), onError: (err) => reject(err) },
+          );
+        });
+      }
+
+      void qc.invalidateQueries({ queryKey: productsQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
+      onClose();
+    } catch (err) {
+      const e = err as { message?: string; code?: string };
+      setSubmitError(e?.message ?? 'No pudimos guardar los cambios.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -133,9 +213,6 @@ export function SingleVariantQuickEditModal({
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-900 truncate">{row.productName}</p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {label} · <span className="capitalize">{row.color}</span>
-            </p>
             <p className="text-xs font-mono text-slate-400 mt-0.5">{row.barcode}</p>
             <p className="text-xs text-slate-600 mt-1">{formatPrice(row.priceCents)}</p>
           </div>
@@ -177,6 +254,89 @@ export function SingleVariantQuickEditModal({
 
         {imageError && <Alert variant="error">{imageError}</Alert>}
 
+        {/* Editable details (código / talla / color / precio) */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="col-span-2">
+            <label htmlFor="svqe-code" className="block text-xs font-medium text-slate-600 mb-1">
+              Código
+            </label>
+            <Input
+              id="svqe-code"
+              type="text"
+              value={draftCode}
+              onChange={(e) => setDraftCode(e.target.value.toUpperCase())}
+              disabled={!canEdit}
+              maxLength={15}
+              className="text-sm py-1 font-mono uppercase"
+              aria-invalid={!codeValid}
+            />
+            {!codeValid && (
+              <p className="text-[11px] text-rose-600 mt-1">
+                Código inválido (2-15 caracteres: A-Z, 0-9, _).
+              </p>
+            )}
+            {canEdit && codeIsDirty && codeValid && (
+              <p className="text-[11px] text-amber-700 mt-1">
+                Cambiar el código regenera los códigos de barras de TODAS las variantes.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="svqe-size" className="block text-xs font-medium text-slate-600 mb-1">
+              Talla
+            </label>
+            <select
+              id="svqe-size"
+              value={draftSize}
+              onChange={(e) => setDraftSize(e.target.value as Size)}
+              disabled={!canEdit}
+              className="w-full rounded-md border border-surface-border bg-white px-2 py-1 text-sm disabled:bg-surface-sunken disabled:cursor-not-allowed"
+            >
+              {sizeOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="svqe-color" className="block text-xs font-medium text-slate-600 mb-1">
+              Color
+            </label>
+            <Input
+              id="svqe-color"
+              type="text"
+              value={draftColor}
+              onChange={(e) => setDraftColor(e.target.value)}
+              disabled={!canEdit}
+              maxLength={32}
+              className="text-sm py-1"
+              aria-invalid={!colorValid}
+            />
+          </div>
+
+          <div className="col-span-2">
+            <label htmlFor="svqe-price" className="block text-xs font-medium text-slate-600 mb-1">
+              Precio (Bs)
+            </label>
+            <Input
+              id="svqe-price"
+              type="number"
+              inputMode="decimal"
+              min={0.01}
+              step={0.01}
+              value={draftPriceBs}
+              onChange={(e) => setDraftPriceBs(e.target.value)}
+              disabled={!canEdit}
+              className="text-sm py-1"
+              aria-invalid={!priceValid}
+            />
+            {!priceValid && <p className="text-[11px] text-rose-600 mt-1">Precio inválido.</p>}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <span className="text-sm text-slate-700">Cantidad</span>
           <div className="flex items-center gap-1">
@@ -185,15 +345,15 @@ export function SingleVariantQuickEditModal({
               label="Restar"
               variant="secondary"
               size="sm"
-              onClick={() => setDraft((v) => Math.max(0, v - 1))}
+              onClick={() => setDraftQty((v) => Math.max(0, v - 1))}
               disabled={!canEdit}
             />
             <Input
               type="number"
               inputMode="numeric"
               min={0}
-              value={String(draft)}
-              onChange={(e) => setDraft(Math.max(0, Number(e.target.value) || 0))}
+              value={String(draftQty)}
+              onChange={(e) => setDraftQty(Math.max(0, Number(e.target.value) || 0))}
               disabled={!canEdit}
               className="w-20 text-center text-sm py-1"
               aria-label="Cantidad"
@@ -203,13 +363,13 @@ export function SingleVariantQuickEditModal({
               label="Sumar"
               variant="secondary"
               size="sm"
-              onClick={() => setDraft((v) => v + 1)}
+              onClick={() => setDraftQty((v) => v + 1)}
               disabled={!canEdit}
             />
           </div>
         </div>
 
-        {canEdit && isDirty && (
+        {canEdit && qtyIsDirty && (
           <Input
             type="text"
             placeholder="Motivo (opcional)"
@@ -220,7 +380,9 @@ export function SingleVariantQuickEditModal({
           />
         )}
 
-        {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
+        {(submitError || adjustError) && (
+          <Alert variant="error">{submitError ?? adjustError}</Alert>
+        )}
 
         {canEdit && (
           <div className="flex gap-2 justify-end">
@@ -229,7 +391,7 @@ export function SingleVariantQuickEditModal({
               variant="secondary"
               size="md"
               onClick={onClose}
-              disabled={adjust.isPending}
+              disabled={submitting || adjust.isPending}
             >
               Cancelar
             </Button>
@@ -239,8 +401,8 @@ export function SingleVariantQuickEditModal({
               size="md"
               leftIcon={<Save className="h-4 w-4" />}
               onClick={submit}
-              isLoading={adjust.isPending}
-              disabled={adjust.isPending || !isDirty}
+              isLoading={submitting || adjust.isPending}
+              disabled={submitting || adjust.isPending || !anyDirty || !allValid}
             >
               Guardar
             </Button>

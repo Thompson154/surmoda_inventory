@@ -87,8 +87,11 @@ export interface CreateVariantBody {
   priceCents: number;
 }
 
-// WHY: image is RE-uploadable via the same multipart endpoint shape as create,
-// but only `priceCents` and image are mutable. `size` and `color` are immutable.
+// WHY: image is RE-uploadable via the same multipart endpoint shape as create.
+// Price, size, and color are now mutable. When size or color changes the BE
+// auto-regenerates the variant barcode (deterministic over (productCode, size, color)).
 export interface UpdateVariantBody {
   priceCents?: number;
+  size?: Size;
+  color?: string;
 }

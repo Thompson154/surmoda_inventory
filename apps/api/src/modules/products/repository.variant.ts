@@ -14,6 +14,9 @@ export interface CreateVariantPersistInput {
 export interface UpdateVariantPersistInput {
   priceCents?: number;
   imagePath?: string | null;
+  size?: Size;
+  color?: string;
+  barcode?: string;
 }
 
 export type VariantTx = Prisma.TransactionClient;
@@ -27,10 +30,15 @@ export interface VariantRepository {
     color: string,
     tx?: VariantTx,
   ): Promise<VariantDTO | null>;
-  listActiveByProduct(productId: string): Promise<VariantDTO[]>;
+  listActiveByProduct(productId: string, tx?: VariantTx): Promise<VariantDTO[]>;
   listAllByProduct(productId: string): Promise<VariantDTO[]>;
   create(input: CreateVariantPersistInput, tx?: VariantTx): Promise<VariantDTO>;
-  update(id: string, input: UpdateVariantPersistInput): Promise<VariantDTO>;
+  update(id: string, input: UpdateVariantPersistInput, tx?: VariantTx): Promise<VariantDTO>;
+  bulkUpdateBarcodes(
+    productId: string,
+    mapVariantIdToBarcode: Record<string, string>,
+    tx?: VariantTx,
+  ): Promise<void>;
   setActive(id: string, isActive: boolean, tx?: VariantTx): Promise<VariantDTO>;
 }
 
@@ -88,8 +96,8 @@ export function buildVariantRepository(db: Database): VariantRepository {
       return v ? toVariantDTO(v) : null;
     },
 
-    async listActiveByProduct(productId) {
-      const rows = await db.variant.findMany({
+    async listActiveByProduct(productId, tx) {
+      const rows = await client(tx).variant.findMany({
         where: { productId, isActive: true, deletedAt: null },
         orderBy: [{ size: 'asc' }, { color: 'asc' }],
       });
@@ -119,13 +127,30 @@ export function buildVariantRepository(db: Database): VariantRepository {
       return toVariantDTO(created);
     },
 
-    async update(id, input) {
+    async update(id, input, tx) {
       const data: Prisma.VariantUpdateInput = {};
       if (input.priceCents !== undefined) data.priceCents = input.priceCents;
       if (input.imagePath !== undefined) data.imagePath = input.imagePath;
+      if (input.size !== undefined) data.size = SIZE_TO_PRISMA[input.size];
+      if (input.color !== undefined) data.color = input.color;
+      if (input.barcode !== undefined) data.barcode = input.barcode;
 
-      const updated = await db.variant.update({ where: { id }, data });
+      const updated = await client(tx).variant.update({ where: { id }, data });
       return toVariantDTO(updated);
+    },
+
+    async bulkUpdateBarcodes(_productId, mapVariantIdToBarcode, tx) {
+      // WHY: variants per product are usually <20 — looping individual updates
+      // beats raw SQL complexity and keeps Prisma audit hooks intact. The
+      // productId scope is enforced upstream (caller passes IDs from
+      // listActiveByProduct), so the where clause stays on `id` only.
+      const c = client(tx);
+      for (const [variantId, barcode] of Object.entries(mapVariantIdToBarcode)) {
+        await c.variant.update({
+          where: { id: variantId },
+          data: { barcode },
+        });
+      }
     },
 
     async setActive(id, isActive, tx) {

@@ -35,6 +35,8 @@ export interface CreateVariantArgs {
 
 export interface UpdateVariantArgs {
   priceCents?: number;
+  size?: Size;
+  color?: string;
   image?: File | null;
 }
 
@@ -111,7 +113,7 @@ export const productsService = {
     multipartRequest<Variant>(
       'PATCH',
       `/variants/${variantId}`,
-      { priceCents: args.priceCents },
+      { priceCents: args.priceCents, size: args.size, color: args.color },
       args.image,
     ),
   deactivateVariant: (variantId: string) =>
