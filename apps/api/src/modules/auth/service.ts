@@ -1,5 +1,14 @@
 import bcrypt from 'bcryptjs';
 import type { Database } from '../../infrastructure/database';
+
+// A valid bcrypt hash of a fixed dummy string. Used by login() when no user
+// matches the email so the constant bcrypt.compare cost still happens —
+// closes the timing-attack vector that lets an attacker enumerate registered
+// emails by measuring response delay (no-user paths return in <1ms vs
+// real-user paths in ~150ms). Re-hashed at process start with whatever
+// BCRYPT_SALT_ROUNDS the env declares so the dummy compare cost matches the
+// real one. The plaintext "decoy" is irrelevant — nobody can ever submit it.
+const TIMING_DECOY_HASH = bcrypt.hashSync('timing-equalisation-decoy', 4);
 import {
   generateRefreshTokenOpaque,
   hashRefreshToken,
@@ -47,9 +56,16 @@ export function buildAuthService({ db, refreshTokens }: AuthServiceDeps): AuthSe
         where: { email: input.email },
         include: { assignments: true },
       });
-      if (!user) throw new InvalidCredentialsError();
-      const passwordOk = await bcrypt.compare(input.password, user.passwordHash);
-      if (!passwordOk) throw new InvalidCredentialsError();
+      // Timing-equalisation: ALWAYS run bcrypt.compare even when no user
+      // matches, against a fixed decoy hash. Without this, a "user not found"
+      // returns in <1ms while "user exists, wrong password" returns in
+      // ~150ms — perfect signal for email enumeration. The decoy is a real
+      // bcrypt hash of an unguessable string, so the cost is comparable.
+      const hashToCheck = user?.passwordHash ?? TIMING_DECOY_HASH;
+      const passwordOk = await bcrypt.compare(input.password, hashToCheck);
+      // Combine the two failure conditions into a single error class so
+      // upstream callers cannot distinguish "no user" from "wrong password".
+      if (!user || !passwordOk) throw new InvalidCredentialsError();
       if (!user.isActive) throw new UserInactiveError();
 
       const plaintext = generateRefreshTokenOpaque();
