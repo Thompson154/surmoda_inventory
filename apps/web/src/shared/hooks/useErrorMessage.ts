@@ -80,8 +80,57 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.SALE_DASHBOARD_FORBIDDEN]: 'Sólo encargada/admin puede ver el dashboard.',
   [ERROR_CODES.SALES_LOCKED]: 'El registro de ventas está bloqueado. Cerrá el día primero.',
 
+  [ERROR_CODES.SALES_RETURN_CREATE_INVALID_BARCODE]: 'No encontramos un producto con ese código.',
+  [ERROR_CODES.SALES_RETURN_CREATE_FORBIDDEN_STORE]:
+    'No tenés permiso para hacer devoluciones en esta sucursal.',
+  [ERROR_CODES.SALES_RETURN_CREATE_VARIANT_NOT_IN_STORE]:
+    'Esta variante no figura en el inventario de la sucursal.',
+
   [ERROR_CODES.DAILY_REPORT_NOT_FOUND]: 'No hay reporte cerrado para ese día.',
   [ERROR_CODES.DAILY_REPORT_FORBIDDEN]: 'Sólo encargada/admin puede cerrar el día.',
+
+  [ERROR_CODES.SNAPSHOT_DUPLICATE]: 'Ya existe un snapshot reciente para esta sucursal.',
+  [ERROR_CODES.REPORT_STORE_FORBIDDEN]: 'No tenés permiso para generar reportes de esta sucursal.',
+
+  [ERROR_CODES.RETURN_REQUEST_CREATE_REASON_REQUIRED]: 'El motivo de la devolución es obligatorio.',
+  [ERROR_CODES.RETURN_REQUEST_CREATE_INVALID_VARIANT]:
+    'La variante no es válida para esta devolución.',
+  [ERROR_CODES.RETURN_REQUEST_CREATE_INVALID_SALE_DATE]:
+    'La fecha de venta no es válida para devolución.',
+  [ERROR_CODES.RETURN_REQUEST_CREATE_FORBIDDEN_STORE]:
+    'No tenés permiso para pedir devoluciones en esta sucursal.',
+  [ERROR_CODES.RETURN_REQUEST_REVIEW_FORBIDDEN]: 'Solo encargada/admin puede revisar devoluciones.',
+  [ERROR_CODES.RETURN_REQUEST_REVIEW_ALREADY_REVIEWED]: 'Esta devolución ya fue revisada.',
+  [ERROR_CODES.RETURN_REQUEST_REVIEW_REASON_REQUIRED]: 'El motivo de la revisión es obligatorio.',
+  [ERROR_CODES.DAILY_CLOSURE_RETROACTIVE_EDIT_REASON_REQUIRED]:
+    'El motivo del ajuste retroactivo es obligatorio.',
+
+  [ERROR_CODES.SALE_DISCOUNT_EXCEEDS_LIMIT]: 'El descuento no puede superar el 30%.',
+  [ERROR_CODES.SALE_EDIT_FORBIDDEN_AFTER_CHARGE]: 'No se puede editar una venta ya cobrada.',
+  [ERROR_CODES.INVENTORY_EDIT_FORBIDDEN_NON_ADMIN]:
+    'Sólo admin puede realizar esta edición de inventario.',
+  [ERROR_CODES.DELIVERY_EDIT_FORBIDDEN_NON_ADMIN]: 'Sólo admin puede editar esta entrega.',
+
+  [ERROR_CODES.RETURN_REQUEST_CREATE_INVALID_CLOSURE]:
+    'No encontramos un cierre de día para esa fecha.',
+  [ERROR_CODES.RETURN_REQUEST_CREATE_ORIGINAL_SALE_NOT_FOUND]:
+    'No encontramos esa venta en el cierre indicado.',
+  [ERROR_CODES.RETURN_REQUEST_APPROVE_REPLACEMENT_FAILED]:
+    'No pudimos aplicar el cambio. Intentá de nuevo o avisá al admin.',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_CREATE_REASON_TOO_SHORT]:
+    'La justificación debe tener al menos 50 caracteres.',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_CREATE_INVALID_STATUS]:
+    'Solo se pueden solicitar ediciones en entregas enviadas (no recibidas).',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_REVIEW_FORBIDDEN]:
+    'No tenés permiso para revisar esta solicitud.',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_REVIEW_ALREADY_REVIEWED]: 'Esta solicitud ya fue revisada.',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_REVIEW_REASON_REQUIRED]:
+    'Tenés que escribir el motivo del rechazo.',
+  [ERROR_CODES.DELIVERY_RECEIVE_FORBIDDEN_VENDEDORA]:
+    'Solo encargada/admin puede confirmar recepción de entrega.',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_CREATE_FORBIDDEN_STORE]:
+    'No tenés permiso para solicitar ediciones en esta entrega.',
+  [ERROR_CODES.DELIVERY_EDIT_REQUEST_NOT_FOUND]: 'Solicitud de edición no encontrada.',
 } satisfies Record<(typeof ERROR_CODES)[ErrorCodeKey], string>;
 
 const DEFAULT_MESSAGE = 'No pudimos completar la operación.';

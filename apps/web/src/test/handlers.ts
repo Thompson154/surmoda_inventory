@@ -395,7 +395,10 @@ export const handlers = [
           type: 'adjusted',
           payload: { delta: 50, previous: 0, next: 50, reason: 'recepción' },
           productCode: 'JN001',
+          productName: 'Jean Bota Recta',
           barcode: 'ABC123ABC123',
+          variantSize: '30',
+          variantColor: 'azul',
           createdAt: '2024-01-01T00:00:00.000Z',
         },
       ],
@@ -746,36 +749,50 @@ export const handlers = [
     }),
   ),
 
-  http.get(`${BASE}/alerts`, () =>
-    HttpResponse.json({
-      items: [
-        {
-          id: 'CIERRE_MISSING:store-prado-seed:2026-04-25',
-          kind: 'CIERRE_MISSING',
-          severity: 'warning',
-          message: 'Sucursal Prado: cierre de 2026-04-25 no fue registrado.',
-          link: '/sedes/store-prado-seed/ventas',
-          detectedAt: new Date().toISOString(),
-          meta: { storeId: 'store-prado-seed', date: '2026-04-25' },
+  http.get(`${BASE}/alerts`, ({ request }) => {
+    const url = new URL(request.url);
+    const storeId = url.searchParams.get('storeId');
+
+    const allItems = [
+      {
+        id: 'CIERRE_MISSING:store-prado-seed:2026-04-25',
+        kind: 'CIERRE_MISSING',
+        severity: 'warning',
+        message: 'Sucursal Prado: cierre de 2026-04-25 no fue registrado.',
+        link: '/sedes/store-prado-seed/ventas',
+        detectedAt: new Date().toISOString(),
+        meta: { storeId: 'store-prado-seed', date: '2026-04-25' },
+      },
+      {
+        id: 'STOCK_LOW:store-prado-seed:v-1',
+        kind: 'STOCK_LOW',
+        severity: 'warning',
+        message: 'Stock bajo en Sucursal Prado: JN001 · 30 · azul (3 u.)',
+        link: '/sedes/store-prado-seed/inventario',
+        detectedAt: new Date().toISOString(),
+        meta: {
+          storeId: 'store-prado-seed',
+          variantId: 'v-1',
+          productCode: 'JN001',
+          quantity: 3,
         },
-        {
-          id: 'STOCK_LOW:store-prado-seed:v-1',
-          kind: 'STOCK_LOW',
-          severity: 'warning',
-          message: 'Stock bajo en Sucursal Prado: JN001 · 30 · azul (3 u.)',
-          link: '/sedes/store-prado-seed/inventario',
-          detectedAt: new Date().toISOString(),
-          meta: {
-            storeId: 'store-prado-seed',
-            variantId: 'v-1',
-            productCode: 'JN001',
-            quantity: 3,
-          },
-        },
-      ],
-      countsByKind: { STOCK_LOW: 1, STOCK_OUT_HOT: 0, CIERRE_MISSING: 1 },
-    }),
-  ),
+      },
+    ];
+
+    // When storeId is provided, filter to that branch only (mirrors backend behavior).
+    const items = storeId
+      ? allItems.filter((a) => (a.meta as Record<string, unknown>).storeId === storeId)
+      : allItems;
+
+    return HttpResponse.json({
+      items,
+      countsByKind: {
+        STOCK_LOW: items.filter((i) => i.kind === 'STOCK_LOW').length,
+        STOCK_OUT_HOT: 0,
+        CIERRE_MISSING: items.filter((i) => i.kind === 'CIERRE_MISSING').length,
+      },
+    });
+  }),
 
   http.get(`${BASE}/reports/summary`, ({ request }) => {
     const url = new URL(request.url);
@@ -879,6 +896,43 @@ export const handlers = [
         totalCents: 600000,
       })),
     }),
+  ),
+
+  // Sales returns
+  http.post(`${BASE}/sales/returns`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: 'mv-return-fixture', type: 'sale_return', barcode: body.barcode },
+      { status: 201 },
+    );
+  }),
+
+  // Sales report (POST) — returns a default JSON preview
+  http.post(`${BASE}/reports/sales`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    if (body.format === 'xlsx') {
+      const fakeBlob = new Blob([new Uint8Array([80, 75, 3, 4])], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      return new HttpResponse(fakeBlob, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': 'attachment; filename="reporte-ventas-PRADO.xlsx"',
+        },
+      });
+    }
+    return HttpResponse.json({
+      store: { id: 'store-prado-seed', name: 'Sucursal Prado', code: 'PRADO' },
+      period: { from: body.from ?? '2026-01-01', to: body.to ?? '2026-01-31' },
+      sales: { rows: [], totalRows: 0, totalAmountCents: 0 },
+      generatedAt: new Date().toISOString(),
+    });
+  }),
+
+  // Inventory snapshots
+  http.post(`${BASE}/inventory-snapshots`, () =>
+    HttpResponse.json({ snapshotted: 42 }, { status: 201 }),
   ),
 
   http.get(`${BASE}/audit-logs`, ({ request }) => {

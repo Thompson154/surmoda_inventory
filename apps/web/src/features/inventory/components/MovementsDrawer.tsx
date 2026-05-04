@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  RotateCcw,
   ShieldCheck,
   ShoppingBag,
   TriangleAlert,
@@ -51,31 +52,37 @@ const TYPE_META: Record<StockMovementType, TypeMeta> = {
     label: 'Permiso de edición',
     icon: ShieldCheck,
     iconBg: 'bg-surface-sunken',
-    iconColor: 'text-slate-600',
+    iconColor: 'text-text-secondary',
   },
   delivery_in: {
     label: 'Recepción',
     icon: ArrowDownToLine,
     iconBg: 'bg-status-success-soft',
-    iconColor: 'text-emerald-700',
+    iconColor: 'text-status-success',
   },
   delivery_out: {
     label: 'Envío',
     icon: ArrowUpFromLine,
     iconBg: 'bg-status-warning-soft',
-    iconColor: 'text-amber-700',
+    iconColor: 'text-status-warning',
   },
   delivery_received_adjusted: {
     label: 'Ajuste de recepción',
     icon: TriangleAlert,
     iconBg: 'bg-status-warning-soft',
-    iconColor: 'text-amber-700',
+    iconColor: 'text-status-warning',
   },
   sale_out: {
     label: 'Venta',
     icon: ShoppingBag,
     iconBg: 'bg-violet-100',
     iconColor: 'text-violet-700',
+  },
+  sale_return: {
+    label: 'Devolución',
+    icon: RotateCcw,
+    iconBg: 'bg-status-warning-soft',
+    iconColor: 'text-status-warning',
   },
 };
 
@@ -87,7 +94,7 @@ function formatDelta(delta: number): string {
 function deltaColor(delta: number): string {
   if (delta > 0) return 'text-status-success';
   if (delta < 0) return 'text-status-danger';
-  return 'text-slate-500';
+  return 'text-text-muted';
 }
 
 interface MovementCardProps {
@@ -95,9 +102,24 @@ interface MovementCardProps {
 }
 
 function MovementCard({ m }: MovementCardProps) {
-  const meta = TYPE_META[m.type];
+  // Defensive: backwards-compat with movements stored before the
+  // productName/variantSize/variantColor fields existed on the contract.
+  // If the BE response shape ever drifts (e.g. cached SW serving an older
+  // version, or the column is null in DB), we still render visible content
+  // instead of a row that looks empty next to the colored icon.
+  const meta = TYPE_META[m.type] ?? TYPE_META.adjusted;
   const Icon = meta.icon;
-  const delta = m.payload.delta ?? 0;
+  // delivery_in / delivery_out / sale_out store `quantity` (not `delta`) in payload.
+  // For outgoing movements the sign is negative; for incoming, positive.
+  const isOutgoing = m.type === 'delivery_out' || m.type === 'sale_out';
+  // Guard against `payload` arriving as null or as a JSON-encoded string
+  // (Prisma returns Json columns as parsed objects, but defense-in-depth
+  // costs nothing and prevents the whole row from going blank if a
+  // pathological row exists in DB).
+  const safePayload =
+    m.payload && typeof m.payload === 'object' && !Array.isArray(m.payload) ? m.payload : {};
+  const rawQty = safePayload.quantity ?? 0;
+  const delta = safePayload.delta ?? (isOutgoing ? -rawQty : rawQty);
   const isPermission = m.type === 'edit_permission_toggled';
   const showDelta = !isPermission;
 
@@ -121,14 +143,14 @@ function MovementCard({ m }: MovementCardProps) {
           {/* Línea 1: tipo + delta a la izquierda, fecha a la derecha. */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-semibold text-slate-900 truncate">{meta.label}</span>
+              <span className="text-sm font-semibold text-text-primary truncate">{meta.label}</span>
               {showDelta && (
                 <span className={`text-sm font-mono font-bold ${deltaColor(delta)}`}>
                   {formatDelta(delta)}
                 </span>
               )}
             </div>
-            <span className="text-xs text-slate-400 shrink-0">
+            <span className="text-xs text-text-subtle shrink-0">
               {new Date(m.createdAt).toLocaleString('es-BO', {
                 dateStyle: 'short',
                 timeStyle: 'short',
@@ -138,21 +160,21 @@ function MovementCard({ m }: MovementCardProps) {
 
           {/* Línea 2: nombre del producto (cuando hay variante). */}
           {!isPermission && (
-            <p className="text-sm text-slate-700 truncate">{m.productName ?? '—'}</p>
+            <p className="text-sm text-text-secondary truncate">{m.productName ?? '—'}</p>
           )}
 
           {/* Línea 2 (alternativa): texto de permiso. */}
           {isPermission && (
-            <p className="text-sm text-slate-700 break-words">
+            <p className="text-sm text-text-secondary break-words">
               Edición vendedora{' '}
               <span className="font-semibold">
-                {m.payload.isEnabled ? 'habilitada' : 'deshabilitada'}
+                {safePayload.isEnabled ? 'habilitada' : 'deshabilitada'}
               </span>
             </p>
           )}
 
           {/* Línea 3: identificación de la variante + usuario. */}
-          <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+          <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
             {!isPermission && (
               <span className="truncate font-mono">
                 {m.productCode ?? '—'}
@@ -165,23 +187,23 @@ function MovementCard({ m }: MovementCardProps) {
               </span>
             )}
             <span className="shrink-0">
-              Por <span className="font-medium text-slate-700">{m.userFullName}</span>
+              Por <span className="font-medium text-text-secondary">{m.userFullName}</span>
             </span>
           </div>
 
           {/* Línea 4 (opcional): transición previous → next para ajustes. */}
           {(m.type === 'adjusted' || m.type === 'delivery_received_adjusted') && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-text-muted">
               <span className="font-mono">
-                {m.payload.previous ?? 0} → {m.payload.next ?? 0}
+                {safePayload.previous ?? 0} → {safePayload.next ?? 0}
               </span>
             </p>
           )}
 
           {/* Línea 5 (opcional): motivo cuando aplica. */}
-          {m.payload.reason && (
-            <p className="text-xs text-slate-500 italic break-words whitespace-pre-wrap">
-              “{m.payload.reason}”
+          {safePayload.reason && (
+            <p className="text-xs text-text-muted italic break-words whitespace-pre-wrap">
+              “{safePayload.reason}”
             </p>
           )}
         </div>
@@ -200,14 +222,40 @@ export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps
     if (open) setPage(1);
   }, [open]);
 
+  // DEV diagnostic: cuando hay datos resueltos, loguear el shape del primer
+  // item para diferenciar (a) un bug visual en el render vs (b) un response
+  // del BE con campos faltantes/null. Strip-eable en build de prod.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!open || !query.data || query.data.items.length === 0) return;
+    const first = query.data.items[0]!;
+    // eslint-disable-next-line no-console
+    console.debug('[MovementsDrawer] first item shape →', {
+      id: first.id,
+      type: first.type,
+      productName: first.productName,
+      productCode: first.productCode,
+      variantSize: first.variantSize,
+      variantColor: first.variantColor,
+      userFullName: first.userFullName,
+      payloadType: typeof first.payload,
+      payloadKeys:
+        first.payload && typeof first.payload === 'object' ? Object.keys(first.payload) : null,
+      payload: first.payload,
+    });
+  }, [open, query.data]);
+
   const totalPages = query.data
     ? Math.max(1, Math.ceil(query.data.total / query.data.pageSize))
     : 1;
 
   return (
     <Modal isOpen={open} onClose={onClose} title="Movimientos">
-      <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
-        <p className="text-xs text-slate-500">Últimas modificaciones de inventario.</p>
+      {/* WHY: usar space-y en bloque normal en lugar de flex-col evita que */}
+      {/* flex-shrink:1 (default) comprima los cards cuando 20 items exceden */}
+      {/* max-h-[70vh]; ahora overflow-y-auto puede scrollear correctamente. */}
+      <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+        <p className="text-xs text-text-muted">Últimas modificaciones de inventario.</p>
 
         {/* Loading-only-when-no-data. Con placeholderData el cambio de página
             mantiene la lista anterior visible y NO dispara este bloque. */}
@@ -222,7 +270,7 @@ export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps
         {query.isError && <Alert variant="error">No pudimos cargar los movimientos.</Alert>}
 
         {query.data && query.data.items.length === 0 && (
-          <p className="text-sm text-slate-500">Aún no hay movimientos en esta sede.</p>
+          <p className="text-sm text-text-muted">Aún no hay movimientos en esta sede.</p>
         )}
 
         {query.data?.items.map((m) => (
@@ -231,7 +279,7 @@ export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps
 
         {query.data && query.data.total > PAGE_SIZE && (
           <div className="flex items-center justify-between pt-2">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-text-muted">
               Página {query.data.page} de {totalPages}
             </span>
             <div className="flex items-center gap-1">
