@@ -8,7 +8,8 @@ export type StockMovementType =
   | 'delivery_in'
   | 'delivery_out'
   | 'delivery_received_adjusted'
-  | 'sale_out';
+  | 'sale_out'
+  | 'sale_return';
 
 export interface InventoryRow {
   variantId: string;
@@ -75,6 +76,8 @@ export interface StockMovementPayload {
   delta?: number;
   previous?: number;
   next?: number;
+  /** Used by delivery_in, delivery_out and sale_out movements instead of delta. */
+  quantity?: number;
   reason?: string | null;
   isEnabled?: boolean;
 }

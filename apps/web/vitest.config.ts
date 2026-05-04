@@ -19,11 +19,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       exclude: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'src/test/**', 'src/main.tsx'],
+      // WHY: constitución § 3.3 — FE allows lower because JSX/render paths
       thresholds: {
-        lines: 60,
-        statements: 60,
-        branches: 50,
-        functions: 60,
+        statements: 70,
+        branches: 60,
+        functions: 70,
+        lines: 70,
       },
     },
   },

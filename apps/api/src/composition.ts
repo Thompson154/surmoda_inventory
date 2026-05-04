@@ -48,6 +48,10 @@ import { buildSaleRepository } from './modules/sales/repository';
 import { buildSaleService } from './modules/sales/service';
 import { buildSaleController } from './modules/sales/controller';
 import { buildSalesPerStoreRouter } from './modules/sales/routes';
+import { buildSaleReturnRepository } from './modules/sales/salesReturn.repository';
+import { buildSaleReturnService } from './modules/sales/salesReturn.service';
+import { buildSaleReturnController } from './modules/sales/salesReturn.controller';
+import { buildSaleReturnsRouter } from './modules/sales/salesReturn.routes';
 import { buildDailyReportRepository } from './modules/dailyReports/repository';
 import { buildDailyReportService } from './modules/dailyReports/service';
 import { buildDailyReportController } from './modules/dailyReports/controller';
@@ -58,10 +62,29 @@ import { buildReportRepository } from './modules/reports/repository';
 import { buildReportService } from './modules/reports/service';
 import { buildReportController } from './modules/reports/controller';
 import { buildReportsRouter } from './modules/reports/routes';
+import { buildSalesReportRepository } from './modules/reports/salesReport.repository';
+import { buildSalesReportService } from './modules/reports/salesReport.service';
+import { buildSalesReportController } from './modules/reports/salesReport.controller';
 import { buildAlertsRepository } from './modules/alerts/repository';
 import { buildAlertsService } from './modules/alerts/service';
 import { buildAlertsController } from './modules/alerts/controller';
 import { buildAlertsRouter } from './modules/alerts/routes';
+import { buildInventorySnapshotRepository } from './modules/inventory-snapshots/repository';
+import { buildInventorySnapshotService } from './modules/inventory-snapshots/service';
+import { buildInventorySnapshotController } from './modules/inventory-snapshots/controller';
+import { buildInventorySnapshotsRouter } from './modules/inventory-snapshots/routes';
+import type { InventorySnapshotService } from './modules/inventory-snapshots/service';
+import { buildReturnRequestRepository } from './modules/return-requests/repository';
+import { buildReturnRequestService } from './modules/return-requests/service';
+import { buildReturnRequestController } from './modules/return-requests/controller';
+import { buildReturnRequestsRouter } from './modules/return-requests/routes';
+import { buildDeliveryEditRequestRepository } from './modules/deliveries/deliveryEditRequest.repository';
+import { buildDeliveryEditRequestService } from './modules/deliveries/deliveryEditRequest.service';
+import { buildDeliveryEditRequestController } from './modules/deliveries/deliveryEditRequest.controller';
+import {
+  buildDeliveryEditRequestGlobalRouter,
+  buildDeliveryEditRequestPerDeliveryRouter,
+} from './modules/deliveries/deliveryEditRequest.routes';
 
 export interface Composition {
   db: Database;
@@ -76,12 +99,18 @@ export interface Composition {
   deliveriesPerStoreRouter: Router;
   deliveriesByIdRouter: Router;
   salesPerStoreRouter: Router;
+  saleReturnsRouter: Router;
   dailyReportsPerStoreRouter: Router;
   dailyReportRepository: DailyReportRepository;
   dailyReportService: DailyReportService;
   reportsRouter: Router;
   alertsRouter: Router;
   auditRouter: Router;
+  inventorySnapshotsRouter: Router;
+  inventorySnapshotService: InventorySnapshotService;
+  returnRequestsRouter: Router;
+  deliveryEditRequestsPerDeliveryRouter: Router;
+  deliveryEditRequestsGlobalRouter: Router;
 }
 
 /**
@@ -185,6 +214,14 @@ export function buildComposition(): Composition {
   const saleController = buildSaleController(saleService);
   const salesPerStoreRouter = buildSalesPerStoreRouter(saleController);
 
+  const saleReturnRepo = buildSaleReturnRepository(db);
+  const saleReturnService = buildSaleReturnService({
+    saleReturn: saleReturnRepo,
+    assignments: storeScope,
+  });
+  const saleReturnController = buildSaleReturnController(saleReturnService);
+  const saleReturnsRouter = buildSaleReturnsRouter(saleReturnController);
+
   const dailyReportRepository = buildDailyReportRepository(db);
   const dailyReportService = buildDailyReportService({
     reports: dailyReportRepository,
@@ -200,7 +237,15 @@ export function buildComposition(): Composition {
   const reportRepo = buildReportRepository(db);
   const reportService = buildReportService({ reports: reportRepo, scope: storeScope });
   const reportController = buildReportController(reportService);
-  const reportsRouter = buildReportsRouter(reportController);
+
+  const salesReportRepo = buildSalesReportRepository(db);
+  const salesReportService = buildSalesReportService({
+    reports: salesReportRepo,
+    scope: storeScope,
+  });
+  const salesReportController = buildSalesReportController(salesReportService, salesReportRepo);
+
+  const reportsRouter = buildReportsRouter(reportController, salesReportController);
 
   const alertsRepo = buildAlertsRepository(db);
   const alertsService = buildAlertsService({ alerts: alertsRepo, scope: storeScope });
@@ -211,6 +256,36 @@ export function buildComposition(): Composition {
   const auditQueryService = buildAuditQueryService({ audit: auditRepo, scope: storeScope });
   const auditController = buildAuditController(auditQueryService);
   const auditRouter = buildAuditRouter(auditController);
+
+  const snapshotRepo = buildInventorySnapshotRepository(db);
+  const inventorySnapshotService = buildInventorySnapshotService({ snapshots: snapshotRepo });
+  const snapshotController = buildInventorySnapshotController(inventorySnapshotService);
+  const inventorySnapshotsRouter = buildInventorySnapshotsRouter(snapshotController);
+
+  const returnRequestRepo = buildReturnRequestRepository(db);
+  const returnRequestService = buildReturnRequestService({ repo: returnRequestRepo });
+  const returnRequestController = buildReturnRequestController({
+    service: returnRequestService,
+    audit: auditService,
+    scope: storeScope,
+  });
+  const returnRequestsRouter = buildReturnRequestsRouter(returnRequestController);
+
+  const deliveryEditRequestRepo = buildDeliveryEditRequestRepository(db);
+  const deliveryEditRequestService = buildDeliveryEditRequestService({
+    repo: deliveryEditRequestRepo,
+  });
+  const deliveryEditRequestController = buildDeliveryEditRequestController({
+    service: deliveryEditRequestService,
+    audit: auditService,
+    scope: storeScope,
+  });
+  const deliveryEditRequestsPerDeliveryRouter = buildDeliveryEditRequestPerDeliveryRouter(
+    deliveryEditRequestController,
+  );
+  const deliveryEditRequestsGlobalRouter = buildDeliveryEditRequestGlobalRouter(
+    deliveryEditRequestController,
+  );
 
   return {
     db,
@@ -225,11 +300,17 @@ export function buildComposition(): Composition {
     deliveriesPerStoreRouter,
     deliveriesByIdRouter,
     salesPerStoreRouter,
+    saleReturnsRouter,
     dailyReportsPerStoreRouter,
     dailyReportRepository,
     dailyReportService,
     reportsRouter,
     alertsRouter,
     auditRouter,
+    inventorySnapshotsRouter,
+    inventorySnapshotService,
+    returnRequestsRouter,
+    deliveryEditRequestsPerDeliveryRouter,
+    deliveryEditRequestsGlobalRouter,
   };
 }

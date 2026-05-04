@@ -31,15 +31,27 @@ interface ResetOptions {
 export async function resetTestState({ db, resetStockFor }: ResetOptions): Promise<void> {
   await db.saleItem.deleteMany({});
   await db.sale.deleteMany({});
+  // WHY: deliveryEditRequest FK → delivery; clear before deleting deliveries.
+  await db.deliveryEditRequest.deleteMany({});
   await db.deliveryItem.deleteMany({});
   await db.delivery.deleteMany({});
   await db.dailyReport.deleteMany({});
+  await db.returnRequest.deleteMany({});
   await db.stockMovement.deleteMany({});
   await db.storeEditPermission.deleteMany({});
+  await db.inventorySnapshot.deleteMany({});
   await db.auditLog.deleteMany({
     where: {
       entity: {
-        in: ['Sale', 'Delivery', 'Stock', 'StoreEditPermission', 'DailyReport'],
+        in: [
+          'Sale',
+          'Delivery',
+          'Stock',
+          'StoreEditPermission',
+          'DailyReport',
+          'ReturnRequest',
+          'DeliveryEditRequest',
+        ],
       },
     },
   });

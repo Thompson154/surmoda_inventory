@@ -10,6 +10,7 @@ import { startRefreshTokenCleanup, type CleanupJobHandle } from './jobs/refreshT
 import { startDailyCloseJob, type DailyCloseJobHandle } from './jobs/dailyClose';
 import { startDailyLockJob, type DailyLockJobHandle } from './jobs/dailyLock';
 import { startAuditRetentionJob, type AuditRetentionJobHandle } from './jobs/auditRetention';
+import { startInventorySnapshotCron, type SnapshotCronHandle } from './jobs/inventorySnapshot';
 
 // Last-ditch process safety net. These handlers fire BEFORE main() so a fault
 // during startup is logged structured-style instead of dumping a raw stack
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   let dailyCloseJob: DailyCloseJobHandle | undefined;
   let dailyLockJob: DailyLockJobHandle | undefined;
   let auditRetentionJob: AuditRetentionJobHandle | undefined;
+  let snapshotCronHandle: SnapshotCronHandle | null = null;
   if (config.NODE_ENV !== 'test') {
     cleanupJob = startRefreshTokenCleanup(getPrisma());
     const composition = buildComposition();
@@ -52,11 +54,12 @@ async function main(): Promise<void> {
     // Tier 1 — audit retention. No-op when AUDIT_RETENTION_DAYS=0.
     auditRetentionJob = startAuditRetentionJob(getPrisma(), config.AUDIT_RETENTION_DAYS);
     if (config.AUDIT_RETENTION_DAYS > 0) {
-      logger.info(
-        { retentionDays: config.AUDIT_RETENTION_DAYS },
-        'Audit retention cron started',
-      );
+      logger.info({ retentionDays: config.AUDIT_RETENTION_DAYS }, 'Audit retention cron started');
     }
+
+    // Inventory snapshot cron — Sundays 03:00 Bolivia.
+    // Only starts in production or when ENABLE_SNAPSHOT_CRON=true.
+    snapshotCronHandle = startInventorySnapshotCron(composition.inventorySnapshotService);
   }
 
   const server = app.listen(config.PORT, () => {
@@ -72,6 +75,7 @@ async function main(): Promise<void> {
     dailyCloseJob?.stop();
     dailyLockJob?.stop();
     auditRetentionJob?.stop();
+    snapshotCronHandle?.stop();
 
     // Stop accepting new connections; resolve once in-flight requests drain.
     await new Promise<void>((res) => server.close(() => res()));

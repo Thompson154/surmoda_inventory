@@ -51,6 +51,7 @@ enum StockMovementType {
   /// originally sent line. Always paired with a DeliveryItemAdjustment row.
   delivery_received_adjusted
   sale_out
+  sale_return
 
   @@map("stock_movement_type")
 }
@@ -102,15 +103,17 @@ model Store {
   /// is true so we can dark-launch the schema before flipping the behaviour.
   salesLockedAt DateTime? @map("sales_locked_at")
 
-  assignments UserStore[]
-  stock          StockBySite[]
-  movements      StockMovement[]
-  editPermission StoreEditPermission?
-  deliveriesIn   Delivery[] @relation("DeliveryDest")
-  deliveriesOut  Delivery[] @relation("DeliveryOrigin")
-  sales          Sale[]
-  dailyReports   DailyReport[]
-  idempotencyKeys IdempotencyKey[]
+  assignments         UserStore[]
+  stock               StockBySite[]
+  movements           StockMovement[]
+  editPermission      StoreEditPermission?
+  deliveriesIn        Delivery[] @relation("DeliveryDest")
+  deliveriesOut       Delivery[] @relation("DeliveryOrigin")
+  sales               Sale[]
+  dailyReports        DailyReport[]
+  idempotencyKeys     IdempotencyKey[]
+  inventorySnapshots  InventorySnapshot[]
+  returnRequests      ReturnRequest[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -147,11 +150,14 @@ model Variant {
   imagePath  String? @map("image_path")
   isActive   Boolean @default(true) @map("is_active")
 
-  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  stock         StockBySite[]
-  movements     StockMovement[]
-  deliveryItems DeliveryItem[]
-  saleItems     SaleItem[]
+  product            Product           @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  stock              StockBySite[]
+  movements          StockMovement[]
+  deliveryItems      DeliveryItem[]
+  saleItems          SaleItem[]
+  inventorySnapshots InventorySnapshot[]
+  returnRequestsAsReturned  ReturnRequest[] @relation("ReturnedVariantRequests")
+  returnRequestsAsExchange  ReturnRequest[] @relation("ExchangeVariantRequests")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -189,6 +195,10 @@ model User {
   dailyReportAttendance DailyReportAttendance[]
   deliveriesReceived Delivery[]                 @relation("DeliveryReceiver")
   deliveryAdjustments DeliveryItemAdjustment[]
+  returnRequestsCreated ReturnRequest[]         @relation("RequesterReturnRequests")
+  returnRequestsReviewed ReturnRequest[]        @relation("ReviewerReturnRequests")
+  deliveryEditRequestsCreated  DeliveryEditRequest[] @relation("RequesterDeliveryEditRequests")
+  deliveryEditRequestsReviewed DeliveryEditRequest[] @relation("ReviewerDeliveryEditRequests")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -340,6 +350,7 @@ model Delivery {
   receivedBy  User?                     @relation("DeliveryReceiver", fields: [receivedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   items       DeliveryItem[]
   adjustments DeliveryItemAdjustment[]
+  editRequests DeliveryEditRequest[]
 
   @@index([status, toStoreId])
   @@index([toStoreId, createdAt])
@@ -402,6 +413,8 @@ model Sale {
   user  User       @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   items SaleItem[]
   idempotencyKeys IdempotencyKey[]
+  // WHY: reverse rel for ReturnRequest.originalSale FK (Wave 5 redesign).
+  returnRequests  ReturnRequest[]
 
   @@index([storeId, createdAt])
   @@map("sales")
@@ -427,14 +440,17 @@ model IdempotencyKey {
 }
 
 model SaleItem {
-  id              String @id @default(cuid())
-  saleId          String @map("sale_id")
-  variantId       String @map("variant_id")
-  quantity        Int
-  priceAtSaleCents Int   @map("price_at_sale_cents")
-  /// Final amount charged for this line (in cents). Defaults to qty*price unless
-  /// the cashier applied a per-line discount. Sum across a sale must equal Sale.totalCents.
-  subtotalCents   Int    @map("subtotal_cents")
+  id               String @id @default(cuid())
+  saleId           String @map("sale_id")
+  variantId        String @map("variant_id")
+  quantity         Int
+  priceAtSaleCents Int    @map("price_at_sale_cents")
+  // WHY: dual-field model separates undiscounted total from charged amount for return and discount audit.
+  /// Undiscounted line total (quantity × priceAtSaleCents). Frozen at charge time, never editable.
+  totalCents       Int    @map("total_cents")
+  /// Final amount charged for this line (in cents). Defaults to totalCents on creation;
+  /// editable PRE-charge for discounts up to 30%. (totalCents - subtotalCents)/totalCents <= 0.30.
+  subtotalCents    Int    @map("subtotal_cents")
 
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   variant Variant @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -488,4 +504,118 @@ model DailyReportAttendance {
   @@index([dailyReportId])
   @@index([userId])
   @@map("daily_report_attendance")
+}
+
+enum ReturnRequestStatus {
+  pending
+  approved
+  rejected
+
+  @@map("return_request_status")
+}
+
+/// A vendedora or encargada requests to return a sold item; admin reviews and approves/rejects.
+model ReturnRequest {
+  id                String              @id @default(cuid())
+  requesterId       String              @map("requester_id")
+  storeId           String              @map("store_id")
+  status            ReturnRequestStatus @default(pending)
+
+  returnedVariantId   String  @map("returned_variant_id")
+  returnedQuantity    Int     @default(1) @map("returned_quantity")
+
+  // WHY: saleDate ties the return to a specific day's record without a hard FK to a Sale.
+  saleDate          DateTime @map("sale_date")
+
+  exchangeVariantId String?  @map("exchange_variant_id")
+
+  reason            String   @db.Text
+
+  reviewedBy        String?  @map("reviewed_by")
+  reviewedAt        DateTime? @map("reviewed_at")
+  rejectionReason   String?  @db.Text @map("rejection_reason")
+
+  appliedReturnMovementId String? @map("applied_return_movement_id")
+  appliedSaleMovementId   String? @map("applied_sale_movement_id")
+
+  // WHY: Wave 5 redesign — identify the original sale being changed so admin can
+  // replace the SaleItem on approve. Nullable because pre-Wave 5 rows lack them.
+  originalSaleId        String?       @map("original_sale_id")
+  originalSaleItemId    String?       @map("original_sale_item_id")
+  originalClosureDate   DateTime?     @map("original_closure_date") @db.Date
+  originalPaymentMethod PaymentMethod? @map("original_payment_method")
+  originalSubtotalCents Int?          @map("original_subtotal_cents")
+
+  newPaymentMethod      PaymentMethod? @map("new_payment_method")
+  newSubtotalCents      Int?          @map("new_subtotal_cents")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  requester       User     @relation("RequesterReturnRequests", fields: [requesterId], references: [id])
+  reviewer        User?    @relation("ReviewerReturnRequests", fields: [reviewedBy], references: [id])
+  store           Store    @relation(fields: [storeId], references: [id])
+  returnedVariant Variant  @relation("ReturnedVariantRequests", fields: [returnedVariantId], references: [id])
+  exchangeVariant Variant? @relation("ExchangeVariantRequests", fields: [exchangeVariantId], references: [id])
+  originalSale    Sale?    @relation(fields: [originalSaleId], references: [id])
+
+  @@index([storeId, status])
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+  @@index([originalSaleId])
+  @@map("return_requests")
+}
+
+enum DeliveryEditRequestStatus {
+  pending
+  approved
+  rejected
+
+  @@map("delivery_edit_request_status")
+}
+
+/// A vendedora/encargada requests an edit to a delivery already in `sent` state.
+/// Admin reviews; approve only RECORDS the decision — the actual edit happens via
+/// the existing PATCH /deliveries/:id/draft flow once the delivery is in draft.
+model DeliveryEditRequest {
+  id              String                    @id @default(cuid())
+  deliveryId      String                    @map("delivery_id")
+  requesterId     String                    @map("requester_id")
+  reason          String                    @db.Text
+  status          DeliveryEditRequestStatus @default(pending)
+  reviewedBy      String?                   @map("reviewed_by")
+  reviewedAt      DateTime?                 @map("reviewed_at")
+  rejectionReason String?                   @db.Text @map("rejection_reason")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+
+  delivery  Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  requester User     @relation("RequesterDeliveryEditRequests", fields: [requesterId], references: [id])
+  reviewer  User?    @relation("ReviewerDeliveryEditRequests", fields: [reviewedBy], references: [id])
+
+  @@index([deliveryId, status])
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+  @@map("delivery_edit_requests")
+}
+
+/// Point-in-time capture of stock_by_site. Written weekly by the snapshot
+/// cron (Sundays 03:00 Bolivia time) and on-demand via POST /api/v1/inventory-snapshots.
+/// Used for historical reports and bank-loan evidence.
+/// capturedAt is the logical timestamp of the snapshot run — all rows in the
+/// same batch share the same capturedAt value set at the start of the job.
+model InventorySnapshot {
+  id         String   @id @default(cuid())
+  storeId    String   @map("store_id")
+  variantId  String   @map("variant_id")
+  quantity   Int
+  capturedAt DateTime @map("captured_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  /// Prevents double-capture within the same batch for the same (store, variant, timestamp).
+  @@unique([storeId, variantId, capturedAt], name: "inventory_snapshots_store_variant_captured_at_unique")
+  @@index([storeId, capturedAt(sort: Desc)])
+  @@index([capturedAt])
+  @@map("inventory_snapshots")
 }

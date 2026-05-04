@@ -44,15 +44,26 @@ const config: Config = {
     '!dist/**',
   ],
   coverageReporters: ['text', 'html', 'lcov'],
-  // WHY: Global thresholds set to current actual coverage minus 5% as guardrail.
-  // Repositories are covered by integration tests (not unit), so global unit numbers
-  // are lower than module-only numbers. Raise these as integration coverage grows.
+  // WHY: constitución § 3.3 — floor gates to prevent coverage regression.
   coverageThreshold: {
     global: {
-      lines: 73,
-      statements: 71,
-      branches: 65,
-      functions: 60,
+      statements: 80,
+      branches: 70,
+      functions: 80,
+      lines: 80,
+    },
+    // WHY: constitución § 3.3 exige ≥80% en services y repositories específicamente
+    './src/modules/**/service.ts': {
+      statements: 80,
+      branches: 75,
+      functions: 80,
+      lines: 80,
+    },
+    './src/modules/**/repository.ts': {
+      statements: 80,
+      branches: 70,
+      functions: 80,
+      lines: 80,
     },
   },
 };

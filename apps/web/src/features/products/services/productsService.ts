@@ -10,20 +10,19 @@ import type {
 } from '@surmoda/contracts';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { httpClient } from '@/shared/services/httpClient';
+import { buildQueryString } from '@/shared/utils/buildQueryString';
+import { config } from '@/shared/config';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+const BASE_URL = config.VITE_API_BASE_URL;
 
-function buildQueryString(filters: ListProductsFilters): string {
-  const params = new URLSearchParams();
-  if (filters.q) params.set('q', filters.q);
-  if (filters.isActive !== undefined) params.set('isActive', String(filters.isActive));
-  if (filters.includeInactive !== undefined) {
-    params.set('includeInactive', String(filters.includeInactive));
-  }
-  if (filters.page) params.set('page', String(filters.page));
-  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
+function buildProductsQS(filters: ListProductsFilters): string {
+  return buildQueryString({
+    q: filters.q,
+    isActive: filters.isActive,
+    includeInactive: filters.includeInactive,
+    page: filters.page,
+    pageSize: filters.pageSize,
+  });
 }
 
 export interface CreateVariantArgs {
@@ -94,7 +93,7 @@ async function multipartRequest<T>(
 
 export const productsService = {
   list: (filters: ListProductsFilters = {}) =>
-    httpClient.get<PaginatedProducts>(`/products${buildQueryString(filters)}`),
+    httpClient.get<PaginatedProducts>(`/products${buildProductsQS(filters)}`),
   getById: (id: string) => httpClient.get<ProductWithVariants>(`/products/${id}`),
   create: (payload: CreateProductPayload) => httpClient.post<Product>('/products', payload),
   update: (id: string, payload: UpdateProductPayload) =>

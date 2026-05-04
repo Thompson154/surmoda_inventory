@@ -1,8 +1,10 @@
 import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import express, { type Express, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { parse as parseYaml } from 'yaml';
 import { loadConfig } from './infrastructure/config';
 import { errorHandler } from './middleware/errorHandler';
 import { attachAuditEmitter } from './middleware/auditLogger';
@@ -77,9 +79,14 @@ export function buildServer(): Express {
   const composition = buildComposition();
   app.use(attachAuditEmitter(composition.auditService));
 
-  // Liveness — process is up, no I/O.
+  // Liveness — process is up, no I/O. Render/Railway keep-alive ping target.
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
+  });
+
+  // WHY: /health/live is the canonical k8s liveness probe path
+  app.get('/health/live', (_req: Request, res: Response) => {
+    res.json({ status: 'live', uptime: process.uptime() });
   });
 
   // Readiness — DB reachable. Used by Kubernetes/Render-style orchestrators
@@ -87,12 +94,31 @@ export function buildServer(): Express {
   app.get('/health/ready', async (req: Request, res: Response) => {
     try {
       await getPrisma().$queryRaw`SELECT 1`;
-      res.json({ status: 'ready' });
+      res.json({ status: 'ready', db: 'ok', timestamp: new Date().toISOString() });
     } catch (err) {
       req.log?.error({ err }, 'readiness check failed');
-      res.status(503).json({ status: 'not-ready' });
+      res.status(503).json({ status: 'not-ready', db: 'down' });
     }
   });
+
+  // Swagger UI — dev only so the interactive docs don't ship to production.
+  if (config.NODE_ENV !== 'production') {
+    // WHY: dynamic import keeps swagger-ui-express out of the prod critical path
+    void (async () => {
+      try {
+        const swaggerUi = await import('swagger-ui-express');
+        const specPath = resolve(process.cwd(), '..', '..', 'docs', 'api', 'openapi.yaml');
+        const yaml = await readFile(specPath, 'utf-8');
+        const spec = parseYaml(yaml) as object;
+        app.use('/docs', swaggerUi.default.serve, swaggerUi.default.setup(spec));
+      } catch (err) {
+        // WHY: missing YAML on first boot shouldn't crash the server
+        console.warn(
+          '[server] Swagger UI not mounted — openapi.yaml missing. Run npm run openapi.',
+        );
+      }
+    })();
+  }
 
   // Static images: only mounted in `local` storage mode so prod (cloudinary) doesn't expose the disk.
   if (config.IMAGE_STORAGE === 'local') {
@@ -111,10 +137,15 @@ export function buildServer(): Express {
   app.use('/api/v1/stores/:storeId', composition.deliveriesPerStoreRouter);
   app.use('/api/v1/deliveries', composition.deliveriesByIdRouter);
   app.use('/api/v1/stores/:storeId', composition.salesPerStoreRouter);
+  app.use('/api/v1', composition.saleReturnsRouter);
   app.use('/api/v1/stores/:storeId', composition.dailyReportsPerStoreRouter);
   app.use('/api/v1/reports', composition.reportsRouter);
   app.use('/api/v1/alerts', composition.alertsRouter);
   app.use('/api/v1/audit-logs', composition.auditRouter);
+  app.use('/api/v1/inventory-snapshots', composition.inventorySnapshotsRouter);
+  app.use('/api/v1/return-requests', composition.returnRequestsRouter);
+  app.use('/api/v1/deliveries', composition.deliveryEditRequestsPerDeliveryRouter);
+  app.use('/api/v1/delivery-edit-requests', composition.deliveryEditRequestsGlobalRouter);
 
   app.use(errorHandler);
 
