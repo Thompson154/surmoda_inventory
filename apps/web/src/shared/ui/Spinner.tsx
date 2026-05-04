@@ -15,7 +15,7 @@ const sizeClasses: Record<NonNullable<SpinnerProps['size']>, string> = {
 export function Spinner({ size = 'md', className }: SpinnerProps): JSX.Element {
   return (
     <Loader2
-      className={cn('animate-spin text-slate-400', sizeClasses[size], className)}
+      className={cn('animate-spin text-text-subtle', sizeClasses[size], className)}
       aria-hidden="true"
     />
   );

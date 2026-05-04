@@ -19,13 +19,13 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
           {/* Hero row: Total + Trans/Items full-width side by side. */}
           <ul className="grid grid-cols-2 gap-2 text-xs">
             <li className="rounded border border-surface-border px-3 py-2">
-              <p className="text-slate-500">Total</p>
+              <p className="text-text-muted">Total</p>
               <p className="font-mono font-semibold text-base mt-0.5">
                 {formatBs(report.totalCents)}
               </p>
             </li>
             <li className="rounded border border-surface-border px-3 py-2">
-              <p className="text-slate-500">Trans. / Ítems</p>
+              <p className="text-text-muted">Trans. / Ítems</p>
               <p className="font-mono font-semibold text-base mt-0.5">
                 {report.transactionsCount} / {report.itemCount}
               </p>
@@ -37,22 +37,22 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
               dropped from this grid — it lives in the modal title now. */}
           <ul className="grid grid-cols-3 gap-2 text-xs">
             <li className="rounded border border-surface-border px-2 py-1.5">
-              <p className="text-slate-500">QR</p>
+              <p className="text-text-muted">QR</p>
               <p className="font-mono">{formatBs(report.qrCents)}</p>
             </li>
             <li className="rounded border border-surface-border px-2 py-1.5">
-              <p className="text-slate-500">Tarjeta</p>
+              <p className="text-text-muted">Tarjeta</p>
               <p className="font-mono">{formatBs(report.cardCents)}</p>
             </li>
             <li className="rounded border border-surface-border px-2 py-1.5">
-              <p className="text-slate-500">Efectivo</p>
+              <p className="text-text-muted">Efectivo</p>
               <p className="font-mono">{formatBs(report.cashCents)}</p>
             </li>
           </ul>
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-text-muted">
             Cerrado por:{' '}
-            <span className="font-medium text-slate-700">
+            <span className="font-medium text-text-secondary">
               {report.autoClosed ? 'Auto-close' : (report.closedByFullName ?? 'Manual')}
             </span>
           </p>
@@ -78,12 +78,12 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
             {itemsQuery.isLoading && <Skeleton className="h-24 w-full" />}
             {itemsQuery.isError && <Alert variant="error">No pudimos cargar el detalle.</Alert>}
             {itemsQuery.data && itemsQuery.data.items.length === 0 && (
-              <p className="text-sm text-slate-500">Este día no tuvo ventas.</p>
+              <p className="text-sm text-text-muted">Este día no tuvo ventas.</p>
             )}
             {itemsQuery.data && itemsQuery.data.items.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <thead className="bg-surface-sunken text-slate-600">
+                  <thead className="bg-surface-sunken text-text-secondary">
                     <tr>
                       <th className="text-left px-2 py-2">Producto</th>
                       <th className="text-left px-2 py-2">Talla / Color</th>
@@ -96,7 +96,7 @@ export function DailyReportDetailModal({ storeId, report, onClose }: DailyReport
                       <tr key={it.variantId} className="border-t border-surface-border">
                         <td className="px-2 py-2">
                           <p className="font-semibold">{it.productName}</p>
-                          <p className="text-slate-500 font-mono text-[10px]">{it.productCode}</p>
+                          <p className="text-text-muted font-mono text-[10px]">{it.productCode}</p>
                         </td>
                         <td className="px-2 py-2">
                           <span className="font-mono">{it.size}</span> · {it.color}

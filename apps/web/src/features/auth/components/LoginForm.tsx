@@ -47,7 +47,7 @@ export function LoginForm() {
         variant="primary"
         size="lg"
         isLoading={login.isPending}
-        className="w-full"
+        className="w-full active:scale-[0.98] transition-transform"
       >
         {login.isPending ? 'Ingresando...' : 'Ingresar'}
       </Button>

@@ -140,7 +140,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
     >
       <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
         <div>
-          <label htmlFor="transfer-to" className="text-sm font-medium text-slate-700">
+          <label htmlFor="transfer-to" className="text-sm font-medium text-text-secondary">
             Sede destino
           </label>
           <Select
@@ -160,7 +160,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
         </div>
 
         <div>
-          <label htmlFor="transfer-title" className="text-sm font-medium text-slate-700">
+          <label htmlFor="transfer-title" className="text-sm font-medium text-text-secondary">
             Título (opcional)
           </label>
           <Input
@@ -174,7 +174,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
         </div>
 
         <div>
-          <label htmlFor="transfer-search" className="text-sm font-medium text-slate-700">
+          <label htmlFor="transfer-search" className="text-sm font-medium text-text-secondary">
             Buscar variante en mi inventario
           </label>
           <Input
@@ -187,11 +187,11 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
           />
         </div>
 
-        {inventory.isLoading && <p className="text-xs text-slate-500">Cargando…</p>}
+        {inventory.isLoading && <p className="text-xs text-text-muted">Cargando…</p>}
         {inventory.data && (
           <div className="flex flex-col gap-1 max-h-48 overflow-y-auto rounded border border-surface-border">
             {inventory.data.items.length === 0 ? (
-              <p className="text-xs text-slate-500 px-3 py-2">Sin coincidencias.</p>
+              <p className="text-xs text-text-muted px-3 py-2">Sin coincidencias.</p>
             ) : (
               inventory.data.items.map((row) => {
                 const src = getImageUrl(row.imagePath);
@@ -206,21 +206,21 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
                       cart.find((c) => c.variantId === row.variantId) ? 'bg-surface-sunken' : ''
                     }`}
                   >
-                    <div className="h-9 w-9 shrink-0 rounded-md bg-slate-100 flex items-center justify-center overflow-hidden">
+                    <div className="h-9 w-9 shrink-0 rounded-md bg-surface-sunken flex items-center justify-center overflow-hidden">
                       {src ? (
                         <img src={src} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <ImageIcon className="h-4 w-4 text-slate-400" />
+                        <ImageIcon className="h-4 w-4 text-text-subtle" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-mono text-slate-500">{row.productCode}</p>
+                      <p className="text-xs font-mono text-text-muted">{row.productCode}</p>
                       <p className="text-sm truncate">
                         {sizeLabel(row.size)} · <span className="capitalize">{row.color}</span>
                       </p>
                     </div>
-                    <span className="text-xs text-slate-500 shrink-0">{row.quantity} dispon.</span>
-                    <Plus className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span className="text-xs text-text-muted shrink-0">{row.quantity} dispon.</span>
+                    <Plus className="h-4 w-4 text-text-subtle shrink-0" />
                   </button>
                 );
               })
@@ -230,7 +230,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
 
         {cart.length > 0 && (
           <div className="rounded border border-surface-border">
-            <p className="text-xs font-semibold text-slate-700 px-3 py-2 border-b border-surface-border">
+            <p className="text-xs font-semibold text-text-secondary px-3 py-2 border-b border-surface-border">
               A enviar ({totalUnits} {totalUnits === 1 ? 'unidad' : 'unidades'})
             </p>
             <ul>
@@ -240,7 +240,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
                   className="flex items-center gap-2 px-3 py-2 border-b border-surface-border last:border-b-0"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-mono text-slate-500">{i.productCode}</p>
+                    <p className="text-xs font-mono text-text-muted">{i.productCode}</p>
                     <p className="text-sm">
                       {sizeLabel(i.size)} · <span className="capitalize">{i.color}</span>
                     </p>
@@ -255,7 +255,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
                     className="w-16 text-center text-xs py-1"
                     aria-label="Cantidad"
                   />
-                  <span className="text-[10px] text-slate-400 shrink-0">/{i.available}</span>
+                  <span className="text-[10px] text-text-subtle shrink-0">/{i.available}</span>
                   <IconButton
                     icon={<Trash2 className="h-3.5 w-3.5" />}
                     label="Quitar"

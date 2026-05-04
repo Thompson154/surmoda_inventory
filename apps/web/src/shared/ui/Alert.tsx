@@ -14,11 +14,11 @@ const variantConfig: Record<
 > = {
   error: {
     icon: AlertCircle,
-    classes: 'bg-status-danger-soft border-status-danger/20 text-red-800',
+    classes: 'bg-status-danger-soft border-status-danger/20 text-status-danger',
   },
   warning: {
     icon: AlertTriangle,
-    classes: 'bg-status-warning-soft border-status-warning/30 text-amber-800',
+    classes: 'bg-status-warning-soft border-status-warning/30 text-status-warning',
   },
   info: {
     icon: Info,
@@ -26,7 +26,7 @@ const variantConfig: Record<
   },
   success: {
     icon: CheckCircle2,
-    classes: 'bg-status-success-soft border-status-success/20 text-emerald-800',
+    classes: 'bg-status-success-soft border-status-success/20 text-status-success',
   },
 };
 

@@ -8,8 +8,13 @@
 //
 // Telemetry: `onError` is exposed so callers can pipe to Sentry, GlitchTip,
 // or any other APM the app wires later (Tier 1 — currently unused).
+//
+// ErrorBoundaryWithReset: functional wrapper that resets the boundary on
+// route change by passing `location.key` as `key`. Requires React Router
+// context — use it INSIDE <BrowserRouter>.
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 
 interface Props {
   children: ReactNode;
@@ -54,9 +59,9 @@ export class ErrorBoundary extends Component<Props, State> {
         role="alert"
         className="min-h-[100dvh] flex items-center justify-center bg-surface-base p-6"
       >
-        <div className="max-w-md w-full rounded-xl border border-surface-border bg-white p-6 shadow-sm flex flex-col gap-3">
-          <h1 className="text-xl font-semibold text-slate-900">Algo salió mal</h1>
-          <p className="text-sm text-slate-600">
+        <div className="max-w-md w-full rounded-xl border border-surface-border bg-surface-raised p-6 shadow-sm flex flex-col gap-3">
+          <h1 className="text-xl font-semibold text-text-primary">Algo salió mal</h1>
+          <p className="text-sm text-text-secondary">
             La aplicación encontró un error inesperado. Probá recargar la página o volver al inicio.
             Si el problema persiste, avisale al admin.
           </p>
@@ -66,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
               user gets the friendly Spanish copy above and the actual
               error goes to the APM via the onError telemetry hook. */}
           {import.meta.env.DEV && (
-            <p className="text-[11px] font-mono text-slate-400 break-words">{error.message}</p>
+            <p className="text-[11px] font-mono text-text-subtle break-words">{error.message}</p>
           )}
           <div className="flex gap-2 mt-2">
             <button
@@ -79,7 +84,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="rounded-md border border-surface-border text-slate-700 text-sm font-semibold px-3 py-2 hover:bg-surface-sunken"
+              className="rounded-md border border-surface-border text-text-secondary text-sm font-semibold px-3 py-2 hover:bg-surface-sunken"
             >
               Recargar
             </button>
@@ -88,4 +93,19 @@ export class ErrorBoundary extends Component<Props, State> {
       </div>
     );
   }
+}
+
+/**
+ * Route-aware wrapper for ErrorBoundary.
+ *
+ * Passes `location.key` as the React `key` prop so that whenever the user
+ * navigates to a different route, React unmounts and remounts the boundary
+ * — clearing any stale error fallback automatically.
+ *
+ * REQUIREMENT: must be rendered inside a React Router context
+ * (i.e. inside <BrowserRouter> or equivalent).
+ */
+export function ErrorBoundaryWithReset(props: Props) {
+  const location = useLocation();
+  return <ErrorBoundary key={location.key} {...props} />;
 }

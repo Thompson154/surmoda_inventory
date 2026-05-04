@@ -172,7 +172,7 @@ export function BarcodeScanner({
         }`}
       />
       {!cameraOn && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-300">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-subtle">
           <ScanLine className="h-12 w-12" />
           <p className="text-xs">{hint}</p>
           <Button
@@ -184,7 +184,7 @@ export function BarcodeScanner({
           >
             Encender cámara
           </Button>
-          {cameraError && <p className="text-[11px] text-rose-300 mt-1">{cameraError}</p>}
+          {cameraError && <p className="text-[11px] text-status-danger mt-1">{cameraError}</p>}
         </div>
       )}
       {cameraOn && (
@@ -197,7 +197,7 @@ export function BarcodeScanner({
         </button>
       )}
       {cameraOn && (
-        <div className="absolute inset-x-8 top-1/2 h-0.5 bg-rose-500/80 animate-pulse pointer-events-none" />
+        <div className="absolute inset-x-8 top-1/2 h-0.5 bg-status-danger/80 animate-pulse pointer-events-none" />
       )}
     </div>
   );

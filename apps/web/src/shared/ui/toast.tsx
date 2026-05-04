@@ -57,24 +57,24 @@ const palette: Record<
   { bg: string; border: string; text: string; iconClass: string; Icon: typeof Info }
 > = {
   success: {
-    bg: 'bg-emerald-50',
+    bg: 'bg-status-success-soft',
     border: 'border-emerald-200',
-    text: 'text-emerald-800',
-    iconClass: 'text-emerald-500',
+    text: 'text-status-success',
+    iconClass: 'text-status-success',
     Icon: CheckCircle2,
   },
   error: {
-    bg: 'bg-rose-50',
-    border: 'border-rose-200',
-    text: 'text-rose-800',
-    iconClass: 'text-rose-500',
+    bg: 'bg-status-danger-soft',
+    border: 'border-status-danger',
+    text: 'text-status-danger',
+    iconClass: 'text-status-danger',
     Icon: AlertCircle,
   },
   info: {
-    bg: 'bg-slate-50',
-    border: 'border-slate-200',
-    text: 'text-slate-800',
-    iconClass: 'text-slate-500',
+    bg: 'bg-surface-base',
+    border: 'border-surface-border',
+    text: 'text-text-primary',
+    iconClass: 'text-text-muted',
     Icon: Info,
   },
 };

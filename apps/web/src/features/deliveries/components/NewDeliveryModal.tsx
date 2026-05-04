@@ -153,7 +153,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
         title={isReception ? 'Nueva recepción' : 'Nueva entrega'}
       >
         <div className="flex flex-col gap-3 max-h-[75vh] overflow-y-auto">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-muted">
             {isReception
               ? 'Agregá las variantes que llegaron al almacén.'
               : `Estás entregando desde el almacén a ${targetStore?.name ?? 'esta sede'}.`}
@@ -182,15 +182,15 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                         {url ? (
                           <img src={url} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <ImageIcon className="h-4 w-4 text-slate-400" />
+                          <ImageIcon className="h-4 w-4 text-text-subtle" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-900 truncate">
+                        <p className="text-sm text-text-primary truncate">
                           <span className="font-mono">{row.productCode}</span> ·{' '}
                           {sizeLabel(row.size)} · <span className="capitalize">{row.color}</span>
                         </p>
-                        <p className="text-xs text-slate-500 truncate">{row.productName}</p>
+                        <p className="text-xs text-text-muted truncate">{row.productName}</p>
                       </div>
                       <span
                         className={`text-xs font-mono shrink-0 ${
@@ -198,26 +198,30 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                             ? 'text-status-danger'
                             : row.quantity < 5
                               ? 'text-status-warning'
-                              : 'text-slate-500'
+                              : 'text-text-muted'
                         }`}
                       >
                         Stock: {row.quantity}
                       </span>
-                      <Plus className="h-4 w-4 text-slate-400 shrink-0" />
+                      <Plus className="h-4 w-4 text-text-subtle shrink-0" />
                     </button>
                   </li>
                 );
               })}
               {inventory.data.items.length === 0 && (
-                <li className="px-3 py-3 text-center text-xs text-slate-500">Sin resultados.</li>
+                <li className="px-3 py-3 text-center text-xs text-text-muted">Sin resultados.</li>
               )}
             </ul>
           )}
 
           <div className="border-t border-surface-border pt-3">
-            <p className="text-sm font-medium text-slate-900 mb-2">Carrito ({totalUnits} unid.)</p>
+            <p className="text-sm font-medium text-text-primary mb-2">
+              Carrito ({totalUnits} unid.)
+            </p>
             {cart.length === 0 ? (
-              <p className="text-xs text-slate-500">Agregá variantes desde el listado de arriba.</p>
+              <p className="text-xs text-text-muted">
+                Agregá variantes desde el listado de arriba.
+              </p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {cart.map((i) => (
@@ -226,12 +230,12 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
                     className="flex items-center gap-2 rounded-lg border border-surface-border px-2 py-2"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-900 truncate">
+                      <p className="text-sm text-text-primary truncate">
                         <span className="font-mono">{i.productCode}</span> · {sizeLabel(i.size)} ·{' '}
                         <span className="capitalize">{i.color}</span>
                       </p>
                       {!isReception && (
-                        <p className="text-[10px] text-slate-400 mt-0.5">
+                        <p className="text-[10px] text-text-subtle mt-0.5">
                           Disponible en almacén: {i.available}
                         </p>
                       )}
@@ -282,7 +286,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
           />
 
           {!isReception && (
-            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
               <input
                 type="checkbox"
                 checked={asDraft}
@@ -313,11 +317,11 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
         title="Confirmar entrega"
       >
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-text-secondary">
             Vas a {isReception ? 'recibir' : 'entregar'} <strong>{submittableUnits}</strong> unidad
             {submittableUnits === 1 ? '' : 'es'} en <strong>{targetStore?.name ?? '—'}</strong>.
           </p>
-          <ul className="text-xs text-slate-600 max-h-40 overflow-y-auto">
+          <ul className="text-xs text-text-secondary max-h-40 overflow-y-auto">
             {cart
               .filter((i) => i.quantity > 0)
               .map((i) => (

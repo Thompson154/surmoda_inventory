@@ -8,17 +8,17 @@ import type {
   TogglePermissionPayload,
 } from '@surmoda/contracts';
 import { httpClient } from '@/shared/services/httpClient';
+import { buildQueryString } from '@/shared/utils/buildQueryString';
 
-function buildQueryString(filters: ListInventoryFilters): string {
-  const params = new URLSearchParams();
-  if (filters.q) params.set('q', filters.q);
-  if (filters.stockStatus) params.set('stockStatus', filters.stockStatus);
-  if (filters.size) params.set('size', filters.size);
-  if (filters.color) params.set('color', filters.color);
-  if (filters.page) params.set('page', String(filters.page));
-  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
+function buildInventoryQS(filters: ListInventoryFilters): string {
+  return buildQueryString({
+    q: filters.q,
+    stockStatus: filters.stockStatus,
+    size: filters.size,
+    color: filters.color,
+    page: filters.page,
+    pageSize: filters.pageSize,
+  });
 }
 
 export interface AdjustResult extends InventoryRow {
@@ -28,7 +28,7 @@ export interface AdjustResult extends InventoryRow {
 
 export const inventoryService = {
   list: (storeId: string, filters: ListInventoryFilters = {}) =>
-    httpClient.get<PaginatedInventory>(`/stores/${storeId}/inventory${buildQueryString(filters)}`),
+    httpClient.get<PaginatedInventory>(`/stores/${storeId}/inventory${buildInventoryQS(filters)}`),
 
   adjust: (storeId: string, variantId: string, payload: AdjustQuantityPayload) =>
     httpClient.patch<AdjustResult>(`/stores/${storeId}/inventory/${variantId}`, payload),
@@ -38,7 +38,7 @@ export const inventoryService = {
 
   listMovements: (storeId: string, filters: { page?: number; pageSize?: number } = {}) =>
     httpClient.get<PaginatedStockMovements>(
-      `/stores/${storeId}/movements${buildQueryString(filters)}`,
+      `/stores/${storeId}/movements${buildInventoryQS(filters)}`,
     ),
 
   getEditPermission: (storeId: string) =>

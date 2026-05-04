@@ -15,17 +15,17 @@ export function ProductCreatePage() {
 
   return (
     <div className="min-h-screen bg-surface-base">
-      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-slate-900">
+      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-text-primary">
         <header className="flex flex-col gap-1">
           <Link
             to="/products"
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+            className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al catálogo
           </Link>
           <h1 className="text-xl font-semibold">Nuevo producto</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-text-muted">
             Después de crear el producto vas a poder agregar variantes (talla + color + precio +
             imagen).
           </p>

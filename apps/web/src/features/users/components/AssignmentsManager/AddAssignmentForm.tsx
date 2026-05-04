@@ -30,7 +30,7 @@ export function AddAssignmentForm({ isPending, onAdd }: AddAssignmentFormProps) 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2 rounded border border-dashed border-slate-300 p-3"
+      className="flex items-end gap-2 rounded border border-dashed border-surface-border-strong p-3"
     >
       <div className="flex flex-1 flex-col gap-1">
         <Field label="Tienda" htmlFor="add-assignment-store">

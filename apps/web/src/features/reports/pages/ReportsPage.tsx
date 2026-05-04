@@ -48,18 +48,18 @@ export function ReportsPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 text-slate-900">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-1">
             <Link
               to={backTo}
-              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+              className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
             >
               <ArrowLeft className="h-4 w-4" />
               {backLabel}
             </Link>
             <h1 className="text-xl font-semibold">Reportes</h1>
-            <p className="text-xs text-slate-500">Análisis cross-sucursal — admin / encargada</p>
+            <p className="text-xs text-text-muted">Análisis cross-sucursal — admin / encargada</p>
           </div>
         </header>
 
@@ -80,8 +80,8 @@ export function ReportsPage() {
                   onClick={() => setPreset(p.v)}
                   className={
                     active
-                      ? 'rounded-full bg-slate-900 text-white text-xs font-semibold px-3 py-1.5'
-                      : 'rounded-full border border-surface-border bg-white text-slate-600 text-xs px-3 py-1.5 hover:bg-surface-sunken'
+                      ? 'rounded-full bg-brand-primary text-white text-xs font-semibold px-3 py-1.5'
+                      : 'rounded-full border border-surface-border bg-surface-raised text-text-secondary text-xs px-3 py-1.5 hover:bg-surface-sunken'
                   }
                 >
                   {p.label}
@@ -99,7 +99,7 @@ export function ReportsPage() {
                   onChange={(e) => setCustomFrom(e.target.value)}
                   className="text-xs"
                 />
-                <span className="text-xs text-slate-400">→</span>
+                <span className="text-xs text-text-subtle">→</span>
                 <Input
                   id="reports-to"
                   type="date"
@@ -112,7 +112,7 @@ export function ReportsPage() {
               </div>
             )}
 
-            <span className="ml-auto text-xs text-slate-500 font-mono">
+            <span className="ml-auto text-xs text-text-muted font-mono">
               {range.from} → {range.to}
             </span>
           </CardContent>
@@ -123,7 +123,7 @@ export function ReportsPage() {
         {/* Totals — hero */}
         <Card>
           <CardContent className="py-4">
-            <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            <p className="text-[11px] uppercase tracking-wider text-text-muted font-semibold">
               Ventas totales del rango
             </p>
             {summary.isLoading || !data ? (
@@ -166,9 +166,9 @@ export function ReportsPage() {
                   cents={data.totals.cashCents}
                   totalCents={data.totals.totalCents}
                   palette={{
-                    bg: 'bg-emerald-100',
-                    text: 'text-emerald-600',
-                    bar: 'bg-emerald-500',
+                    bg: 'bg-status-success-soft',
+                    text: 'text-status-success',
+                    bar: 'bg-status-success',
                   }}
                 />
                 <PaymentBar
@@ -176,7 +176,11 @@ export function ReportsPage() {
                   label="Tarjeta"
                   cents={data.totals.cardCents}
                   totalCents={data.totals.totalCents}
-                  palette={{ bg: 'bg-slate-200', text: 'text-slate-700', bar: 'bg-slate-700' }}
+                  palette={{
+                    bg: 'bg-surface-sunken',
+                    text: 'text-text-secondary',
+                    bar: 'bg-slate-700',
+                  }}
                 />
               </div>
             </CardContent>
@@ -189,11 +193,11 @@ export function ReportsPage() {
             <CardContent>
               <p className="text-sm font-semibold mb-2">Comparativa por sucursal</p>
               {data.byStore.length === 0 ? (
-                <p className="text-sm text-slate-500">Sin ventas en el rango.</p>
+                <p className="text-sm text-text-muted">Sin ventas en el rango.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
-                    <thead className="bg-surface-sunken text-slate-600">
+                    <thead className="bg-surface-sunken text-text-secondary">
                       <tr>
                         <th className="text-left px-2 py-2">Sucursal</th>
                         <th className="text-right px-2 py-2">Trans.</th>
@@ -208,7 +212,7 @@ export function ReportsPage() {
                           <tr key={row.storeId} className="border-t border-surface-border">
                             <td className="px-2 py-2">
                               <p className="font-semibold">{row.storeName}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">
+                              <p className="text-[10px] text-text-muted font-mono">
                                 {row.storeCode}
                               </p>
                             </td>
@@ -218,13 +222,13 @@ export function ReportsPage() {
                             </td>
                             <td className="px-2 py-2">
                               <div className="flex items-center gap-2">
-                                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div className="flex-1 h-1.5 rounded-full bg-surface-sunken overflow-hidden">
                                   <div
                                     className="h-full bg-indigo-500"
                                     style={{ width: `${share}%` }}
                                   />
                                 </div>
-                                <span className="text-[10px] text-slate-500 font-mono w-9 text-right">
+                                <span className="text-[10px] text-text-muted font-mono w-9 text-right">
                                   {share}%
                                 </span>
                               </div>
@@ -249,27 +253,27 @@ export function ReportsPage() {
                 Top 10 productos vendidos
               </p>
               {data.topProducts.length === 0 ? (
-                <p className="text-sm text-slate-500">Sin ventas en el rango.</p>
+                <p className="text-sm text-text-muted">Sin ventas en el rango.</p>
               ) : (
                 <ol className="flex flex-col gap-1.5">
                   {data.topProducts.map((p, i) => (
                     <li
                       key={p.variantId}
-                      className="flex items-center gap-3 rounded border border-surface-border bg-white px-3 py-2"
+                      className="flex items-center gap-3 rounded border border-surface-border bg-surface-raised px-3 py-2"
                     >
-                      <span className="text-xs font-mono w-5 text-slate-400">#{i + 1}</span>
+                      <span className="text-xs font-mono w-5 text-text-subtle">#{i + 1}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate">
                           {p.productCode} · {sizeLabel(p.size)} ·{' '}
                           <span className="capitalize">{p.color}</span>
                         </p>
-                        <p className="text-[11px] text-slate-500 truncate">{p.productName}</p>
+                        <p className="text-[11px] text-text-muted truncate">{p.productName}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-xs font-mono font-semibold">
                           {formatBsShort(p.totalCents)}
                         </p>
-                        <p className="text-[10px] text-slate-500">{p.quantitySold} u.</p>
+                        <p className="text-[10px] text-text-muted">{p.quantitySold} u.</p>
                       </div>
                     </li>
                   ))}
@@ -285,21 +289,23 @@ export function ReportsPage() {
             <CardContent>
               <p className="text-sm font-semibold mb-2">Top 5 vendedoras</p>
               {data.topSellers.length === 0 ? (
-                <p className="text-sm text-slate-500">Sin ventas en el rango.</p>
+                <p className="text-sm text-text-muted">Sin ventas en el rango.</p>
               ) : (
                 <ol className="flex flex-col gap-1.5">
                   {data.topSellers.map((s, i) => (
                     <li
                       key={s.userId}
-                      className="flex items-center gap-3 rounded border border-surface-border bg-white px-3 py-2"
+                      className="flex items-center gap-3 rounded border border-surface-border bg-surface-raised px-3 py-2"
                     >
-                      <span className="text-xs font-mono w-5 text-slate-400">#{i + 1}</span>
+                      <span className="text-xs font-mono w-5 text-text-subtle">#{i + 1}</span>
                       <p className="flex-1 text-sm font-semibold truncate">{s.fullName}</p>
                       <div className="text-right shrink-0">
                         <p className="text-xs font-mono font-semibold">
                           {formatBsShort(s.totalCents)}
                         </p>
-                        <p className="text-[10px] text-slate-500">{s.transactionsCount} transac.</p>
+                        <p className="text-[10px] text-text-muted">
+                          {s.transactionsCount} transac.
+                        </p>
                       </div>
                     </li>
                   ))}
@@ -321,7 +327,7 @@ interface StatProps {
 function Stat({ label, value }: StatProps) {
   return (
     <div className="flex flex-col rounded border border-surface-border px-2 py-1.5">
-      <span className="text-[10px] text-slate-500">{label}</span>
+      <span className="text-[10px] text-text-muted">{label}</span>
       <span className="font-mono font-semibold">{value}</span>
     </div>
   );
@@ -346,12 +352,12 @@ function PaymentBar({ Icon, label, cents, totalCents, palette }: PaymentBarProps
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-slate-700">{label}</span>
-          <span className="text-slate-500 font-mono">
+          <span className="font-semibold text-text-secondary">{label}</span>
+          <span className="text-text-muted font-mono">
             {formatBs(cents)} · {share}%
           </span>
         </div>
-        <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="mt-1 h-1.5 rounded-full bg-surface-sunken overflow-hidden">
           <div className={`h-full ${palette.bar}`} style={{ width: `${share}%` }} />
         </div>
       </div>

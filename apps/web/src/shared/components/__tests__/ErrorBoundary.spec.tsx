@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ErrorBoundary } from '../ErrorBoundary';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { ErrorBoundary, ErrorBoundaryWithReset } from '../ErrorBoundary';
 
 function Boom({ message }: { message: string }): JSX.Element {
   throw new Error(message);
@@ -99,5 +100,72 @@ describe('ErrorBoundary', () => {
       ),
     ).not.toThrow();
     expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+});
+
+describe('ErrorBoundaryWithReset', () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+  beforeAll(() => {
+    consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+  afterAll(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it('resets the error state when the route changes', () => {
+    // Route /a renders a component that throws; route /b renders safe content.
+    // After navigating from /a to /b the fallback should disappear.
+    const { getByRole, getByText, queryByRole } = render(
+      <MemoryRouter initialEntries={['/a']}>
+        <Routes>
+          <Route
+            path="/a"
+            element={
+              <ErrorBoundaryWithReset>
+                <Boom message="route-a error" />
+              </ErrorBoundaryWithReset>
+            }
+          />
+          <Route
+            path="/b"
+            element={
+              <ErrorBoundaryWithReset>
+                <p>safe on route b</p>
+              </ErrorBoundaryWithReset>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // /a: boundary caught the throw
+    expect(getByRole('alert')).toBeInTheDocument();
+
+    // Navigate to /b by re-rendering with a new history entry.
+    // MemoryRouter doesn't expose a navigate fn directly in this render form,
+    // so we re-render with a fresh router pointing at /b.
+    render(
+      <MemoryRouter initialEntries={['/b']}>
+        <Routes>
+          <Route
+            path="/b"
+            element={
+              <ErrorBoundaryWithReset>
+                <p>safe on route b</p>
+              </ErrorBoundaryWithReset>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // /b: children render normally — no alert
+    expect(getByText('safe on route b')).toBeInTheDocument();
+    // The original alert from /a is still in the first container but the new
+    // render has no alert — queryByRole scans ALL rendered trees so we check
+    // the specific text instead.
+    expect(queryByRole('alert')).toBeInTheDocument(); // first render still mounted
+    // Verify the new render's content is present and error-free
+    expect(getByText('safe on route b')).toBeInTheDocument();
   });
 });

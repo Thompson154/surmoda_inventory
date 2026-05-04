@@ -30,8 +30,8 @@ export function AssignmentRow({
     <li className="flex items-center justify-between rounded-lg border border-surface-border bg-surface-raised px-3 py-2">
       {/* Store info */}
       <div className="flex items-center gap-2">
-        <Store className="h-4 w-4 text-slate-400 shrink-0" />
-        <span className="text-sm font-medium text-slate-800">{storeLabel}</span>
+        <Store className="h-4 w-4 text-text-subtle shrink-0" />
+        <span className="text-sm font-medium text-text-primary">{storeLabel}</span>
         <Badge variant={assignment.role === 'encargada' ? 'success' : 'info'}>
           {assignment.role}
         </Badge>

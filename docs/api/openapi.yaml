@@ -1,0 +1,383 @@
+openapi: 3.0.3
+info:
+  title: Sur Moda — API REST
+  version: 1.0.0
+  description: API de gestión de inventario, ventas y devoluciones.
+servers:
+  - url: http://localhost:3000
+    description: Desarrollo local
+  - url: https://api.surmoda.com
+    description: Producción
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas: {}
+  parameters: {}
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Iniciar sesión
+      tags:
+        - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+              required:
+                - email
+                - password
+              additionalProperties: false
+      responses:
+        '200':
+          description: Login exitoso — retorna accessToken en body y refreshToken en cookie.
+        '401':
+          description: Credenciales inválidas.
+  /api/v1/auth/refresh:
+    post:
+      summary: Renovar access token
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Nuevo accessToken.
+        '401':
+          description: Refresh token inválido o expirado.
+  /api/v1/auth/logout:
+    post:
+      summary: Cerrar sesión
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Sesión cerrada.
+  /api/v1/stores/{storeId}/sales:
+    post:
+      summary: Crear venta
+      tags:
+        - Sales
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: storeId
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      variantId:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      quantity:
+                        type: integer
+                        minimum: 1
+                        maximum: 100000
+                      subtotalCents:
+                        type: integer
+                        nullable: true
+                        minimum: 0
+                        maximum: 1000000000
+                    required:
+                      - variantId
+                      - quantity
+                    additionalProperties: false
+                  minItems: 1
+                  maxItems: 200
+                paymentMethod:
+                  type: string
+                  enum:
+                    - qr
+                    - card
+                    - cash
+                idempotencyKey:
+                  type: string
+                  format: uuid
+              required:
+                - items
+                - paymentMethod
+              additionalProperties: false
+      responses:
+        '201':
+          description: Venta creada.
+        '400':
+          description: Payload inválido o descuento excede límite.
+        '409':
+          description: Clave de idempotencia duplicada.
+        '423':
+          description: Ventas bloqueadas en esta sede.
+    get:
+      summary: Listar ventas de una sede
+      tags:
+        - Sales
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: storeId
+          in: path
+        - schema:
+            type: integer
+            minimum: 0
+            exclusiveMinimum: true
+            default: 1
+          required: false
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 0
+            exclusiveMinimum: true
+            maximum: 100
+            default: 20
+          required: false
+          name: pageSize
+          in: query
+      responses:
+        '200':
+          description: Página de ventas.
+  /api/v1/stores/{storeId}/inventory:
+    get:
+      summary: Listar inventario de una sede
+      tags:
+        - Inventory
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: storeId
+          in: path
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+          required: false
+          name: q
+          in: query
+        - schema:
+            type: string
+            enum:
+              - low
+              - zero
+          required: false
+          name: stockStatus
+          in: query
+        - schema:
+            type: string
+            enum:
+              - s
+              - m
+              - l
+              - xl
+              - xxl
+              - '28'
+              - '30'
+              - '32'
+              - '34'
+              - standard
+          required: false
+          name: size
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          required: false
+          name: color
+          in: query
+        - schema:
+            type: integer
+            minimum: 0
+            exclusiveMinimum: true
+            default: 1
+          required: false
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 0
+            exclusiveMinimum: true
+            maximum: 100
+            default: 20
+          required: false
+          name: pageSize
+          in: query
+      responses:
+        '200':
+          description: Página de inventario.
+  /api/v1/stores/{storeId}/inventory/{variantId}:
+    patch:
+      summary: Ajustar stock de una variante
+      tags:
+        - Inventory
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: storeId
+          in: path
+        - schema:
+            type: string
+          required: true
+          name: variantId
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                  nullable: true
+                  minimum: 0
+                  maximum: 1000000
+                reason:
+                  type: string
+                  maxLength: 200
+              required:
+                - quantity
+              additionalProperties: false
+      responses:
+        '200':
+          description: Stock ajustado.
+        '404':
+          description: Variante no encontrada en esta sede.
+  /api/v1/return-requests:
+    post:
+      summary: Crear solicitud de devolución
+      tags:
+        - Return Requests
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storeId:
+                  type: string
+                  minLength: 1
+                returnedVariantBarcode:
+                  type: string
+                  minLength: 1
+                returnedQuantity:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 1
+                saleDate:
+                  type: string
+                  format: date-time
+                exchangeVariantBarcode:
+                  type: string
+                  minLength: 1
+                reason:
+                  type: string
+                  minLength: 3
+              required:
+                - storeId
+                - returnedVariantBarcode
+                - saleDate
+                - reason
+      responses:
+        '201':
+          description: Solicitud creada.
+        '400':
+          description: Validación fallida.
+        '404':
+          description: Producto o tienda no encontrada.
+    get:
+      summary: Listar todas las solicitudes de devolución (admin/encargada)
+      tags:
+        - Return Requests
+      security:
+        - bearerAuth: []
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+          required: false
+          name: status
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+          required: false
+          name: storeId
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+          required: false
+          name: requesterId
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            default: 1
+          required: false
+          name: page
+          in: query
+        - schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          required: false
+          name: pageSize
+          in: query
+      responses:
+        '200':
+          description: Página de solicitudes.
+  /health/live:
+    get:
+      summary: Liveness — proceso activo
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Proceso corriendo.
+  /health/ready:
+    get:
+      summary: Readiness — base de datos alcanzable
+      tags:
+        - Health
+      responses:
+        '200':
+          description: DB OK.
+        '503':
+          description: DB inalcanzable.

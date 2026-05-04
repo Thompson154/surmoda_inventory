@@ -11,7 +11,7 @@ export function AppHeader({ context }: AppHeaderProps) {
     <header className="sticky top-0 z-20 bg-surface-raised/85 backdrop-blur border-b border-surface-border">
       <div className="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
         <div className="flex flex-col min-w-0">
-          <span className="text-sm font-semibold text-slate-900 truncate">
+          <span className="text-sm font-semibold text-text-primary truncate">
             Sur Moda{context ? ` · ${context}` : ''}
           </span>
         </div>

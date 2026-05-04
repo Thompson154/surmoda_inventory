@@ -30,16 +30,12 @@ export function ResetPasswordModal({ userId, userEmail, onClose }: ResetPassword
   const resetError = useErrorMessage(reset.error as HttpError | null | undefined);
 
   return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      title={done ? 'Contraseña reseteada' : 'Resetear contraseña'}
-    >
+    <Modal isOpen onClose={onClose} title={done ? 'Contraseña reseteada' : 'Resetear contraseña'}>
       {!done ? (
         <>
-          <p className="mb-4 text-sm text-slate-600">
-            Vas a generar una nueva contraseña para <strong>{userEmail}</strong>. Todas las
-            sesiones activas del usuario se van a cerrar.
+          <p className="mb-4 text-sm text-text-secondary">
+            Vas a generar una nueva contraseña para <strong>{userEmail}</strong>. Todas las sesiones
+            activas del usuario se van a cerrar.
           </p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <Field label="Nueva contraseña (mín. 8 caracteres)" htmlFor="reset-new-password">
@@ -82,10 +78,7 @@ export function ResetPasswordModal({ userId, userEmail, onClose }: ResetPassword
                 variant="primary"
                 isLoading={reset.isPending}
                 disabled={
-                  tooShort ||
-                  mismatch ||
-                  newPassword.length === 0 ||
-                  confirmPassword.length === 0
+                  tooShort || mismatch || newPassword.length === 0 || confirmPassword.length === 0
                 }
               >
                 {reset.isPending ? 'Reseteando...' : 'Resetear contraseña'}
@@ -95,7 +88,7 @@ export function ResetPasswordModal({ userId, userEmail, onClose }: ResetPassword
         </>
       ) : (
         <>
-          <p className="mb-2 text-sm text-slate-600">
+          <p className="mb-2 text-sm text-text-secondary">
             La contraseña de <strong>{userEmail}</strong> fue actualizada. Comunicale la nueva
             contraseña al usuario por un canal seguro.
           </p>

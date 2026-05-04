@@ -8,11 +8,11 @@ export interface BadgeProps {
 }
 
 const variantClasses: Record<NonNullable<BadgeProps['variant']>, string> = {
-  default: 'bg-surface-sunken text-slate-700',
-  success: 'bg-status-success-soft text-emerald-700',
-  warning: 'bg-status-warning-soft text-amber-700',
-  danger:  'bg-status-danger-soft text-red-700',
-  info:    'bg-status-info-soft text-sky-700',
+  default: 'bg-surface-sunken text-text-secondary',
+  success: 'bg-status-success-soft text-status-success',
+  warning: 'bg-status-warning-soft text-status-warning',
+  danger: 'bg-status-danger-soft text-status-danger',
+  info: 'bg-status-info-soft text-sky-700',
 };
 
 export function Badge({ variant = 'default', children, className }: BadgeProps): JSX.Element {

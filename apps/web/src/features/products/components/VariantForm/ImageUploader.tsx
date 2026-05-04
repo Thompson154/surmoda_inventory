@@ -54,13 +54,13 @@ export function ImageUploader({ currentImagePath, onChange }: ImageUploaderProps
           {preview ? (
             <img src={preview} alt="Vista previa" className="h-full w-full object-cover" />
           ) : (
-            <ImageIcon className="h-6 w-6 text-slate-400" />
+            <ImageIcon className="h-6 w-6 text-text-subtle" />
           )}
         </div>
         <div className="flex-1 flex items-center gap-2">
           <label
             htmlFor="variant-image"
-            className="inline-flex items-center gap-1 rounded-lg border border-surface-border bg-surface-raised px-3 py-1.5 text-sm text-slate-700 hover:bg-surface-sunken cursor-pointer transition-colors duration-150"
+            className="inline-flex items-center gap-1 rounded-lg border border-surface-border bg-surface-raised px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-sunken cursor-pointer transition-colors duration-150"
           >
             <Upload className="h-4 w-4" />
             {file ? 'Cambiar' : 'Elegir imagen'}

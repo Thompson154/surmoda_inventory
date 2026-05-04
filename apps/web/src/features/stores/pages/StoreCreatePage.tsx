@@ -15,17 +15,17 @@ export function StoreCreatePage() {
 
   return (
     <div className="min-h-screen bg-surface-base">
-      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-slate-900">
+      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-text-primary">
         <header className="flex flex-col gap-1">
           <Link
             to="/stores"
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+            className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al listado
           </Link>
           <h1 className="text-xl font-semibold">Nueva tienda</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-text-muted">
             Solo puede existir un único almacén central activo. Las sucursales son ilimitadas.
           </p>
         </header>

@@ -27,7 +27,9 @@ export function AssignmentsDraftList({
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-lg border border-surface-border p-3">
-      <legend className="text-sm font-medium text-slate-700 px-1">Asignaciones de tienda</legend>
+      <legend className="text-sm font-medium text-text-secondary px-1">
+        Asignaciones de tienda
+      </legend>
       {assignments.map((a, idx) => (
         <div key={idx} className="flex items-center gap-2">
           <Select

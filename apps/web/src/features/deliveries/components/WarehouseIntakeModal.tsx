@@ -78,20 +78,14 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
     if (!lookup.data) return;
     const data = lookup.data;
     if (!data.exists) {
-      // New model — wipe matches if any.
-      setVariants((prev) =>
-        prev.map((v) => ({
-          ...v,
-          matchesExisting: false,
-          existingVariantId: null,
-          existingWarehouseQuantity: 0,
-          existingImagePath: null,
-        })),
-      );
+      // New model — replace the whole list with a single blank row so the
+      // operator starts fresh. Do NOT carry over rows from a previous model.
+      setVariants([emptyVariant()]);
       return;
     }
-    // Build a fresh list: one row per existing variant, then keep any extra
-    // user-added rows that didn't match (e.g. brand new size+color combos).
+    // Build a fresh list: blank slot first so the operator never has to scroll
+    // down to add a new size/color, then one row per existing variant, then
+    // any extra user-added rows that didn't match (brand new size+color combos).
     setVariants((prev) => {
       const incoming: DraftVariant[] = data.variants.map((e) => ({
         size: e.size as SizeKey,
@@ -115,7 +109,8 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
           v.color.trim() !== '' &&
           !existingKeys.has(`${v.size}|${v.color.trim().toLowerCase()}`),
       );
-      return [...incoming, ...extras];
+      // Blank slot always first so adding a new variant never requires scrolling.
+      return [emptyVariant(), ...incoming, ...extras];
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookup.data?.productId, lookup.data?.exists]);
@@ -143,7 +138,9 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
   const updateVariant = (idx: number, patch: Partial<DraftVariant>) =>
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
 
-  const addVariant = () => setVariants((prev) => [...prev, emptyVariant()]);
+  // New blank row goes to the TOP so the operator never has to scroll down to
+  // fill in a new size/color combination.
+  const addVariant = () => setVariants((prev) => [emptyVariant(), ...prev]);
 
   const removeVariant = (idx: number) => {
     setVariants((prev) => {
@@ -218,7 +215,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             autoCapitalize="characters"
           />
           {upperCode.length >= 2 && lookup.data && (
-            <p className="text-xs mt-1 text-slate-600">
+            <p className="text-xs mt-1 text-text-secondary">
               {exists
                 ? `Modelo "${lookup.data.productName ?? upperCode}" ya existe — variantes pre-cargadas para sumar stock.`
                 : 'Código nuevo — se creará el modelo.'}
@@ -228,7 +225,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
 
         <div>
           <label htmlFor="intake-desc" className="text-sm font-semibold block">
-            Descripción del modelo <span className="text-slate-400 font-normal">(opcional)</span>
+            Descripción del modelo <span className="text-text-subtle font-normal">(opcional)</span>
           </label>
           <Input
             id="intake-desc"
@@ -239,7 +236,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             maxLength={500}
             className="mt-1"
           />
-          <p className="text-[11px] text-slate-500 mt-0.5">
+          <p className="text-[11px] text-text-muted mt-0.5">
             Aparece en búsquedas además del código.
           </p>
         </div>
@@ -298,11 +295,11 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
               return (
                 <li
                   key={`${v.matchesExisting ? `e-${v.existingVariantId}` : `n-${idx}`}`}
-                  className="rounded-lg border border-surface-border bg-white p-3 flex flex-col gap-2"
+                  className="rounded-lg border border-surface-border bg-surface-raised p-3 flex flex-col gap-2"
                 >
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">
                         {v.matchesExisting ? 'Sumar' : 'Cantidad'}
                       </p>
                       <Input
@@ -317,12 +314,12 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       />
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500">Talla</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">Talla</p>
                       <select
                         value={v.size}
                         onChange={(e) => updateVariant(idx, { size: e.target.value as SizeKey })}
                         disabled={v.matchesExisting}
-                        className="mt-0.5 w-full rounded-md border border-surface-border bg-white text-sm py-1 px-2 disabled:bg-surface-sunken"
+                        className="mt-0.5 w-full rounded-md border border-surface-border bg-surface-raised text-sm py-1 px-2 disabled:bg-surface-sunken"
                       >
                         {SIZE_OPTIONS.map((s) => (
                           <option key={s} value={s}>
@@ -332,7 +329,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       </select>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500">Color</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">Color</p>
                       <Input
                         type="text"
                         value={v.color}
@@ -344,7 +341,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       />
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">
                         Precio {v.matchesExisting ? '(actual)' : 'Bs'}
                       </p>
                       <Input
@@ -365,13 +362,13 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-500 flex flex-col gap-1">
+                    <label className="text-[10px] uppercase tracking-wider text-text-muted flex flex-col gap-1">
                       Imagen
                       <div className="h-12 w-12 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden cursor-pointer relative">
                         {liveImage ? (
                           <img src={liveImage} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <ImageIcon className="h-5 w-5 text-slate-400" />
+                          <ImageIcon className="h-5 w-5 text-text-subtle" />
                         )}
                         <input
                           type="file"
@@ -389,7 +386,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       <button
                         type="button"
                         onClick={() => clearImage(idx)}
-                        className="text-[11px] text-rose-600 hover:underline inline-flex items-center gap-0.5"
+                        className="text-[11px] text-status-danger hover:underline inline-flex items-center gap-0.5"
                       >
                         <X className="h-3 w-3" />
                         Quitar imagen
@@ -397,7 +394,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                     )}
 
                     {v.matchesExisting && (
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-text-muted">
                         Existe en almacén · {v.existingWarehouseQuantity} u.
                       </p>
                     )}
@@ -452,7 +449,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
         </div>
 
         {exists && lookup.data && lookup.data.variants.length > 0 && (
-          <p className="text-[11px] text-slate-500 text-center">
+          <p className="text-[11px] text-text-muted text-center">
             Stock total actual del modelo en almacén:{' '}
             {lookup.data.variants.reduce((s, v) => s + v.warehouseQuantity, 0)} prendas en{' '}
             {lookup.data.variants.length} variantes

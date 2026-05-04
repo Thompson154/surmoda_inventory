@@ -24,8 +24,8 @@ export function BottomNav({ tabs }: BottomNavProps) {
     <nav
       aria-label="Secciones de la sucursal"
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-20 bg-surface-raised/95 backdrop-blur',
-        'border-t border-surface-border',
+        'fixed bottom-0 left-0 right-0 z-20 bg-surface-raised supports-[backdrop-filter]:bg-glass-nav backdrop-blur-sm will-change-[backdrop-filter]',
+        'border-t border-glass-border',
         'pb-[env(safe-area-inset-bottom)]',
       )}
     >
@@ -41,9 +41,7 @@ export function BottomNav({ tabs }: BottomNavProps) {
                   cn(
                     'flex flex-col items-center justify-center gap-1 py-2.5 text-xs',
                     'transition-colors duration-150',
-                    isActive
-                      ? 'text-brand-primary'
-                      : 'text-slate-500 hover:text-slate-700',
+                    isActive ? 'text-brand-primary' : 'text-text-muted hover:text-text-secondary',
                   )
                 }
               >

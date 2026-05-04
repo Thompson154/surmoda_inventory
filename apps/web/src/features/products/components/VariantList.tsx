@@ -12,7 +12,7 @@ interface VariantListProps {
 
 export function VariantList({ variants }: VariantListProps) {
   if (variants.length === 0) {
-    return <p className="text-sm text-slate-500">Aún no hay variantes para este producto.</p>;
+    return <p className="text-sm text-text-muted">Aún no hay variantes para este producto.</p>;
   }
 
   return (
@@ -42,18 +42,18 @@ function VariantRow({ variant }: { variant: Variant }) {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <ImageIcon className="h-5 w-5 text-slate-400" />
+              <ImageIcon className="h-5 w-5 text-text-subtle" />
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-900">{label}</span>
-              <span className="text-sm text-slate-500">·</span>
-              <span className="text-sm text-slate-700 capitalize">{variant.color}</span>
+              <span className="text-sm font-medium text-text-primary">{label}</span>
+              <span className="text-sm text-text-muted">·</span>
+              <span className="text-sm text-text-secondary capitalize">{variant.color}</span>
               {!variant.isActive && <Badge variant="default">Inactiva</Badge>}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5 font-mono">{variant.barcode}</p>
-            <p className="text-sm text-slate-700 mt-1">{formatPrice(variant.priceCents)}</p>
+            <p className="text-xs text-text-muted mt-0.5 font-mono">{variant.barcode}</p>
+            <p className="text-sm text-text-secondary mt-1">{formatPrice(variant.priceCents)}</p>
           </div>
           <div className="shrink-0">
             {variant.isActive ? (

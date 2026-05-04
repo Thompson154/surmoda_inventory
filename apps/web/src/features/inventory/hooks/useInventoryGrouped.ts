@@ -5,6 +5,7 @@ import type {
   PaginatedGroupedInventory,
 } from '@surmoda/contracts';
 import { httpClient } from '@/shared/services/httpClient';
+import { buildQueryString } from '@/shared/utils/buildQueryString';
 
 const groupedKey = (storeId: string, filters: ListInventoryFilters) =>
   ['inventory', 'grouped', storeId, filters] as const;
@@ -13,15 +14,17 @@ const variantsKey = (storeId: string, productId: string) =>
   ['inventory', 'grouped', storeId, productId] as const;
 
 function buildQS(filters: ListInventoryFilters): string {
-  const params = new URLSearchParams();
-  if (filters.q) params.set('q', filters.q);
-  if (filters.page) params.set('page', String(filters.page));
-  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
+  return buildQueryString({
+    q: filters.q,
+    page: filters.page,
+    pageSize: filters.pageSize,
+  });
 }
 
-export function useInventoryGrouped(storeId: string | undefined, filters: ListInventoryFilters = {}) {
+export function useInventoryGrouped(
+  storeId: string | undefined,
+  filters: ListInventoryFilters = {},
+) {
   return useQuery({
     queryKey: storeId ? groupedKey(storeId, filters) : ['inventory', 'grouped', 'noop'],
     queryFn: () =>

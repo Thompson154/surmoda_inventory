@@ -21,11 +21,11 @@ export function UserDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface-base">
-      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-slate-900">
+      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-text-primary">
         <header className="flex flex-col gap-1">
           <Link
             to="/users"
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors duration-150"
+            className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary transition-colors duration-150"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al listado
@@ -33,10 +33,8 @@ export function UserDetailPage() {
           <h1 className="text-xl font-semibold">Detalle del usuario</h1>
         </header>
 
-        {query.isLoading && <p className="text-sm text-slate-500">Cargando...</p>}
-        {query.isError && (
-          <Alert variant="error">No pudimos cargar el usuario.</Alert>
-        )}
+        {query.isLoading && <p className="text-sm text-text-muted">Cargando...</p>}
+        {query.isError && <Alert variant="error">No pudimos cargar el usuario.</Alert>}
 
         {query.data && (
           <div className="flex flex-col gap-4">

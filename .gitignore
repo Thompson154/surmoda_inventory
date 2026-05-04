@@ -63,3 +63,6 @@ apps/api/prisma/migrations/dev.db*
 specs
 CLAUDE.md
 imagesTest/it_*
+
+# Stray pnpm lockfiles — proyecto usa npm workspaces
+pnpm-lock.yaml

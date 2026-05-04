@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { ErrorBoundaryWithReset } from '@/shared/components/ErrorBoundary';
 import { ToastProvider } from '@/shared/ui';
 import { useOfflineSaleSync } from '@/features/sales/hooks/useOfflineSaleSync';
 
@@ -19,20 +19,21 @@ function ProvidersInner({ children }: { children: ReactNode }) {
   // 'online' (and once on mount). Mounted Provider-level so it runs even
   // when the user is on a different tab when wifi returns.
   useOfflineSaleSync();
-  return <BrowserRouter>{children}</BrowserRouter>;
+  // ErrorBoundaryWithReset resets on every route change (via location.key).
+  // Placed here — inside BrowserRouter — so useLocation() is available.
+  return <ErrorBoundaryWithReset>{children}</ErrorBoundaryWithReset>;
 }
 
 export function Providers({ children }: { children: ReactNode }) {
-  // ErrorBoundary wraps EVERYTHING so a render bug in any provider, route, or
-  // component falls back to the recoverable shell instead of a white screen.
-  // Once the APM is wired (Tier 1), the onError callback will pipe to it.
+  // QueryClientProvider and ToastProvider wrap the BrowserRouter so they are
+  // available to hooks like useOfflineSaleSync inside ProvidersInner.
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <BrowserRouter>
           <ProvidersInner>{children}</ProvidersInner>
-        </ToastProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+        </BrowserRouter>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }

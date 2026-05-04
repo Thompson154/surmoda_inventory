@@ -104,11 +104,11 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
             )}
             <ul className="rounded-lg border border-surface-border divide-y divide-surface-border text-sm">
               <li className="flex items-center justify-between px-3 py-2">
-                <span className="text-slate-600">Total</span>
+                <span className="text-text-secondary">Total</span>
                 <span className="font-mono font-semibold">{formatBs(closedReport.totalCents)}</span>
               </li>
               <li className="flex items-center justify-between px-3 py-2">
-                <span className="text-slate-600">Trans. / Ítems</span>
+                <span className="text-text-secondary">Trans. / Ítems</span>
                 <span className="font-mono">
                   {closedReport.transactionsCount} / {closedReport.itemCount}
                 </span>
@@ -121,7 +121,7 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
           <label htmlFor="close-day-primary" className="text-sm font-semibold block">
             Encargada / cuenta asociada
           </label>
-          <p className="text-xs text-slate-500 mb-1">
+          <p className="text-xs text-text-muted mb-1">
             Nombre principal responsable del cierre del día.
           </p>
           <Input
@@ -139,7 +139,7 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
           <label htmlFor="close-day-extras" className="text-sm font-semibold block">
             Otros nombres que atendieron hoy
           </label>
-          <p className="text-xs text-slate-500 mb-1">
+          <p className="text-xs text-text-muted mb-1">
             Escribí cada nombre y presioná Enter (o coma) para agregarlo.
           </p>
           <Input

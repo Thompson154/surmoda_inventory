@@ -61,21 +61,21 @@ export function ProductDetailDrawer({
               type="button"
               onClick={() => headerImage && setZoomImage(headerImage)}
               disabled={!headerImage}
-              className="h-16 w-16 shrink-0 rounded-md border border-surface-border bg-white flex items-center justify-center overflow-hidden disabled:cursor-default cursor-zoom-in"
+              className="h-16 w-16 shrink-0 rounded-md border border-surface-border bg-surface-raised flex items-center justify-center overflow-hidden disabled:cursor-default cursor-zoom-in"
               aria-label={headerImage ? 'Ampliar imagen' : 'Sin imagen'}
             >
               {headerImage ? (
                 <img src={headerImage} alt="" className="h-full w-full object-cover" />
               ) : (
-                <ImageIcon className="h-6 w-6 text-slate-400" />
+                <ImageIcon className="h-6 w-6 text-text-subtle" />
               )}
             </button>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-mono text-slate-500">{head.productCode}</p>
-              <p className="text-base font-semibold text-slate-900 truncate">
+              <p className="text-xs font-mono text-text-muted">{head.productCode}</p>
+              <p className="text-base font-semibold text-text-primary truncate">
                 {formatPrice(head.priceCents)}
               </p>
-              <p className="text-sm text-slate-600 truncate">{head.productName}</p>
+              <p className="text-sm text-text-secondary truncate">{head.productName}</p>
             </div>
           </div>
         )}
@@ -89,12 +89,12 @@ export function ProductDetailDrawer({
             <img
               src={zoomImage}
               alt=""
-              className="w-full h-auto max-h-[70vh] object-contain rounded-lg bg-slate-100"
+              className="w-full h-auto max-h-[70vh] object-contain rounded-lg bg-surface-sunken"
             />
           )}
         </Modal>
 
-        {head && <p className="text-sm font-semibold text-slate-700 mt-1">Variantes</p>}
+        {head && <p className="text-sm font-semibold text-text-secondary mt-1">Variantes</p>}
 
         {query.data?.items.map((row) => (
           <VariantEditableRow key={row.variantId} storeId={storeId} row={row} canEdit={canEdit} />
@@ -137,19 +137,19 @@ function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) 
     <div className="rounded-lg border border-surface-border p-3 flex flex-col gap-2">
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-900">
-            Talla {label} <span className="text-slate-400">·</span>{' '}
+          <p className="text-sm font-medium text-text-primary">
+            Talla {label} <span className="text-text-subtle">·</span>{' '}
             <span className="capitalize">{row.color}</span>
           </p>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-text-muted mt-0.5">
             <span className="font-semibold">{row.quantity}</span> disponibles ·{' '}
-            <span className="font-mono text-[10px] text-slate-400">{row.barcode}</span>
+            <span className="font-mono text-[10px] text-text-subtle">{row.barcode}</span>
           </p>
         </div>
         <button
           type="button"
           onClick={() => setPrintOpen(true)}
-          className="text-xs font-semibold text-slate-700 hover:text-brand-strong inline-flex items-center gap-1 px-2 py-1 rounded border border-surface-border hover:bg-surface-sunken"
+          className="text-xs font-semibold text-text-secondary hover:text-brand-strong inline-flex items-center gap-1 px-2 py-1 rounded border border-surface-border hover:bg-surface-sunken"
           aria-label="Imprimir código de barras"
         >
           <PrinterIcon className="h-3.5 w-3.5" />
@@ -220,6 +220,7 @@ function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) 
         productName={row.productName}
         size={row.size}
         color={row.color}
+        currentStock={row.quantity}
       />
     </div>
   );

@@ -17,7 +17,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         ref={ref}
         className={cn(
           'h-10 px-3 pr-8 text-sm rounded-md appearance-none',
-          'bg-white border text-slate-900',
+          'bg-surface-raised border text-text-primary',
           'transition-colors duration-150',
           'focus:outline-none focus:ring-2',
           'disabled:bg-surface-sunken disabled:cursor-not-allowed',
@@ -30,7 +30,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         {...rest}
       />
       <ChevronDown
-        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle"
         aria-hidden="true"
       />
     </div>

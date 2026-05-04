@@ -17,3 +17,16 @@ export function formatBsBig(cents: number): string {
 export function formatBsShort(cents: number): string {
   return formatBs(cents);
 }
+
+/**
+ * Bs. 1.234,56 — exact two-decimal precision for bank-facing reports.
+ * Use ONLY when sub-Bs precision matters (totals across many sales accumulate
+ * rounding error otherwise). For operator-facing UI use formatBs (rounded).
+ */
+export function formatBsExact(cents: number): string {
+  const value = cents / 100;
+  return `Bs. ${value.toLocaleString('es-BO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}

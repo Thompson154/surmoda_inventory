@@ -15,7 +15,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       ref={ref}
       className={cn(
         'h-10 px-3 text-sm rounded-md',
-        'bg-white border text-slate-900 placeholder:text-slate-400',
+        'bg-surface-raised border text-text-primary placeholder:text-text-subtle',
         'transition-colors duration-150',
         'focus:outline-none focus:ring-2',
         'disabled:bg-surface-sunken disabled:cursor-not-allowed',

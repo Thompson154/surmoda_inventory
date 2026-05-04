@@ -82,11 +82,11 @@ export function AssignmentsManager({ userId, isUserAdmin }: AssignmentsManagerPr
         <CardTitle>Asignaciones de tienda</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {list.isLoading && <p className="text-sm text-slate-500">Cargando asignaciones...</p>}
+        {list.isLoading && <p className="text-sm text-text-muted">Cargando asignaciones...</p>}
         {list.isError && <Alert variant="error">No pudimos cargar las asignaciones.</Alert>}
 
         {items.length === 0 && !list.isLoading && (
-          <p className="text-sm text-slate-500">Sin asignaciones aún.</p>
+          <p className="text-sm text-text-muted">Sin asignaciones aún.</p>
         )}
 
         <ul className="flex flex-col gap-2">

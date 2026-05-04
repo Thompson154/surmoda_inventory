@@ -103,7 +103,7 @@ export function InstallPwaPrompt() {
       className="bg-brand-primary-soft border-b border-indigo-200 px-3 py-2 flex items-center gap-2"
     >
       <Download className="h-4 w-4 text-brand-primary shrink-0" />
-      <p className="text-xs flex-1 text-slate-700">
+      <p className="text-xs flex-1 text-text-secondary">
         <span className="font-semibold">Instalá Sur Moda</span> en tu pantalla de inicio para acceso
         rápido sin abrir el navegador.
       </p>
@@ -118,7 +118,7 @@ export function InstallPwaPrompt() {
         type="button"
         onClick={dismiss}
         aria-label="Descartar"
-        className="rounded-md p-1 text-slate-500 hover:text-slate-700"
+        className="rounded-md p-1 text-text-muted hover:text-text-secondary"
       >
         <X className="h-4 w-4" />
       </button>

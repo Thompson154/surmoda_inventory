@@ -69,7 +69,7 @@ export function PwaUpdateBanner() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="rounded-md bg-white text-indigo-700 text-xs font-semibold px-3 py-1 hover:bg-indigo-50"
+        className="rounded-md bg-surface-raised text-indigo-700 text-xs font-semibold px-3 py-1 hover:bg-indigo-50"
       >
         Actualizar
       </button>

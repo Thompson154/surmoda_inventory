@@ -16,16 +16,16 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
     'bg-brand-primary text-white hover:bg-brand-primary-hover active:bg-brand-primary-active ' +
-    'disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed',
+    'disabled:bg-surface-sunken disabled:text-text-muted disabled:cursor-not-allowed',
   secondary:
-    'border border-surface-border-strong text-slate-700 bg-white hover:bg-surface-sunken ' +
-    'disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200 disabled:cursor-not-allowed',
+    'border border-surface-border-strong text-text-secondary bg-surface-raised hover:bg-surface-sunken ' +
+    'disabled:bg-surface-base disabled:text-text-subtle disabled:border-surface-border disabled:cursor-not-allowed',
   danger:
-    'bg-status-danger text-white hover:bg-red-700 ' +
-    'disabled:bg-red-200 disabled:text-red-500 disabled:cursor-not-allowed',
+    'bg-status-danger text-white hover:bg-status-danger ' +
+    'disabled:bg-status-danger-soft disabled:text-status-danger disabled:cursor-not-allowed',
   ghost:
-    'text-slate-700 hover:bg-surface-sunken ' +
-    'disabled:text-slate-400 disabled:cursor-not-allowed',
+    'text-text-secondary hover:bg-surface-sunken ' +
+    'disabled:text-text-subtle disabled:cursor-not-allowed',
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps['size']>, string> = {

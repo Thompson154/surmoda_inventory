@@ -8,6 +8,18 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <!-- PWA manifest is injected automatically by vite-plugin-pwa. -->
     <title>Sur Moda — Inventario y Ventas</title>
+    <!-- Anti-flash: apply dark class before first paint -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('surmoda:theme');
+          var dark =
+            t === 'dark' ||
+            ((t === 'system' || !t) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

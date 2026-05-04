@@ -74,21 +74,21 @@ export function AuditLogsPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 text-slate-900">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-1">
             <Link
               to={backTo}
-              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+              className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
             >
               <ArrowLeft className="h-4 w-4" />
               {backLabel}
             </Link>
             <h1 className="text-xl font-semibold flex items-center gap-2">
-              <ScrollText className="h-5 w-5 text-slate-500" />
+              <ScrollText className="h-5 w-5 text-text-muted" />
               Auditoría del sistema
             </h1>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-text-muted">
               Log inmutable de acciones de usuario — admin / encargada
             </p>
           </div>
@@ -97,7 +97,7 @@ export function AuditLogsPage() {
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 py-3">
             <div className="flex flex-col gap-1 min-w-[200px]">
-              <label htmlFor="audit-user" className="text-xs text-slate-500">
+              <label htmlFor="audit-user" className="text-xs text-text-muted">
                 Usuario
               </label>
               <Select
@@ -119,7 +119,7 @@ export function AuditLogsPage() {
             </div>
 
             <div className="flex flex-col gap-1 min-w-[200px]">
-              <label htmlFor="audit-store" className="text-xs text-slate-500">
+              <label htmlFor="audit-store" className="text-xs text-text-muted">
                 Sucursal
               </label>
               <Select
@@ -140,7 +140,7 @@ export function AuditLogsPage() {
               </Select>
             </div>
 
-            <p className="ml-auto text-xs text-slate-500 font-mono">
+            <p className="ml-auto text-xs text-text-muted font-mono">
               {query.data ? `${query.data.total} registros` : '—'}
             </p>
           </CardContent>
@@ -165,7 +165,7 @@ export function AuditLogsPage() {
           <Card>
             <CardContent className="p-0">
               {query.data.items.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 px-4 py-10 text-slate-500">
+                <div className="flex flex-col items-center gap-2 px-4 py-10 text-text-muted">
                   <Search className="h-6 w-6" />
                   <p className="text-sm">Sin eventos para los filtros seleccionados.</p>
                 </div>
@@ -177,25 +177,25 @@ export function AuditLogsPage() {
                       className="border-b border-surface-border last:border-b-0 px-3 py-2.5"
                     >
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        <span className="text-[11px] font-mono text-slate-500 shrink-0">
+                        <span className="text-[11px] font-mono text-text-muted shrink-0">
                           {formatTimestamp(row.timestamp)}
                         </span>
-                        <span className="text-sm font-semibold text-slate-900 truncate">
+                        <span className="text-sm font-semibold text-text-primary truncate">
                           {row.action}
                         </span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-text-muted">
                           {row.entity}
                           {row.entityId ? ` · ${row.entityId.slice(0, 8)}` : ''}
                         </span>
-                        <span className="text-xs text-slate-500 ml-auto">
+                        <span className="text-xs text-text-muted ml-auto">
                           {row.userLabel ?? '— sistema —'}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-600 truncate">
+                      <p className="mt-0.5 text-xs text-text-secondary truncate">
                         {summarizePayload(row.payload)}
                       </p>
                       {(row.ip || row.userAgent) && (
-                        <p className="mt-0.5 text-[10px] text-slate-400 font-mono truncate">
+                        <p className="mt-0.5 text-[10px] text-text-subtle font-mono truncate">
                           {row.ip ?? ''}
                           {row.ip && row.userAgent ? ' · ' : ''}
                           {row.userAgent ?? ''}
@@ -209,7 +209,7 @@ export function AuditLogsPage() {
 
             {query.data.total > PAGE_SIZE && (
               <CardFooter className="justify-between">
-                <span className="text-xs text-slate-600">
+                <span className="text-xs text-text-secondary">
                   Página {query.data.page} de {totalPages}
                 </span>
                 <div className="flex items-center gap-1">

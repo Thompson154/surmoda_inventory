@@ -8,13 +8,18 @@ export function LoginPage() {
   if (user) return <Navigate to="/" replace />;
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface-base px-4 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-brand-primary-soft via-surface-base to-surface-base flex items-center justify-center p-4">
       <div className="flex flex-col items-center gap-6 w-full max-w-[420px]">
-        <div className="text-center">
-          <p className="text-2xl font-semibold text-slate-900">Sur Moda</p>
-          <p className="text-sm text-slate-500 mt-1">Sistema de inventario y ventas</p>
+        <div className="text-center animate-fade-in">
+          <p className="text-2xl font-semibold text-text-primary">Sur Moda</p>
+          <p
+            className="text-sm text-text-muted mt-1 animate-slide-up"
+            style={{ animationDelay: '120ms' }}
+          >
+            Sistema de inventario y ventas
+          </p>
         </div>
-        <Card className="w-full">
+        <Card className="w-full animate-scale-in shadow-xl border border-surface-border rounded-2xl">
           <CardHeader>
             <CardTitle>Iniciá sesión</CardTitle>
             <CardDescription>Accedé a tu sucursal asignada</CardDescription>

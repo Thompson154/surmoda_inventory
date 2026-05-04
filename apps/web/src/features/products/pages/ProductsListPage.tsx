@@ -36,17 +36,18 @@ export function ProductsListPage() {
 
   return (
     <div className="min-h-screen bg-surface-base">
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
             <Link
               to="/admin"
-              className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+              className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
             >
               <ArrowLeft className="h-4 w-4" />
               Volver al panel admin
             </Link>
-            <h1 className="text-xl font-semibold">Catálogo</h1>
+            <h1 className="text-xl font-semibold">Gestionar catálogo</h1>
+            <p className="text-sm text-text-muted">Productos, variantes y precios.</p>
           </div>
           <Link to="/products/new">
             <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />}>
@@ -57,7 +58,7 @@ export function ProductsListPage() {
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle pointer-events-none" />
             <Input
               id="products-search"
               type="search"
@@ -71,7 +72,7 @@ export function ProductsListPage() {
               aria-label="Buscar por código o nombre"
             />
           </div>
-          <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+          <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
             <input
               type="checkbox"
               checked={includeInactive}
@@ -136,7 +137,7 @@ export function ProductsListPage() {
                             to={`/products/${p.id}`}
                             className="flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors duration-150"
                           >
-                            <div className="h-10 w-10 rounded-md bg-surface-sunken text-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
+                            <div className="h-10 w-10 rounded-md bg-surface-sunken text-text-secondary flex items-center justify-center shrink-0 overflow-hidden">
                               {imageUrl ? (
                                 <img
                                   src={imageUrl}
@@ -150,10 +151,10 @@ export function ProductsListPage() {
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">
+                              <p className="text-sm font-medium text-text-primary truncate">
                                 {p.name}
                               </p>
-                              <p className="text-xs text-slate-500 truncate font-mono">{p.code}</p>
+                              <p className="text-xs text-text-muted truncate font-mono">{p.code}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <Badge variant="default">
@@ -164,7 +165,7 @@ export function ProductsListPage() {
                                     : `${p.variantsCount} variantes`}
                               </Badge>
                               {!p.isActive && <Badge variant="default">Inactivo</Badge>}
-                              <ChevronRight className="h-4 w-4 text-slate-400" />
+                              <ChevronRight className="h-4 w-4 text-text-subtle" />
                             </div>
                           </Link>
                         </li>
@@ -174,7 +175,7 @@ export function ProductsListPage() {
                 </CardContent>
 
                 <CardFooter className="justify-between">
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-text-secondary">
                     Página {query.data.page} de {totalPages} · {query.data.total} producto
                     {query.data.total === 1 ? '' : 's'}
                   </span>

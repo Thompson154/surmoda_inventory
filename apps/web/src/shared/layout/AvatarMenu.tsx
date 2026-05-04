@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Boxes, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { LogOut, Boxes, ShieldCheck, User as UserIcon, Sun, Moon, Monitor } from 'lucide-react';
 import { authService } from '@/features/auth/services/authService';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { useTheme } from '@/shared/theme/useTheme';
 import { cn } from '@/shared/ui/cn';
 
 function initialsFromName(name: string | undefined): string {
@@ -11,13 +12,26 @@ function initialsFromName(name: string | undefined): string {
   return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
+const THEME_LABELS: Record<
+  string,
+  { label: string; Icon: React.ComponentType<{ className?: string }> }
+> = {
+  light: { label: 'Tema: Claro', Icon: Sun },
+  dark: { label: 'Tema: Oscuro', Icon: Moon },
+  system: { label: 'Tema: Sistema', Icon: Monitor },
+};
+
 export function AvatarMenu() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const themeEntry = THEME_LABELS[theme] ?? THEME_LABELS.system!;
+  const ThemeIcon = themeEntry.Icon;
 
   useEffect(() => {
     if (!open) return;
@@ -81,22 +95,22 @@ export function AvatarMenu() {
         <div
           role="menu"
           className={cn(
-            'absolute right-0 mt-2 w-56 rounded-xl border border-surface-border bg-white shadow-xl z-50',
+            'absolute right-0 mt-2 w-56 rounded-xl border border-surface-border bg-surface-raised shadow-xl z-50',
             'animate-fade-in',
           )}
         >
           <div className="px-4 py-3 border-b border-surface-border">
-            <p className="text-sm font-semibold text-slate-900 truncate">{user?.fullName}</p>
-            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+            <p className="text-sm font-semibold text-text-primary truncate">{user?.fullName}</p>
+            <p className="text-xs text-text-muted truncate">{user?.email}</p>
           </div>
 
           <button
             type="button"
             role="menuitem"
             onClick={goSedes}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-surface-sunken transition-colors"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
           >
-            <Boxes className="h-4 w-4 text-slate-400" />
+            <Boxes className="h-4 w-4 text-text-subtle" />
             Volver a sucursales
           </button>
 
@@ -105,12 +119,22 @@ export function AvatarMenu() {
               type="button"
               role="menuitem"
               onClick={goAdminPanel}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-surface-sunken transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
             >
-              <ShieldCheck className="h-4 w-4 text-slate-400" />
+              <ShieldCheck className="h-4 w-4 text-text-subtle" />
               Panel admin
             </button>
           )}
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
+          >
+            <ThemeIcon className="h-4 w-4 text-text-subtle transition-transform duration-200" />
+            {themeEntry.label}
+          </button>
 
           <div className="border-t border-surface-border">
             <button

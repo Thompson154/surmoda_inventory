@@ -35,11 +35,11 @@ export function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="bg-amber-100 text-amber-900 border-b border-amber-200 px-3 py-1.5 text-xs flex items-center justify-center gap-2"
+      className="bg-status-warning-soft text-status-warning border-b border-status-warning px-3 py-1.5 text-xs flex items-center justify-center gap-2"
     >
       <WifiOff className="h-3.5 w-3.5 shrink-0" />
       <span className="font-semibold">Sin conexión</span>
-      <span className="text-amber-700">— las acciones quedarán pendientes</span>
+      <span className="text-status-warning">— las acciones quedarán pendientes</span>
     </div>
   );
 }

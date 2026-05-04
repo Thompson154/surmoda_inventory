@@ -80,7 +80,7 @@ export function BarcodeScannerModal({
         <BarcodeScanner handleRef={scannerRef} onDetected={(c) => void submit(c, true)} />
 
         <div>
-          <label htmlFor="barcode-input" className="text-sm font-medium text-slate-700">
+          <label htmlFor="barcode-input" className="text-sm font-medium text-text-secondary">
             O escribilo manualmente
           </label>
           <Input

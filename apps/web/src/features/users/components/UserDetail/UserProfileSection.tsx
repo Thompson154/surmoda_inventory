@@ -23,7 +23,7 @@ interface UserProfileSectionProps {
 function ProfileField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="text-xs uppercase tracking-wide text-text-muted">{label}</span>
       <div className="text-sm">{children}</div>
     </div>
   );
@@ -104,7 +104,7 @@ export function UserProfileSection({ user }: UserProfileSectionProps) {
                 onChange={(e) => setFullName(e.target.value)}
               />
             </Field>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
               <input
                 type="checkbox"
                 checked={isAdmin}
