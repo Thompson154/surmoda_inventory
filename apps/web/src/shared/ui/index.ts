@@ -1,5 +1,8 @@
 export { cn } from './cn';
 
+export { ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';
+
 export { Alert } from './Alert';
 export type { AlertProps } from './Alert';
 

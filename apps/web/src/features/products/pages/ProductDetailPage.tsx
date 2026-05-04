@@ -13,7 +13,16 @@ import { VariantForm } from '../components/VariantForm';
 import { VariantList } from '../components/VariantList';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ConfirmDialog,
+} from '@/shared/ui';
 
 export function ProductDetailPage() {
   const params = useParams<{ id: string }>();
@@ -26,6 +35,8 @@ export function ProductDetailPage() {
   const createVariant = useCreateVariant(productId);
 
   const [showAddVariant, setShowAddVariant] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState(false);
 
   const updateError = useErrorMessage(update.error as HttpError | null | undefined);
   const deactivateError = useErrorMessage(deactivate.error as HttpError | null | undefined);
@@ -38,11 +49,11 @@ export function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface-base">
-      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-slate-900">
+      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-text-primary">
         <header className="flex flex-col gap-1">
           <Link
             to="/products"
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+            className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al catálogo
@@ -50,7 +61,7 @@ export function ProductDetailPage() {
           <h1 className="text-xl font-semibold">Detalle del producto</h1>
         </header>
 
-        {query.isLoading && <p className="text-sm text-slate-500">Cargando...</p>}
+        {query.isLoading && <p className="text-sm text-text-muted">Cargando...</p>}
         {query.isError && <Alert variant="error">No pudimos cargar el producto.</Alert>}
 
         {query.data && (
@@ -91,7 +102,7 @@ export function ProductDetailPage() {
                       variant="danger"
                       size="sm"
                       leftIcon={<Power className="h-3.5 w-3.5" />}
-                      onClick={() => deactivate.mutate()}
+                      onClick={() => setConfirmDeactivate(true)}
                       disabled={deactivate.isPending}
                       isLoading={deactivate.isPending}
                     >
@@ -103,7 +114,7 @@ export function ProductDetailPage() {
                       variant="primary"
                       size="sm"
                       leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-                      onClick={() => reactivate.mutate()}
+                      onClick={() => setConfirmReactivate(true)}
                       disabled={reactivate.isPending}
                       isLoading={reactivate.isPending}
                     >
@@ -113,6 +124,35 @@ export function ProductDetailPage() {
                 </div>
                 {deactivateError && <Alert variant="error">{deactivateError}</Alert>}
                 {reactivateError && <Alert variant="error">{reactivateError}</Alert>}
+
+                <ConfirmDialog
+                  open={confirmDeactivate}
+                  onClose={() => setConfirmDeactivate(false)}
+                  onConfirm={() => {
+                    deactivate.mutate();
+                    setConfirmDeactivate(false);
+                  }}
+                  title="Desactivar producto"
+                  description="El producto dejará de aparecer en el inventario activo. Podés reactivarlo después."
+                  confirmLabel="Desactivar"
+                  variant="danger"
+                  requiresReason
+                  isPending={deactivate.isPending}
+                />
+
+                <ConfirmDialog
+                  open={confirmReactivate}
+                  onClose={() => setConfirmReactivate(false)}
+                  onConfirm={() => {
+                    reactivate.mutate();
+                    setConfirmReactivate(false);
+                  }}
+                  title="Reactivar producto"
+                  description="El producto volverá a estar disponible en el inventario."
+                  confirmLabel="Reactivar"
+                  variant="default"
+                  isPending={reactivate.isPending}
+                />
               </CardContent>
             </Card>
 
@@ -134,7 +174,7 @@ export function ProductDetailPage() {
               <CardContent className="flex flex-col gap-3">
                 <VariantList variants={query.data.variants} />
                 {showAddVariant && (
-                  <div className="rounded-lg border border-dashed border-slate-300 p-3">
+                  <div className="rounded-lg border border-dashed border-surface-border-strong p-3">
                     <VariantForm
                       mode="create"
                       isPending={createVariant.isPending}

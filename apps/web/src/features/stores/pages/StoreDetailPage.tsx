@@ -1,9 +1,19 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Power, RotateCcw } from 'lucide-react';
 import { useStore } from '../hooks/useStores';
 import { useDeactivateStore, useReactivateStore, useUpdateStore } from '../hooks/useStoresAdmin';
 import { StoreForm } from '../components/StoreForm';
-import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ConfirmDialog,
+} from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 
@@ -15,6 +25,9 @@ export function StoreDetailPage() {
   const deactivate = useDeactivateStore(storeId);
   const reactivate = useReactivateStore(storeId);
 
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState(false);
+
   const updateError = useErrorMessage(update.error as HttpError | null | undefined);
   const deactivateError = useErrorMessage(deactivate.error as HttpError | null | undefined);
   const reactivateError = useErrorMessage(reactivate.error as HttpError | null | undefined);
@@ -25,11 +38,11 @@ export function StoreDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface-base">
-      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-slate-900">
+      <main className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-4 text-text-primary">
         <header className="flex flex-col gap-1">
           <Link
             to="/stores"
-            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+            className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al listado
@@ -37,7 +50,7 @@ export function StoreDetailPage() {
           <h1 className="text-xl font-semibold">Detalle de la tienda</h1>
         </header>
 
-        {query.isLoading && <p className="text-sm text-slate-500">Cargando...</p>}
+        {query.isLoading && <p className="text-sm text-text-muted">Cargando...</p>}
         {query.isError && <Alert variant="error">No pudimos cargar la tienda.</Alert>}
 
         {query.data && (
@@ -79,7 +92,7 @@ export function StoreDetailPage() {
                       variant="danger"
                       size="sm"
                       leftIcon={<Power className="h-3.5 w-3.5" />}
-                      onClick={() => deactivate.mutate()}
+                      onClick={() => setConfirmDeactivate(true)}
                       disabled={deactivate.isPending}
                       isLoading={deactivate.isPending}
                     >
@@ -91,7 +104,7 @@ export function StoreDetailPage() {
                       variant="primary"
                       size="sm"
                       leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-                      onClick={() => reactivate.mutate()}
+                      onClick={() => setConfirmReactivate(true)}
                       disabled={reactivate.isPending}
                       isLoading={reactivate.isPending}
                     >
@@ -101,6 +114,35 @@ export function StoreDetailPage() {
                 </div>
                 {deactivateError && <Alert variant="error">{deactivateError}</Alert>}
                 {reactivateError && <Alert variant="error">{reactivateError}</Alert>}
+
+                <ConfirmDialog
+                  open={confirmDeactivate}
+                  onClose={() => setConfirmDeactivate(false)}
+                  onConfirm={() => {
+                    deactivate.mutate();
+                    setConfirmDeactivate(false);
+                  }}
+                  title="Desactivar tienda"
+                  description="La tienda quedará inactiva. Podés reactivarla más tarde."
+                  confirmLabel="Desactivar"
+                  variant="danger"
+                  requiresReason
+                  isPending={deactivate.isPending}
+                />
+
+                <ConfirmDialog
+                  open={confirmReactivate}
+                  onClose={() => setConfirmReactivate(false)}
+                  onConfirm={() => {
+                    reactivate.mutate();
+                    setConfirmReactivate(false);
+                  }}
+                  title="Reactivar tienda"
+                  description="La tienda volverá a estar disponible."
+                  confirmLabel="Reactivar"
+                  variant="default"
+                  isPending={reactivate.isPending}
+                />
               </CardContent>
             </Card>
           </div>

@@ -8,6 +8,8 @@ export interface ModalProps {
   title: string;
   children: ReactNode;
   ariaLabelledBy?: string;
+  // WHY: alertdialog role needed for destructive confirm dialogs (ARIA spec)
+  role?: 'dialog' | 'alertdialog';
 }
 
 // All elements that the browser considers tabbable. Used by the focus trap
@@ -28,7 +30,14 @@ function getTabbables(root: HTMLElement): HTMLElement[] {
   );
 }
 
-export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  ariaLabelledBy,
+  role = 'dialog',
+}: ModalProps) {
   const titleId = ariaLabelledBy ?? 'modal-title';
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -99,18 +108,18 @@ export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: Moda
     >
       <div
         ref={dialogRef}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          'relative z-10 bg-white rounded-xl shadow-2xl animate-scale-in',
+          'relative z-10 bg-surface-raised supports-[backdrop-filter]:bg-glass-elevated backdrop-blur-md border border-glass-border rounded-xl shadow-2xl animate-scale-in',
           'max-w-md w-full mx-4',
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-surface-border">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-text-primary">
             {title}
           </h2>
           <button
@@ -119,7 +128,7 @@ export function Modal({ isOpen, onClose, title, children, ariaLabelledBy }: Moda
             aria-label="Cerrar"
             className={cn(
               'h-8 w-8 rounded-md flex items-center justify-center',
-              'text-slate-400 hover:text-slate-700 hover:bg-surface-sunken',
+              'text-text-subtle hover:text-text-secondary hover:bg-surface-sunken',
               'transition-colors duration-150',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1',
             )}
