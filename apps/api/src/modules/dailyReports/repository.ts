@@ -111,6 +111,22 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
         else cashCents += s.totalCents;
         for (const it of s.items) itemCount += it.quantity;
       }
+
+      // WHY: sale_return movements reduce the day's cash-in by one unit price each.
+      const returns = await c.stockMovement.findMany({
+        where: { storeId, type: 'sale_return', createdAt: { gte: start, lt: end } },
+        select: { payload: true },
+      });
+      for (const r of returns) {
+        const p = r.payload as Record<string, unknown>;
+        const unitPriceCents = typeof p.unitPriceCents === 'number' ? p.unitPriceCents : 0;
+        const pm = typeof p.paymentMethod === 'string' ? p.paymentMethod : 'cash';
+        totalCents -= unitPriceCents;
+        if (pm === 'qr') qrCents -= unitPriceCents;
+        else if (pm === 'card') cardCents -= unitPriceCents;
+        else cashCents -= unitPriceCents;
+      }
+
       return {
         totalCents,
         qrCents,

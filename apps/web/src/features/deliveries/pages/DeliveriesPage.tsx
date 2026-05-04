@@ -32,9 +32,9 @@ const STATUS_LABEL: Record<DeliveryStatus, string> = {
 };
 
 const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
-  draft: { bg: 'bg-slate-100', text: 'text-slate-600' },
-  sent: { bg: 'bg-amber-100', text: 'text-amber-700' },
-  received: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  draft: { bg: 'bg-surface-sunken', text: 'text-text-secondary' },
+  sent: { bg: 'bg-status-warning-soft', text: 'text-status-warning' },
+  received: { bg: 'bg-status-success-soft', text: 'text-status-success' },
   partial: { bg: 'bg-orange-100', text: 'text-orange-700' },
 };
 
@@ -86,14 +86,15 @@ export function DeliveriesPage() {
   });
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
-    const tabs: BottomNavTab[] = [
-      { to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' },
-      { to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' },
-    ];
+    const tabs: BottomNavTab[] = [];
+    // WHY: vendedora NO ve Inventario (Wave 5 le quitó inventory:read).
+    if (!isVendedoraHere) {
+      tabs.push({ to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' });
+    }
+    tabs.push({ to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' });
     if (!isWarehouse) {
-      if (!isVendedoraHere) {
-        tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
-      }
+      // WHY: Ventas visible para TODOS — vendedora ve sólo cierres, encargada/admin ven todo.
+      tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
       tabs.push({ to: `/sedes/${storeId}/scanner`, label: 'Scanner', icon: 'scanner' });
     }
     return tabs;
@@ -108,7 +109,7 @@ export function DeliveriesPage() {
 
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-xl font-semibold truncate">Entregas</h1>
@@ -125,7 +126,7 @@ export function DeliveriesPage() {
             <button
               type="button"
               onClick={() => setTransferOpen(true)}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-white text-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-surface-sunken active:scale-[0.98] transition"
+              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-surface-raised text-text-secondary px-3 py-1.5 text-xs font-semibold hover:bg-surface-sunken active:scale-[0.98] transition"
               aria-label="Transferir a sede"
             >
               <Truck className="h-3.5 w-3.5" />
@@ -135,7 +136,7 @@ export function DeliveriesPage() {
         </header>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle pointer-events-none" />
           <Input
             type="search"
             placeholder="Buscar por título, código o barcode..."
@@ -164,8 +165,8 @@ export function DeliveriesPage() {
                   onClick={() => setDirection(d.value)}
                   className={
                     active
-                      ? 'rounded-full bg-white text-slate-900 text-xs font-semibold px-3 py-1 shadow-sm'
-                      : 'rounded-full text-slate-500 text-xs px-3 py-1 hover:text-slate-700'
+                      ? 'rounded-full bg-surface-raised text-text-primary text-xs font-semibold px-3 py-1 shadow-sm'
+                      : 'rounded-full text-text-muted text-xs px-3 py-1 hover:text-text-secondary'
                   }
                 >
                   {d.label}
@@ -185,8 +186,8 @@ export function DeliveriesPage() {
                 onClick={() => setFilter(t.value)}
                 className={
                   active
-                    ? 'rounded-full bg-slate-900 text-white text-xs font-semibold px-4 py-1.5'
-                    : 'rounded-full border border-surface-border bg-white text-slate-600 text-xs px-4 py-1.5 hover:bg-surface-sunken'
+                    ? 'rounded-full bg-brand-primary text-white text-xs font-semibold px-4 py-1.5'
+                    : 'rounded-full border border-surface-border bg-surface-raised text-text-secondary text-xs px-4 py-1.5 hover:bg-surface-sunken'
                 }
               >
                 {t.label}
@@ -230,19 +231,19 @@ export function DeliveriesPage() {
                   <button
                     type="button"
                     onClick={() => setOpenDeliveryId(d.id)}
-                    className="w-full flex items-center gap-3 rounded-lg border border-surface-border bg-white px-3 py-3 hover:bg-surface-sunken transition-colors text-left"
+                    className="w-full flex items-center gap-3 rounded-lg border border-surface-border bg-surface-raised px-3 py-3 hover:bg-surface-sunken transition-colors text-left"
                   >
                     <div className="h-11 w-11 shrink-0 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center">
                       <Truck className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-500 font-mono">
+                      <p className="text-xs text-text-muted font-mono">
                         {shortDate(d.createdAt)} · {formatNumber(d.number)}
                       </p>
-                      <p className="text-sm font-semibold text-slate-900 truncate">
+                      <p className="text-sm font-semibold text-text-primary truncate">
                         {d.title ?? 'Entrega sin título'}
                       </p>
-                      <p className="text-xs text-slate-500 truncate">
+                      <p className="text-xs text-text-muted truncate">
                         {d.fromStoreName ?? 'Almacén'} · {d.totalUnits}{' '}
                         {d.totalUnits === 1 ? 'prenda' : 'prendas'}
                       </p>
@@ -252,7 +253,7 @@ export function DeliveriesPage() {
                     >
                       {STATUS_LABEL[d.status]}
                     </span>
-                    <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                    <ChevronRight className="h-4 w-4 text-text-subtle shrink-0" />
                   </button>
                 </li>
               );

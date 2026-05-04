@@ -1,3 +1,5 @@
+import { AppError } from '../../shared/errors/AppError';
+import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import type { Database } from '../../infrastructure/database';
 import { Prisma } from '../../infrastructure/database';
 import { logger } from '../../infrastructure/logger';
@@ -11,6 +13,18 @@ export interface AuditService {
 export function buildAuditService(db: Database): AuditService {
   return {
     write(input) {
+      // WHY: retroactive edit audit requires a reason for compliance — validate before fire-and-forget.
+      if (input.action === 'DAILY_CLOSURE_RETROACTIVE_EDIT') {
+        const reason = input.payload?.['reason'];
+        if (typeof reason !== 'string' || reason.trim().length === 0) {
+          throw new AppError(
+            400,
+            ERROR_CODES.DAILY_CLOSURE_RETROACTIVE_EDIT_REASON_REQUIRED,
+            'El campo reason es obligatorio para ediciones retroactivas de cierre.',
+          );
+        }
+      }
+
       // WHY: setImmediate fire-and-forget — audit MUST NOT block the request lifecycle
       // (per research R5 in specs/001-auth-roles).
       setImmediate(() => {

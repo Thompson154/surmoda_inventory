@@ -1,7 +1,19 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { ProtectedRoute } from './ProtectedRoute';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { usePermissions } from '@/shared/auth/usePermissions';
 import { Skeleton } from '@/shared/ui';
+
+// WHY: vendedora va al scanner; encargada/admin a inventario. Antes el
+// redirect estático mandaba a 'inventario' y vendedora caía en loop.
+function SedeRoleRedirect() {
+  const { storeId } = useParams<{ storeId: string }>();
+  const { role } = usePermissions();
+  if (!storeId) return <Navigate to="/sedes" replace />;
+  const target = role === 'vendedora' ? 'scanner' : 'inventario';
+  return <Navigate to={target} replace />;
+}
 
 // Eager: routes hit on every login.
 // Login is the entry path; SedePicker / Inventory / Sales lead the warm path
@@ -12,6 +24,28 @@ import { SedeInventoryPage } from '@/features/inventory/pages/SedeInventoryPage'
 import { DeliveriesPage } from '@/features/deliveries/pages/DeliveriesPage';
 import { SalesRegisterPage } from '@/features/sales/pages/SalesRegisterPage';
 import { SalesDashboardPage } from '@/features/sales/pages/SalesDashboardPage';
+
+// Lazy: return-requests module — not hit on the normal vendedora flow
+const CreateReturnRequestPage = lazy(() =>
+  import('@/features/return-requests/pages/CreateReturnRequestPage').then((m) => ({
+    default: m.CreateReturnRequestPage,
+  })),
+);
+const MyReturnRequestsPage = lazy(() =>
+  import('@/features/return-requests/pages/MyReturnRequestsPage').then((m) => ({
+    default: m.MyReturnRequestsPage,
+  })),
+);
+const AdminReturnRequestsPage = lazy(() =>
+  import('@/features/return-requests/pages/AdminReturnRequestsPage').then((m) => ({
+    default: m.AdminReturnRequestsPage,
+  })),
+);
+const ReviewReturnRequestPage = lazy(() =>
+  import('@/features/return-requests/pages/ReviewReturnRequestPage').then((m) => ({
+    default: m.ReviewReturnRequestPage,
+  })),
+);
 
 // Lazy: admin-only or low-frequency surfaces. Each becomes its own JS chunk
 // so a vendedora's first paint isn't burdened with the catalog/users/audit
@@ -98,13 +132,13 @@ export function App() {
             </Authenticated>
           }
         />
-        <Route path="/sedes/:storeId" element={<Navigate to="inventario" replace />} />
+        <Route path="/sedes/:storeId" element={<SedeRoleRedirect />} />
         <Route
           path="/sedes/:storeId/inventario"
           element={
-            <Authenticated>
+            <ProtectedRoute action="inventory:read" fallback="/sedes">
               <SedeInventoryPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
@@ -142,17 +176,17 @@ export function App() {
           }
         />
 
-        {/* Reports — admin OR any encargada (BE enforces); vendedora gets 403 in-page. */}
+        {/* Reports — admin OR encargada (BE enforces on 403); vendedora gets 403 in-page. */}
         <Route
           path="/reportes"
           element={
-            <Authenticated>
+            <ProtectedRoute action="reports:generate">
               <ReportsPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
 
-        {/* Audit log viewer — admin OR any encargada (BE enforces). */}
+        {/* Audit log viewer — admin OR encargada (BE enforces). */}
         <Route
           path="/auditoria"
           element={
@@ -162,77 +196,111 @@ export function App() {
           }
         />
 
+        {/* Return requests — vendedora + encargada can request; admin reviews */}
+        <Route
+          path="/return-requests/new"
+          element={
+            <ProtectedRoute action="returns:request">
+              <CreateReturnRequestPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/return-requests/mine"
+          element={
+            <ProtectedRoute action="returns:request">
+              <MyReturnRequestsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/return-requests"
+          element={
+            <ProtectedRoute action="returns:review">
+              <AdminReturnRequestsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/return-requests/:id"
+          element={
+            <ProtectedRoute action="returns:review">
+              <ReviewReturnRequestPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Admin CRUD */}
         <Route
           path="/users"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="users:manage">
               <UsersListPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/users/new"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="users:manage">
               <UserCreatePage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/users/:id"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="users:manage">
               <UserDetailPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/stores"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="stores:edit">
               <StoresListPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/stores/new"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="stores:edit">
               <StoreCreatePage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/stores/:id"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="stores:edit">
               <StoreDetailPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/products"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="products:edit">
               <ProductsListPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/products/new"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="products:edit">
               <ProductCreatePage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
         <Route
           path="/products/:id"
           element={
-            <Authenticated requireAdmin>
+            <ProtectedRoute action="products:edit">
               <ProductDetailPage />
-            </Authenticated>
+            </ProtectedRoute>
           }
         />
 

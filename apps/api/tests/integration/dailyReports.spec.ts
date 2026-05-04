@@ -22,7 +22,9 @@ const ENCARGADA_EMAIL = 'encargada.prado@demo.local';
 const VENDEDORA_EMAIL = 'vendedora.prado@demo.local';
 const STAFF_PASSWORD = 'Pass1234';
 
-interface LoginResponse { accessToken: string }
+interface LoginResponse {
+  accessToken: string;
+}
 
 async function loginToken(email: string, password: string): Promise<string> {
   const res = await request(app).post('/api/v1/auth/login').send({ email, password });
@@ -78,14 +80,15 @@ describe('POST /api/v1/stores/:storeId/daily-reports/close-today', () => {
     await db.sale.deleteMany({});
   });
 
-  it('encargada closes the day and the report aggregates the sales by payment method', async () => {
-    await createSale(encargadaToken, 'cash', 1);
-    await createSale(encargadaToken, 'qr', 2);
-    await createSale(encargadaToken, 'card', 1);
+  // WHY: close-day is vendedora-only per Wave 2 RBAC overhaul.
+  it('vendedora closes the day and the report aggregates the sales by payment method', async () => {
+    await createSale(vendedoraToken, 'cash', 1);
+    await createSale(vendedoraToken, 'qr', 2);
+    await createSale(adminToken, 'card', 1);
 
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(encargadaToken));
+      .set(bearer(vendedoraToken));
 
     expect(res.status).toBe(200);
     expect(res.body.transactionsCount).toBe(3);
@@ -98,34 +101,43 @@ describe('POST /api/v1/stores/:storeId/daily-reports/close-today', () => {
   });
 
   it('is idempotent — second call refreshes the snapshot for the same day', async () => {
-    await createSale(encargadaToken, 'cash', 1);
+    await createSale(vendedoraToken, 'cash', 1);
     const first = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(encargadaToken));
+      .set(bearer(vendedoraToken));
     expect(first.status).toBe(200);
 
-    await createSale(encargadaToken, 'qr', 1);
+    await createSale(vendedoraToken, 'qr', 1);
     const second = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(encargadaToken));
+      .set(bearer(vendedoraToken));
     expect(second.status).toBe(200);
     expect(second.body.id).toBe(first.body.id);
     expect(second.body.transactionsCount).toBe(2);
     expect(second.body.qrCents).toBeGreaterThan(0);
   });
 
-  it('vendedora cannot close (403)', async () => {
+  // WHY: encargada is forbidden from closing — only vendedora/admin can close the day.
+  it('encargada cannot close (403)', async () => {
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(vendedoraToken));
+      .set(bearer(encargadaToken));
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('DAILY_REPORT_FORBIDDEN');
+  });
+
+  it('admin can close the day', async () => {
+    await createSale(vendedoraToken, 'cash', 1);
+    const res = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
+      .set(bearer(adminToken));
+    expect(res.status).toBe(200);
   });
 });
 
 describe('GET /api/v1/stores/:storeId/daily-reports', () => {
   it('admin lists reports', async () => {
-    await createSale(encargadaToken, 'cash', 1);
+    await createSale(adminToken, 'cash', 1);
     await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
       .set(bearer(adminToken));
@@ -137,17 +149,18 @@ describe('GET /api/v1/stores/:storeId/daily-reports', () => {
     expect(res.body.items.length).toBeGreaterThan(0);
   });
 
-  it('vendedora is blocked (403)', async () => {
+  // WHY: vendedora can read historical reports — Wave 2 RBAC opens GET to all 3 roles.
+  it('vendedora can list reports (200)', async () => {
     const res = await request(app)
       .get(`/api/v1/stores/${pradoStoreId}/daily-reports`)
       .set(bearer(vendedoraToken));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
   });
 });
 
 describe('GET /api/v1/stores/:storeId/daily-reports/:date', () => {
   it('returns the report for the requested day', async () => {
-    await createSale(encargadaToken, 'cash', 1);
+    await createSale(adminToken, 'cash', 1);
     const closed = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
       .set(bearer(adminToken));
@@ -181,7 +194,9 @@ describe('Daily close cron auto-close', () => {
     // Seed a sale midway through yesterday (Bolivia local time).
     const now = new Date();
     const yesterdayKey = previousBoliviaDayKey(now);
-    const yesterdayMidday = new Date(boliviaDayWindow(yesterdayKey).start.getTime() + 12 * 60 * 60 * 1000);
+    const yesterdayMidday = new Date(
+      boliviaDayWindow(yesterdayKey).start.getTime() + 12 * 60 * 60 * 1000,
+    );
     await db.sale.create({
       data: {
         storeId: pradoStoreId,
@@ -189,7 +204,17 @@ describe('Daily close cron auto-close', () => {
         paymentMethod: 'cash',
         totalCents: 12345,
         createdAt: yesterdayMidday,
-        items: { create: [{ variantId: testVariantA, quantity: 1, priceAtSaleCents: 12345, subtotalCents: 12345 }] },
+        items: {
+          create: [
+            {
+              variantId: testVariantA,
+              quantity: 1,
+              priceAtSaleCents: 12345,
+              totalCents: 12345,
+              subtotalCents: 12345,
+            },
+          ],
+        },
       },
     });
 

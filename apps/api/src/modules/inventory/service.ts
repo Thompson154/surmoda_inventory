@@ -35,9 +35,18 @@ export interface InventoryService {
     productId: string,
     auth: AuthContext,
   ): Promise<InventoryRowDTO[]>;
-  adjust(storeId: string, variantId: string, input: AdjustQuantityDTO, auth: AuthContext): Promise<AdjustResult>;
+  adjust(
+    storeId: string,
+    variantId: string,
+    input: AdjustQuantityDTO,
+    auth: AuthContext,
+  ): Promise<AdjustResult>;
   getByBarcode(storeId: string, barcode: string, auth: AuthContext): Promise<InventoryRowDTO>;
-  listMovements(storeId: string, query: ListMovementsQuery, auth: AuthContext): Promise<PaginatedStockMovements>;
+  listMovements(
+    storeId: string,
+    query: ListMovementsQuery,
+    auth: AuthContext,
+  ): Promise<PaginatedStockMovements>;
   getEditPermission(storeId: string, auth: AuthContext): Promise<StoreEditPermissionDTO>;
   togglePermission(
     storeId: string,
@@ -109,15 +118,13 @@ export function buildInventoryService({ inventory }: InventoryServiceDeps): Inve
       return inventory.runSerializable(async (tx) => {
         const { role } = await assertUserCanAccessStore(storeId, auth, tx);
 
-        if (role === 'vendedora') {
-          const perm = await inventory.getEditPermission(storeId, tx);
-          if (!perm.isEnabled) {
-            throw new AppError(
-              403,
-              ERROR_CODES.STOCK_VENDEDORA_EDIT_DISABLED,
-              'Tu encargada deshabilitó la edición de inventario.',
-            );
-          }
+        // WHY: post-redesign solo admin edita inventario; encargada y vendedora son read-only.
+        if (role !== 'admin') {
+          throw new AppError(
+            403,
+            ERROR_CODES.INVENTORY_EDIT_FORBIDDEN_NON_ADMIN,
+            'Sólo admin puede editar inventario. Mandá una solicitud al admin si necesitás un cambio.',
+          );
         }
 
         if (input.quantity < 0) {
@@ -134,7 +141,12 @@ export function buildInventoryService({ inventory }: InventoryServiceDeps): Inve
           // We still verify the variant via barcode lookup in the storesite to avoid orphan rows.
         }
 
-        const { previous, next } = await inventory.upsertQuantity(storeId, variantId, input.quantity, tx);
+        const { previous, next } = await inventory.upsertQuantity(
+          storeId,
+          variantId,
+          input.quantity,
+          tx,
+        );
 
         await inventory.createMovement(
           {

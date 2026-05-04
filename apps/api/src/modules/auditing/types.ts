@@ -31,7 +31,16 @@ export type AuditAction =
   | 'DELIVERY_RECEIVED'
   | 'DELIVERY_RECEIVED_PARTIAL'
   | 'SALE_CREATED'
-  | 'DAILY_REPORT_CLOSED';
+  | 'SALE_RETURN_CREATE'
+  | 'DAILY_REPORT_CLOSED'
+  | 'RETURN_REQUEST_CREATE'
+  | 'RETURN_REQUEST_APPROVE'
+  | 'RETURN_REQUEST_REJECT'
+  // WHY: admin retroactive edits to closed daily reports require documented reason.
+  | 'DAILY_CLOSURE_RETROACTIVE_EDIT'
+  | 'DELIVERY_EDIT_REQUEST_CREATE'
+  | 'DELIVERY_EDIT_REQUEST_APPROVE'
+  | 'DELIVERY_EDIT_REQUEST_REJECT';
 
 export type AuditEntity =
   | 'User'
@@ -44,7 +53,10 @@ export type AuditEntity =
   | 'StoreEditPermission'
   | 'Delivery'
   | 'Sale'
-  | 'DailyReport';
+  | 'StockMovement'
+  | 'DailyReport'
+  | 'ReturnRequest'
+  | 'DeliveryEditRequest';
 
 export interface AuditWriteInput {
   userId?: string | null;

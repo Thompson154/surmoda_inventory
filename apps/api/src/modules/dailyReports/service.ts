@@ -42,14 +42,23 @@ export function buildDailyReportService({
   reports,
   assignments,
 }: DailyReportServiceDeps): DailyReportService {
-  async function ensureEncargadaOrAdmin(auth: AuthContext): Promise<void> {
+  // WHY: close-day is vendedora-only — encargada supervises, vendedora registers sales + closes.
+  async function ensureVendedoraOrAdmin(auth: AuthContext): Promise<void> {
     if (auth.isAdmin) return;
-    if (await assignments.hasAnyEncargadaRole(auth.userId)) return;
-    throw new AppError(
-      403,
-      ERROR_CODES.DAILY_REPORT_FORBIDDEN,
-      'Sólo encargada/admin puede cerrar el día.',
-    );
+    const isEncargada = await assignments.hasAnyEncargadaRole(auth.userId);
+    if (isEncargada) {
+      throw new AppError(
+        403,
+        ERROR_CODES.DAILY_REPORT_FORBIDDEN,
+        'Sólo vendedora/admin puede cerrar el día.',
+      );
+    }
+    // Non-admin, non-encargada = vendedora — allowed.
+  }
+
+  // WHY: read-only daily report access is open to all 3 roles; auth guard already validates token.
+  async function ensureAnyAuthenticatedUser(_auth: AuthContext): Promise<void> {
+    // all roles may read; authGuard at router level ensures token validity
   }
 
   async function closeForDay(
@@ -80,22 +89,23 @@ export function buildDailyReportService({
     closeForDay,
 
     async closeToday(storeId, auth, attendedNames) {
-      await ensureEncargadaOrAdmin(auth);
+      await ensureVendedoraOrAdmin(auth);
       return closeForDay(storeId, boliviaDayKey(new Date()), auth.userId, false, attendedNames);
     },
 
     async listStoreStaff(_storeId, auth) {
-      await ensureEncargadaOrAdmin(auth);
+      // WHY: staff list is only useful for encargada/admin when composing reports.
+      await ensureAnyAuthenticatedUser(auth);
       return reports.listStoreStaff(_storeId);
     },
 
     async list(storeId, query, auth) {
-      await ensureEncargadaOrAdmin(auth);
+      await ensureAnyAuthenticatedUser(auth);
       return reports.list(storeId, query);
     },
 
     async getByDate(storeId, isoDay, auth) {
-      await ensureEncargadaOrAdmin(auth);
+      await ensureAnyAuthenticatedUser(auth);
       const day = parseBoliviaDayKey(isoDay);
       const report = await reports.findByDate(storeId, day);
       if (!report) {
@@ -109,7 +119,7 @@ export function buildDailyReportService({
     },
 
     async getItemsByDate(storeId, isoDay, auth) {
-      await ensureEncargadaOrAdmin(auth);
+      await ensureAnyAuthenticatedUser(auth);
       const day = parseBoliviaDayKey(isoDay);
       const items = await reports.getDayItems(storeId, day);
       return { date: isoDay, items };

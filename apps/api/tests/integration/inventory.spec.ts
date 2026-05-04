@@ -110,7 +110,9 @@ describe('GET /api/v1/stores/:storeId/inventory', () => {
       .set(await bearer(adminToken));
     expect(res.status).toBe(200);
     expect(res.body.items.length).toBeGreaterThan(0);
-    expect(res.body.items.every((r: { productCode: string }) => r.productCode === 'JN001')).toBe(true);
+    expect(res.body.items.every((r: { productCode: string }) => r.productCode === 'JN001')).toBe(
+      true,
+    );
   });
 });
 
@@ -135,36 +137,25 @@ describe('PATCH /api/v1/stores/:storeId/inventory/:variantId', () => {
     expect((movement?.payload as { delta: number }).delta).toBe(50);
   });
 
-  it('vendedora is blocked when toggle is OFF (default)', async () => {
+  // WHY: post-redesign solo admin edita inventario. Encargada y vendedora
+  // siempre son rechazadas con INVENTORY_EDIT_FORBIDDEN_NON_ADMIN, independiente
+  // del flag legacy STOCK_VENDEDORA_EDIT_DISABLED (queda como dead-code path).
+  it('vendedora is BLOCKED (INVENTORY_EDIT_FORBIDDEN_NON_ADMIN)', async () => {
     const res = await request(app)
       .patch(`/api/v1/stores/${pradoStoreId}/inventory/${testVariantId}`)
       .set(await bearer(vendedoraPradoToken))
       .send({ quantity: 99 });
     expect(res.status).toBe(403);
-    expect(res.body.code).toBe('STOCK_VENDEDORA_EDIT_DISABLED');
+    expect(res.body.code).toBe('INVENTORY_EDIT_FORBIDDEN_NON_ADMIN');
   });
 
-  it('vendedora can adjust after encargada toggles ON', async () => {
-    const toggleRes = await request(app)
-      .post(`/api/v1/stores/${pradoStoreId}/edit-permission`)
-      .set(await bearer(encargadaPradoToken))
-      .send({ isEnabled: true });
-    expect(toggleRes.status).toBe(200);
-    expect(toggleRes.body.isEnabled).toBe(true);
-
+  it('encargada is BLOCKED (INVENTORY_EDIT_FORBIDDEN_NON_ADMIN)', async () => {
     const res = await request(app)
       .patch(`/api/v1/stores/${pradoStoreId}/inventory/${testVariantId}`)
-      .set(await bearer(vendedoraPradoToken))
-      .send({ quantity: 75 });
-
-    expect(res.status).toBe(200);
-    expect(res.body.quantity).toBe(75);
-
-    // Reset for downstream tests
-    await request(app)
-      .post(`/api/v1/stores/${pradoStoreId}/edit-permission`)
       .set(await bearer(encargadaPradoToken))
-      .send({ isEnabled: false });
+      .send({ quantity: 75 });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('INVENTORY_EDIT_FORBIDDEN_NON_ADMIN');
   });
 
   it('rejects negative quantity (400)', async () => {
@@ -293,7 +284,9 @@ describe('GET /api/v1/stores/:storeId/inventory/grouped', () => {
       .get(`/api/v1/stores/${pradoStoreId}/inventory/grouped?q=JN001`)
       .set(await bearer(adminToken));
     expect(res.status).toBe(200);
-    expect(res.body.items.every((r: { productCode: string }) => r.productCode === 'JN001')).toBe(true);
+    expect(res.body.items.every((r: { productCode: string }) => r.productCode === 'JN001')).toBe(
+      true,
+    );
   });
 });
 

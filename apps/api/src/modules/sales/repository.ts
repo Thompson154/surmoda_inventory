@@ -32,6 +32,8 @@ export interface CreateSaleItemRow {
   variantId: string;
   quantity: number;
   priceAtSaleCents: number;
+  // WHY: dual-field model — totalCents is undiscounted; subtotalCents is charged.
+  totalCents: number;
   subtotalCents: number;
 }
 

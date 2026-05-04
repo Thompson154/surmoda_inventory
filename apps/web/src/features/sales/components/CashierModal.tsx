@@ -72,6 +72,14 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     [cart],
   );
 
+  // WHY: 30% cap — Math.ceil alinea con BE (sales/service.ts) y evita que FE permita 1 cent que BE rechaza
+  function isSubtotalValid(item: CartLine): boolean {
+    const minAllowed = Math.ceil(item.unitPriceCents * item.quantity * 0.7);
+    return item.subtotalCents >= minAllowed;
+  }
+
+  const hasInvalidSubtotal = useMemo(() => cart.some((i) => !isSubtotalValid(i)), [cart]);
+
   const addByBarcode = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
@@ -223,7 +231,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
         />
 
         <div>
-          <label htmlFor="cashier-code" className="text-sm font-medium text-slate-700">
+          <label htmlFor="cashier-code" className="text-sm font-medium text-text-secondary">
             Agregá el código de barra
           </label>
           <div className="mt-1 flex gap-2">
@@ -268,7 +276,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                 className={`rounded-full px-3 py-1 text-xs transition-colors ${
                   paymentMethod === value
                     ? 'bg-brand-primary text-white'
-                    : 'bg-surface-sunken text-slate-600 hover:bg-surface-border'
+                    : 'bg-surface-sunken text-text-secondary hover:bg-surface-border'
                 }`}
               >
                 {label}
@@ -276,20 +284,20 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
             ))}
           </div>
           <div className="text-sm">
-            <span className="text-slate-500">SubTotal</span>{' '}
-            <span className="font-semibold text-slate-900">{formatBs(subTotalCents)}</span>
+            <span className="text-text-muted">SubTotal</span>{' '}
+            <span className="font-semibold text-text-primary">{formatBs(subTotalCents)}</span>
           </div>
         </div>
 
         {/* Cart table */}
         {cart.length === 0 ? (
-          <p className="text-xs text-center text-slate-500 py-4">
+          <p className="text-xs text-center text-text-muted py-4">
             Agregá productos al carrito escaneando o pegando el código.
           </p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-surface-border">
             <table className="w-full text-xs">
-              <thead className="bg-surface-sunken text-slate-600">
+              <thead className="bg-surface-sunken text-text-secondary">
                 <tr>
                   <th className="text-left px-2 py-2">Talla / Color</th>
                   <th className="text-right px-2 py-2">Cantidad</th>
@@ -302,10 +310,10 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                 {cart.map((i) => (
                   <tr key={i.variantId} className="border-t border-surface-border">
                     <td className="px-2 py-2">
-                      <p className="font-mono text-[10px] text-slate-500">{i.productCode}</p>
+                      <p className="font-mono text-[10px] text-text-muted">{i.productCode}</p>
                       <p>
                         {sizeLabel(i.size)}{' '}
-                        <span className="text-slate-400 capitalize">· {i.color}</span>
+                        <span className="text-text-subtle capitalize">· {i.color}</span>
                       </p>
                     </td>
                     <td className="px-2 py-2 text-right">
@@ -331,9 +339,12 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                         step={0.01}
                         value={(i.subtotalCents / 100).toFixed(2)}
                         onChange={(e) => updateSubtotal(i.variantId, Number(e.target.value) || 0)}
-                        className="w-20 text-right text-xs py-1 font-mono"
+                        className={`w-20 text-right text-xs py-1 font-mono ${!isSubtotalValid(i) ? 'border-status-danger ring-1 ring-status-danger' : ''}`}
                         aria-label="SubTotal"
                       />
+                      {!isSubtotalValid(i) && (
+                        <p className="text-[10px] text-status-danger mt-0.5">Descuento máx 30%</p>
+                      )}
                     </td>
                     <td className="px-1 py-2 text-right">
                       <IconButton
@@ -352,7 +363,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
         )}
 
         {grossTotalCents > 0 && grossTotalCents !== subTotalCents && (
-          <p className="text-[11px] text-slate-500 text-right">
+          <p className="text-[11px] text-text-muted text-right">
             Bruto: {formatBs(grossTotalCents)} · Descuento:{' '}
             {formatBs(grossTotalCents - subTotalCents)}
           </p>
@@ -377,7 +388,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
             size="md"
             onClick={submit}
             isLoading={create.isPending}
-            disabled={create.isPending || subTotalCents === 0}
+            disabled={create.isPending || subTotalCents === 0 || hasInvalidSubtotal}
             className="flex-1"
           >
             Cobrar {formatBs(subTotalCents)}

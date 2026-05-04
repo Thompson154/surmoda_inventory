@@ -17,7 +17,9 @@ export function buildAlertsController(service: AlertsService): AlertsController 
     async list(req, res, next) {
       try {
         const auth = requireAuth(req);
-        const result = await service.list(auth);
+        // Optional: filter to a specific branch. When absent, all stores are returned.
+        const storeId = typeof req.query['storeId'] === 'string' ? req.query['storeId'] : undefined;
+        const result = await service.list(auth, storeId);
         res.status(200).json(result);
       } catch (err) {
         next(err);

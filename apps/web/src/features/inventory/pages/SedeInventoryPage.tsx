@@ -10,14 +10,13 @@ import {
   ScanLine,
 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
-import { useEditPermission, useToggleEditPermission } from '../hooks/useInventory';
 import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
 import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { MovementsDrawer } from '../components/MovementsDrawer';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { SingleVariantQuickEditModal } from '../components/SingleVariantQuickEditModal';
 import { useStores } from '@/features/stores/hooks/useStores';
-import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { usePermissions } from '@/shared/auth/usePermissions';
 import {
   Alert,
   Badge,
@@ -33,18 +32,17 @@ import {
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { getImageUrl } from '@/features/products/services/productsService';
+// WHY: removed in Wave 5 — only admin edits inventory now (see ADR pending)
 
 const PAGE_SIZE = 20;
 
 export function SedeInventoryPage() {
   const params = useParams<{ storeId: string }>();
   const storeId = params.storeId ?? '';
-  const user = useAuthStore((s) => s.user);
 
+  const { can } = usePermissions();
   const stores = useStores();
   const inventory = useInventoryGrouped(storeId, { page: 1, pageSize: PAGE_SIZE });
-  const permission = useEditPermission(storeId);
-  const togglePermission = useToggleEditPermission(storeId);
 
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -73,32 +71,27 @@ export function SedeInventoryPage() {
   const store = stores.data?.items.find((s) => s.id === storeId);
   const isWarehouse = store?.kind === 'warehouse';
 
-  const hasEncargadaRole = (user?.assignments ?? []).some((a) => a.role === 'encargada');
-  const isAdmin = user?.isAdmin ?? false;
-  const isEncargada = !isAdmin && hasEncargadaRole;
-  const directRole = user?.assignments.find((a) => a.storeId === storeId)?.role;
-  const isVendedoraHere = !isAdmin && !isEncargada && directRole === 'vendedora';
-  const canManagePermission = isAdmin || isEncargada;
-  const canEditQuantity =
-    isAdmin || isEncargada || (isVendedoraHere && permission.data?.isEnabled === true);
+  // Wave 5: only admin can edit inventory; encargada sees read-only
+  const canEditQuantity = can('inventory:edit');
+  // Movements history visible to encargada+admin (has inventory:read)
+  const canSeeMovements = can('inventory:read');
 
   const totalPages = filteredQuery.data
     ? Math.max(1, Math.ceil(filteredQuery.data.total / filteredQuery.data.pageSize))
     : 1;
 
+  // WHY: vendedora can't reach this page (ProtectedRoute blocks); always show Ventas tab
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [
       { to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' },
       { to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' },
     ];
     if (!isWarehouse) {
-      if (!isVendedoraHere) {
-        tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
-      }
+      tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
       tabs.push({ to: `/sedes/${storeId}/scanner`, label: 'Scanner', icon: 'scanner' });
     }
     return tabs;
-  }, [storeId, isWarehouse, isVendedoraHere]);
+  }, [storeId, isWarehouse]);
 
   const openItem = openProductId
     ? filteredQuery.data?.items.find((i) => i.productId === openProductId)
@@ -106,7 +99,7 @@ export function SedeInventoryPage() {
 
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="text-xl font-semibold truncate">Inventario</h1>
@@ -124,7 +117,7 @@ export function SedeInventoryPage() {
               size="sm"
               onClick={() => setScannerOpen(true)}
             />
-            {canManagePermission && (
+            {canSeeMovements && (
               <Button
                 type="button"
                 variant="secondary"
@@ -138,35 +131,10 @@ export function SedeInventoryPage() {
           </div>
         </header>
 
-        {canManagePermission && permission.data && !isWarehouse && (
-          <Card>
-            <CardContent className="flex items-center justify-between gap-3 py-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900">Edición por vendedoras</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {permission.data.isEnabled
-                    ? 'Las vendedoras pueden ajustar cantidades.'
-                    : 'Solo encargada/admin puede ajustar.'}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant={permission.data.isEnabled ? 'danger' : 'primary'}
-                size="sm"
-                onClick={() => togglePermission.mutate({ isEnabled: !permission.data!.isEnabled })}
-                isLoading={togglePermission.isPending}
-                disabled={togglePermission.isPending}
-              >
-                {permission.data.isEnabled ? 'Deshabilitar' : 'Habilitar'}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {lowStockProbe.data && lowStockProbe.data.total > 0 && stockStatus !== 'low' && (
-          <div className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-            <p className="text-sm text-amber-800 flex items-center gap-2">
-              <span aria-hidden className="text-amber-600">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-status-warning bg-status-warning-soft px-3 py-2">
+            <p className="text-sm text-status-warning flex items-center gap-2">
+              <span aria-hidden className="text-status-warning">
                 ⚠
               </span>
               {lowStockProbe.data.total}{' '}
@@ -180,7 +148,7 @@ export function SedeInventoryPage() {
                 setStockStatus('low');
                 setPage(1);
               }}
-              className="text-sm font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
+              className="text-sm font-semibold text-status-warning underline underline-offset-2 hover:text-status-warning"
             >
               Ver
             </button>
@@ -188,7 +156,7 @@ export function SedeInventoryPage() {
         )}
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle pointer-events-none" />
           <Input
             id="inventory-search"
             type="search"
@@ -222,8 +190,8 @@ export function SedeInventoryPage() {
                 }}
                 className={
                   active
-                    ? 'rounded-full bg-slate-900 text-white text-xs font-semibold px-3 py-1.5'
-                    : 'rounded-full border border-surface-border bg-white text-slate-600 text-xs px-3 py-1.5 hover:bg-surface-sunken'
+                    ? 'rounded-full bg-brand-primary text-white text-xs font-semibold px-3 py-1.5'
+                    : 'rounded-full border border-surface-border bg-surface-raised text-text-secondary text-xs px-3 py-1.5 hover:bg-surface-sunken'
                 }
               >
                 {opt.label}
@@ -291,25 +259,25 @@ export function SedeInventoryPage() {
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
-                                <ImageIcon className="h-5 w-5 text-slate-400" />
+                                <ImageIcon className="h-5 w-5 text-text-subtle" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">
+                              <p className="text-sm font-medium text-text-primary truncate">
                                 {row.productName}
                               </p>
                               <p className="text-xs mt-0.5 font-mono flex items-center gap-1 flex-wrap">
-                                <span className="text-slate-700">{row.productCode}</span>
+                                <span className="text-text-secondary">{row.productCode}</span>
                                 {row.representativeBarcode && (
                                   <>
-                                    <span className="text-slate-300">·</span>
-                                    <span className="text-slate-500 truncate">
+                                    <span className="text-text-subtle">·</span>
+                                    <span className="text-text-muted truncate">
                                       {row.representativeBarcode}
                                     </span>
                                   </>
                                 )}
                               </p>
-                              <p className="text-xs text-slate-500 mt-0.5">
+                              <p className="text-xs text-text-muted mt-0.5">
                                 {row.variantsCount === 1
                                   ? '1 variante'
                                   : `${row.variantsCount} variantes`}
@@ -317,12 +285,12 @@ export function SedeInventoryPage() {
                               {(row.lowVariantsCount > 0 || row.zeroVariantsCount > 0) && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {row.zeroVariantsCount > 0 && (
-                                    <span className="rounded-full bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5">
+                                    <span className="rounded-full bg-status-danger-soft text-status-danger text-[10px] px-1.5 py-0.5">
                                       {row.zeroVariantsCount} sin stock
                                     </span>
                                   )}
                                   {row.lowVariantsCount > 0 && (
-                                    <span className="rounded-full bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5">
+                                    <span className="rounded-full bg-status-warning-soft text-status-warning text-[10px] px-1.5 py-0.5">
                                       {row.lowVariantsCount} variante
                                       {row.lowVariantsCount === 1 ? '' : 's'} con stock bajo
                                     </span>
@@ -331,14 +299,14 @@ export function SedeInventoryPage() {
                               )}
                             </div>
                             <div className="flex flex-col items-end shrink-0">
-                              <span className="text-base font-semibold text-slate-900">
+                              <span className="text-base font-semibold text-text-primary">
                                 {row.totalQuantity}
                               </span>
-                              <span className="text-[10px] text-slate-400 uppercase tracking-wide">
+                              <span className="text-[10px] text-text-subtle uppercase tracking-wide">
                                 Total
                               </span>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                            <ChevronRight className="h-4 w-4 text-text-subtle" />
                           </button>
                         </li>
                       );
@@ -347,7 +315,7 @@ export function SedeInventoryPage() {
                 </CardContent>
                 {filteredQuery.data.total > PAGE_SIZE && (
                   <CardFooter className="justify-between">
-                    <span className="text-sm text-slate-600">
+                    <span className="text-sm text-text-secondary">
                       Página {filteredQuery.data.page} de {totalPages} · {filteredQuery.data.total}{' '}
                       producto
                       {filteredQuery.data.total === 1 ? '' : 's'}

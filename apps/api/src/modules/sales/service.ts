@@ -3,6 +3,7 @@ import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import {
   assertCanActOnStore,
   assertEncargadaOrAdmin,
+  assertVendedoraOrAdmin,
   type StoreScopeRepo,
 } from '../../shared/auth/storeScope';
 import type { SaleRepository } from './repository';
@@ -35,13 +36,25 @@ export function buildSaleService({
   assignments,
   dailyLockEnabled = false,
 }: SaleServiceDeps): SaleService {
-  async function ensureAssignedOrEncargada(storeId: string, auth: AuthContext): Promise<void> {
+  // WHY: read access (list/getById) allows encargada; create is vendedora-only.
+  async function ensureCanReadStore(storeId: string, auth: AuthContext): Promise<void> {
     await assertCanActOnStore(
       assignments,
       storeId,
       auth,
       'STORE_FORBIDDEN',
       'No tenés acceso a esta sede.',
+    );
+  }
+
+  // WHY: sales creation is vendedora-only — encargada oversees but doesn't sell.
+  async function ensureCanCreateSale(storeId: string, auth: AuthContext): Promise<void> {
+    await assertVendedoraOrAdmin(
+      assignments,
+      storeId,
+      auth,
+      'STORE_FORBIDDEN',
+      'Solo vendedora/admin puede registrar ventas.',
     );
   }
 
@@ -56,7 +69,7 @@ export function buildSaleService({
 
   return {
     async create(storeId, input, auth) {
-      await ensureAssignedOrEncargada(storeId, auth);
+      await ensureCanCreateSale(storeId, auth);
 
       if (!input.items || input.items.length === 0) {
         throw new AppError(400, ERROR_CODES.SALE_EMPTY_ITEMS, 'Agregá al menos un ítem.');
@@ -149,12 +162,14 @@ export function buildSaleService({
         const priceMap = await sales.loadVariantPrices(variantIds, tx);
 
         let totalCents = 0;
-        const itemRows = [] as Array<{
+        // WHY: totalCents = undiscounted line total; subtotalCents = what was charged.
+        const itemRows: Array<{
           variantId: string;
           quantity: number;
           priceAtSaleCents: number;
+          totalCents: number;
           subtotalCents: number;
-        }>;
+        }> = [];
         for (const [
           variantId,
           { quantity: qty, subtotalCents: providedSub },
@@ -180,11 +195,22 @@ export function buildSaleService({
               { variantId, gross, subtotal },
             );
           }
+          // WHY: 30% discount cap — subtotal must be ≥70% of undiscounted line total.
+          const minAllowed = Math.ceil(0.7 * gross);
+          if (subtotal < minAllowed) {
+            throw new AppError(
+              400,
+              ERROR_CODES.SALE_DISCOUNT_EXCEEDS_LIMIT,
+              'Descuento excede límite del 30%',
+              { variantId, gross, subtotal, minAllowed },
+            );
+          }
           totalCents += subtotal;
           itemRows.push({
             variantId,
             quantity: qty,
             priceAtSaleCents: unitPrice,
+            totalCents: gross,
             subtotalCents: subtotal,
           });
         }
@@ -235,14 +261,14 @@ export function buildSaleService({
     },
 
     async list(storeId, query, auth) {
-      await ensureAssignedOrEncargada(storeId, auth);
+      await ensureCanReadStore(storeId, auth);
       return sales.list(storeId, query);
     },
 
     async getById(saleId, auth) {
       const sale = await sales.findSale(saleId);
       if (!sale) throw new AppError(404, ERROR_CODES.SALE_NOT_FOUND, 'Venta no encontrada.');
-      await ensureAssignedOrEncargada(sale.storeId, auth);
+      await ensureCanReadStore(sale.storeId, auth);
       return sale;
     },
 

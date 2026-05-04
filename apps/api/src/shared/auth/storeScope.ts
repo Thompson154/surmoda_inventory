@@ -42,6 +42,26 @@ export async function assertEncargadaOrAdmin(
 }
 
 /**
+ * Allow admin or vendedora assigned to the store. Encargada is explicitly forbidden.
+ * WHY: sales creation is vendedora-only — encargada is a supervisory role.
+ */
+export async function assertVendedoraOrAdmin(
+  scope: StoreScopeRepo,
+  storeId: string,
+  auth: AuthContext,
+  forbiddenCode: keyof typeof ERROR_CODES,
+  message: string,
+): Promise<void> {
+  if (auth.isAdmin) return;
+  if (await scope.hasAnyEncargadaRole(auth.userId)) {
+    throw new AppError(403, ERROR_CODES[forbiddenCode], message);
+  }
+  const a = await scope.findActiveAssignment(auth.userId, storeId);
+  if (a) return;
+  throw new AppError(403, ERROR_CODES[forbiddenCode], message);
+}
+
+/**
  * Allow admin, any encargada (global), OR vendedora explicitly assigned to the store.
  * The store-scoped services (sales, deliveries, inventory) use this on every read/write.
  */

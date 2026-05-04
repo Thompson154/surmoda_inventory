@@ -3,6 +3,7 @@ import { emitAudit } from '../../middleware/auditLogger';
 import { RemoveAssignmentQuerySchema } from './validators';
 import type { AssignmentService } from './service';
 import type { CreateAssignmentDTO, UpdateAssignmentDTO } from './types';
+import { ERROR_CODES } from '../../shared/constants/errorCodes';
 
 export interface AssignmentController {
   list(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -21,7 +22,7 @@ export function buildAssignmentController(service: AssignmentService): Assignmen
       try {
         const userId = getUserId(req);
         if (!userId) {
-          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'userId required' });
+          res.status(400).json({ code: ERROR_CODES.VALIDATION_ERROR, message: 'userId required' });
           return;
         }
         const items = await service.list(userId);
@@ -35,7 +36,7 @@ export function buildAssignmentController(service: AssignmentService): Assignmen
       try {
         const userId = getUserId(req);
         if (!userId) {
-          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'userId required' });
+          res.status(400).json({ code: ERROR_CODES.VALIDATION_ERROR, message: 'userId required' });
           return;
         }
         const input = req.body as CreateAssignmentDTO;
@@ -58,7 +59,12 @@ export function buildAssignmentController(service: AssignmentService): Assignmen
         const userId = getUserId(req);
         const assignmentId = req.params.assignmentId;
         if (!userId || !assignmentId) {
-          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'userId and assignmentId required' });
+          res
+            .status(400)
+            .json({
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'userId and assignmentId required',
+            });
           return;
         }
         const input = req.body as UpdateAssignmentDTO;
@@ -81,7 +87,12 @@ export function buildAssignmentController(service: AssignmentService): Assignmen
         const userId = getUserId(req);
         const assignmentId = req.params.assignmentId;
         if (!userId || !assignmentId) {
-          res.status(400).json({ code: 'VALIDATION_ERROR', message: 'userId and assignmentId required' });
+          res
+            .status(400)
+            .json({
+              code: ERROR_CODES.VALIDATION_ERROR,
+              message: 'userId and assignmentId required',
+            });
           return;
         }
         const query = RemoveAssignmentQuerySchema.parse(req.query);

@@ -439,8 +439,13 @@ export function buildDeliveryService({
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
         }
-        // Vendedora assigned to the destination store (or admin/encargada-anywhere).
-        await ensureCanReadStore(current.toStoreId, auth);
+        // WHY: Wave 5 — only encargada/admin can confirm reception (no vendedora).
+        await assertEncargadaOrAdmin(
+          assignments,
+          auth,
+          'DELIVERY_RECEIVE_FORBIDDEN_VENDEDORA',
+          'Sólo encargada/admin puede confirmar la recepción de una entrega.',
+        );
         if (current.status !== 'sent') {
           throw new AppError(
             409,

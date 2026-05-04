@@ -20,12 +20,12 @@ const HOT_LOOKBACK_DAYS = 7;
 const ALERT_LIMIT_PER_KIND = 25;
 
 export interface AlertsRepository {
-  buildAlerts(): Promise<AlertsResponse>;
+  buildAlerts(storeId?: string): Promise<AlertsResponse>;
 }
 
 export function buildAlertsRepository(db: Database): AlertsRepository {
   return {
-    async buildAlerts() {
+    async buildAlerts(storeId?: string) {
       const now = new Date();
       const detectedAt = now.toISOString();
       const yesterdayKey = previousBoliviaDayKey(now);
@@ -37,6 +37,8 @@ export function buildAlertsRepository(db: Database): AlertsRepository {
       // ── 1. STOCK_LOW + STOCK_OUT_HOT come from a single stockBySite scan ──
       const stockRows = await db.stockBySite.findMany({
         where: {
+          // When storeId is provided, restrict results to that branch only.
+          ...(storeId ? { storeId } : {}),
           quantity: { lte: LOW_STOCK_THRESHOLD },
           variant: {
             deletedAt: null,
@@ -122,7 +124,12 @@ export function buildAlertsRepository(db: Database): AlertsRepository {
 
       // ── 2. CIERRE_MISSING — active stores with sales yesterday but no report ──
       const activeStores = await db.store.findMany({
-        where: { isActive: true, deletedAt: null },
+        where: {
+          isActive: true,
+          deletedAt: null,
+          // When storeId is provided, only check that branch.
+          ...(storeId ? { id: storeId } : {}),
+        },
         select: { id: true, name: true },
       });
       const yWindow = boliviaDayWindow(yesterdayKey);

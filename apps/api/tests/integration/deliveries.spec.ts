@@ -179,13 +179,13 @@ describe('POST /api/v1/stores/:storeId/deliveries (distribution)', () => {
     });
     expect(pradoSent?.quantity ?? 0).toBe(0);
 
-    // Vendedora confirms reception with the original quantities.
+    // Encargada confirms reception (Wave 5 — vendedora no longer can).
     const itemId = (created.body.items as Array<{ id: string; variantId: string }>).find(
       (i) => i.variantId === testVariantA,
     )!.id;
     const received = await request(app)
       .post(`/api/v1/deliveries/${created.body.id as string}/receive`)
-      .set(bearer(vendedoraToken))
+      .set(bearer(encargadaToken))
       .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 25 }] });
     expect(received.status).toBe(200);
     expect(received.body.status).toBe('received');
@@ -359,13 +359,13 @@ describe('Distribution flow: draft → confirm → receive (full + partial)', ()
     });
     expect(whSent?.quantity).toBe(193);
 
-    // 4. Vendedora receives with original quantities → received (no partial).
+    // 4. Encargada receives with original quantities → received (Wave 5 — vendedora forbidden).
     const itemId = (confirmed.body.items as Array<{ id: string; variantId: string }>).find(
       (i) => i.variantId === testVariantA,
     )!.id;
     const received = await request(app)
       .post(`/api/v1/deliveries/${draft.body.id as string}/receive`)
-      .set(bearer(vendedoraToken))
+      .set(bearer(encargadaToken))
       .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 7 }] });
     expect(received.status).toBe(200);
     expect(received.body.status).toBe('received');
@@ -399,7 +399,7 @@ describe('Distribution flow: draft → confirm → receive (full + partial)', ()
     )!.id;
     const recv = await request(app)
       .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
-      .set(bearer(vendedoraToken))
+      .set(bearer(encargadaToken))
       .send({
         items: [{ deliveryItemId: itemId, receivedQuantity: 8, reason: '2 dañadas' }],
       });
@@ -438,7 +438,7 @@ describe('Distribution flow: draft → confirm → receive (full + partial)', ()
     )!.id;
     const recv = await request(app)
       .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
-      .set(bearer(vendedoraToken))
+      .set(bearer(encargadaToken))
       .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 999 }] });
     expect(recv.status).toBe(400);
   });
@@ -457,14 +457,37 @@ describe('Distribution flow: draft → confirm → receive (full + partial)', ()
     )!.id;
     await request(app)
       .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
-      .set(bearer(vendedoraToken))
+      .set(bearer(encargadaToken))
       .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 1 }] });
     const second = await request(app)
       .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
-      .set(bearer(vendedoraToken))
+      .set(bearer(encargadaToken))
       .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 1 }] });
     expect(second.status).toBe(409);
     expect(second.body.code).toBe('DELIVERY_INVALID_STATE');
+  });
+
+  // WHY: Wave 5 — vendedora cannot confirm reception; only encargada/admin.
+  it('vendedora is forbidden from confirming reception (403 DELIVERY_RECEIVE_FORBIDDEN_VENDEDORA)', async () => {
+    await db.stockBySite.update({
+      where: { variantId_storeId: { variantId: testVariantA, storeId: warehouseId } },
+      data: { quantity: 50 },
+    });
+    const sent = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/deliveries`)
+      .set(bearer(encargadaToken))
+      .send({ items: [{ variantId: testVariantA, quantity: 3 }], title: 'wave5-rbac' });
+    expect(sent.status).toBe(201);
+    const itemId = (sent.body.items as Array<{ id: string; variantId: string }>).find(
+      (i) => i.variantId === testVariantA,
+    )!.id;
+
+    const recv = await request(app)
+      .post(`/api/v1/deliveries/${sent.body.id as string}/receive`)
+      .set(bearer(vendedoraToken))
+      .send({ items: [{ deliveryItemId: itemId, receivedQuantity: 3 }] });
+    expect(recv.status).toBe(403);
+    expect(recv.body.code).toBe('DELIVERY_RECEIVE_FORBIDDEN_VENDEDORA');
   });
 });
 

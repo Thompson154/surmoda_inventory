@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Banknote, Check, CreditCard, QrCode, ScanLine } from 'lucide-react';
+import { Banknote, Check, CreditCard, QrCode, RotateCcw, ScanLine } from 'lucide-react';
 import type { SaleItemDTO, SaleWithItems } from '@surmoda/contracts';
 import { useSales, useSalesDashboard } from '../hooks/useSales';
 import { CashierModal } from '../components/CashierModal';
 import { CloseDayModal } from '../components/CloseDayModal';
+import { ReturnScannerModal } from '../components/ReturnScannerModal';
 import { Alert, Button, Card, CardContent, Modal, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useStoreParam } from '@/shared/hooks/useStoreParam';
@@ -68,12 +69,17 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
   const palette = {
     QR: { bg: 'bg-violet-100', text: 'text-violet-600', bar: 'bg-violet-500', Icon: QrCode },
     Efectivo: {
-      bg: 'bg-emerald-100',
-      text: 'text-emerald-600',
-      bar: 'bg-emerald-500',
+      bg: 'bg-status-success-soft',
+      text: 'text-status-success',
+      bar: 'bg-status-success',
       Icon: Banknote,
     },
-    Tarjeta: { bg: 'bg-slate-200', text: 'text-slate-700', bar: 'bg-slate-700', Icon: CreditCard },
+    Tarjeta: {
+      bg: 'bg-surface-sunken',
+      text: 'text-text-secondary',
+      bar: 'bg-slate-700',
+      Icon: CreditCard,
+    },
   }[label];
   const { Icon } = palette;
   return (
@@ -85,12 +91,12 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-slate-700">{label}</span>
-          <span className="text-slate-500 font-mono">
+          <span className="font-semibold text-text-secondary">{label}</span>
+          <span className="text-text-muted font-mono">
             {formatBsShort(cents)} · {pct}%
           </span>
         </div>
-        <div className="mt-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="mt-1 h-1.5 rounded-full bg-surface-sunken overflow-hidden">
           <div className={`h-full ${palette.bar}`} style={{ width: `${pct}%` }} />
         </div>
       </div>
@@ -108,8 +114,8 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
     row.paymentMethod === 'qr'
       ? { bg: 'bg-violet-100', text: 'text-violet-600', Icon: QrCode }
       : row.paymentMethod === 'cash'
-        ? { bg: 'bg-emerald-100', text: 'text-emerald-600', Icon: Banknote }
-        : { bg: 'bg-slate-200', text: 'text-slate-700', Icon: CreditCard };
+        ? { bg: 'bg-status-success-soft', text: 'text-status-success', Icon: Banknote }
+        : { bg: 'bg-surface-sunken', text: 'text-text-secondary', Icon: CreditCard };
   const { Icon } = palette;
   // Antes usábamos resolveImageUrl (helper que devolvía rutas relativas al FE),
   // pero las imágenes viven en el BE bajo /static/images. getImageUrl ya hace
@@ -118,12 +124,12 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
   const showDiscount = row.subtotalCents !== row.catalogTotalCents;
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-surface-border bg-white px-3 py-2.5">
+    <div className="flex items-center gap-3 rounded-lg border border-surface-border bg-surface-raised px-3 py-2.5">
       {src ? (
         <button
           type="button"
           onClick={() => onImageClick(src)}
-          className="h-12 w-12 rounded-lg overflow-hidden bg-slate-100 shrink-0 focus:outline focus:outline-brand"
+          className="h-12 w-12 rounded-lg overflow-hidden bg-surface-sunken shrink-0 focus:outline focus:outline-brand"
           aria-label="Ver imagen del producto"
         >
           <img
@@ -143,10 +149,10 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
       )}
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-900 truncate">
+        <p className="text-sm font-semibold text-text-primary truncate">
           {row.productCode} · <span className="capitalize">{row.color}</span> · {row.size}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-muted">
           {timeOfDay(row.createdAt)} · {row.quantity} {row.quantity === 1 ? 'unidad' : 'unidades'}
         </p>
       </div>
@@ -158,11 +164,11 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
           <Icon className="h-3 w-3" />
         </div>
         {showDiscount && (
-          <p className="text-[10px] text-slate-400 font-mono line-through">
+          <p className="text-[10px] text-text-subtle font-mono line-through">
             {formatBsBig(row.catalogTotalCents)}
           </p>
         )}
-        <p className="text-sm font-mono font-semibold text-slate-900">
+        <p className="text-sm font-mono font-semibold text-text-primary">
           {formatBsBig(row.subtotalCents)}
         </p>
       </div>
@@ -182,6 +188,7 @@ export function SalesRegisterPage() {
 
   const [cashierOpen, setCashierOpen] = useState(false);
   const [closeDayOpen, setCloseDayOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [lastSale, setLastSale] = useState<SaleWithItems | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -195,14 +202,15 @@ export function SalesRegisterPage() {
   const [closedAt, setClosedAt] = useState<Date | null>(null);
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
-    const tabs: BottomNavTab[] = [
-      { to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' },
-      { to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' },
-    ];
+    const tabs: BottomNavTab[] = [];
+    // WHY: vendedora NO ve Inventario (Wave 5 le quitó inventory:read).
+    if (!isVendedoraHere) {
+      tabs.push({ to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' });
+    }
+    tabs.push({ to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' });
     if (!isWarehouse) {
-      if (!isVendedoraHere) {
-        tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
-      }
+      // WHY: Ventas visible para TODOS — vendedora ve sólo cierres, encargada/admin ven todo.
+      tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
       tabs.push({ to: `/sedes/${storeId}/scanner`, label: 'Scanner', icon: 'scanner' });
     }
     return tabs;
@@ -271,7 +279,7 @@ export function SalesRegisterPage() {
       {/* max-w-4xl alinea el ancho con SedeInventoryPage / DeliveriesPage para
           que el layout en laptop sea consistente con el resto de la app. En
           mobile (< md) seguimos siendo full-width con padding de 16px. */}
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         {/* Header — Cerrar día button */}
         <header className="flex items-center justify-between">
           <h1 className="text-base font-semibold">{store?.name ?? 'Ventas'}</h1>
@@ -288,11 +296,11 @@ export function SalesRegisterPage() {
           <div className="md:col-span-1">
             <Card className="md:sticky md:top-4">
               <CardContent className="py-4">
-                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+                <p className="text-[11px] uppercase tracking-wider text-text-muted font-semibold">
                   Ventas del día
                 </p>
                 <p className="mt-1 text-3xl font-bold tracking-tight">{formatBsBig(stats.total)}</p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-text-muted">
                   {stats.count} {stats.count === 1 ? 'prenda vendida' : 'prendas vendidas'}
                 </p>
 
@@ -314,7 +322,7 @@ export function SalesRegisterPage() {
             {todayList.isLoading && <Skeleton className="h-16 w-full" />}
             {todayList.isError && <Alert variant="error">No pudimos cargar las ventas.</Alert>}
             {!todayList.isLoading && flatItems.length === 0 && (
-              <p className="text-sm text-slate-500 px-2">Sin ventas todavía hoy.</p>
+              <p className="text-sm text-text-muted px-2">Sin ventas todavía hoy.</p>
             )}
 
             {/* Grid 1 col en mobile, 2 cols en md+ para aprovechar el ancho
@@ -359,6 +367,12 @@ export function SalesRegisterPage() {
           }}
         />
 
+        <ReturnScannerModal
+          storeId={storeId}
+          open={returnOpen}
+          onClose={() => setReturnOpen(false)}
+        />
+
         <CloseDayModal
           storeId={storeId}
           open={closeDayOpen}
@@ -379,7 +393,7 @@ export function SalesRegisterPage() {
             <img
               src={zoomImage}
               alt="Producto"
-              className="w-full h-auto max-h-[70vh] object-contain rounded-lg bg-slate-100"
+              className="w-full h-auto max-h-[70vh] object-contain rounded-lg bg-surface-sunken"
             />
           )}
         </Modal>
@@ -393,7 +407,7 @@ export function SalesRegisterPage() {
             <div className="h-12 w-12 rounded-full bg-status-success-soft text-status-success flex items-center justify-center">
               <Check className="h-6 w-6" />
             </div>
-            <p className="text-sm text-slate-700 text-center">
+            <p className="text-sm text-text-secondary text-center">
               {lastSale ? `Venta de ${formatBsBig(lastSale.totalCents)} registrada.` : ''}
             </p>
             <Button
@@ -409,17 +423,27 @@ export function SalesRegisterPage() {
         </Modal>
       </main>
 
-      {/* Floating scan FAB — sits above the BottomNav (bottom: 80px) on the
-          lower-right corner. Acts as the primary action so the page scroll
-          always has it within reach. */}
-      <button
-        type="button"
-        onClick={() => setCashierOpen(true)}
-        className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition flex items-center justify-center"
-        aria-label="Escanear venta"
-      >
-        <ScanLine className="h-6 w-6" />
-      </button>
+      {/* Floating action buttons — scan (primary) and return (warning-soft).
+          WHY: both are "instant scan" actions; grouping them avoids hunting. */}
+      <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          onClick={() => setReturnOpen(true)}
+          className="h-11 w-11 rounded-full bg-status-warning-soft text-status-warning shadow-md hover:shadow-lg active:scale-95 transition flex items-center justify-center border border-status-warning/30"
+          aria-label="Registrar devolución"
+        >
+          <RotateCcw className="h-5 w-5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCashierOpen(true)}
+          className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition flex items-center justify-center"
+          aria-label="Escanear venta"
+        >
+          <ScanLine className="h-6 w-6" />
+        </button>
+      </div>
     </AppShell>
   );
 }

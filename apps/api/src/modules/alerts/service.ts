@@ -13,12 +13,12 @@ export interface AlertsServiceDeps {
 }
 
 export interface AlertsService {
-  list(auth: AuthContext): Promise<AlertsResponse>;
+  list(auth: AuthContext, storeId?: string): Promise<AlertsResponse>;
 }
 
 export function buildAlertsService({ alerts, scope }: AlertsServiceDeps): AlertsService {
   return {
-    async list(auth) {
+    async list(auth, storeId?: string) {
       // Admin or any encargada-anywhere. Vendedora gets 403.
       await assertEncargadaOrAdmin(
         scope,
@@ -26,7 +26,7 @@ export function buildAlertsService({ alerts, scope }: AlertsServiceDeps): Alerts
         'STORE_FORBIDDEN',
         'Sólo admin o encargada pueden ver las alertas operativas.',
       );
-      return alerts.buildAlerts();
+      return alerts.buildAlerts(storeId);
     },
   };
 }

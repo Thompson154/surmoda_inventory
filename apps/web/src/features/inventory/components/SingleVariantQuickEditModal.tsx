@@ -4,7 +4,7 @@ import { Camera, Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
 import { SIZE_VALUES, type InventoryRow, type Size } from '@surmoda/contracts';
 import { useAdjustQuantity } from '../hooks/useInventory';
 import { inventoryQueryKeys } from '../services/inventoryService';
-import { Alert, Badge, Button, IconButton, Input, Modal } from '@/shared/ui';
+import { Alert, Badge, Button, ConfirmDialog, IconButton, Input, Modal } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import {
@@ -57,6 +57,8 @@ export function SingleVariantQuickEditModal({
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // WHY: ConfirmDialog gates admin saves — records audit trail via required reason
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const adjustError = useErrorMessage(adjust.error as HttpError | null | undefined);
 
@@ -85,6 +87,7 @@ export function SingleVariantQuickEditModal({
       setPendingImage(null);
       setPreviewUrl(null);
       setSubmitError(null);
+      setConfirmOpen(false);
       adjust.reset();
       updateImage.reset();
     }
@@ -139,10 +142,17 @@ export function SingleVariantQuickEditModal({
 
   const imageUrl = previewUrl ?? getImageUrl(row.imagePath);
 
+  // WHY: Guardar opens ConfirmDialog (admin audit trail) before firing mutations
+  const handleGuardarClick = () => {
+    if (!canEdit || !anyDirty || !allValid || submitting) return;
+    setConfirmOpen(true);
+  };
+
   // Sequence: code (cascades) -> variant patch (size/color/price) -> qty.
-  const submit = async () => {
+  const submit = async (confirmedReason?: string) => {
     if (!canEdit || !anyDirty || !allValid || submitting) return;
 
+    setConfirmOpen(false);
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -163,7 +173,8 @@ export function SingleVariantQuickEditModal({
           adjust.mutate(
             {
               variantId: row.variantId,
-              payload: { quantity: draftQty, reason: reason || undefined },
+              // WHY: reason from ConfirmDialog takes precedence over inline field
+              payload: { quantity: draftQty, reason: confirmedReason || reason || undefined },
             },
             { onSuccess: () => resolve(), onError: (err) => reject(err) },
           );
@@ -195,7 +206,7 @@ export function SingleVariantQuickEditModal({
             {imageUrl ? (
               <img src={imageUrl} alt="" className="h-full w-full object-cover" />
             ) : (
-              <ImageIcon className="h-6 w-6 text-slate-400" />
+              <ImageIcon className="h-6 w-6 text-text-subtle" />
             )}
             {canEdit && (
               <span className="absolute inset-0 bg-black/40 text-white text-[10px] font-semibold flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -212,16 +223,16 @@ export function SingleVariantQuickEditModal({
             onChange={onPickImage}
           />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">{row.productName}</p>
-            <p className="text-xs font-mono text-slate-400 mt-0.5">{row.barcode}</p>
-            <p className="text-xs text-slate-600 mt-1">{formatPrice(row.priceCents)}</p>
+            <p className="text-sm font-medium text-text-primary truncate">{row.productName}</p>
+            <p className="text-xs font-mono text-text-subtle mt-0.5">{row.barcode}</p>
+            <p className="text-xs text-text-secondary mt-1">{formatPrice(row.priceCents)}</p>
           </div>
           {!canEdit && <Badge variant="default">Solo lectura</Badge>}
         </div>
 
         {pendingImage && (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-            <p className="text-xs text-amber-800">
+          <div className="flex items-center justify-between gap-2 rounded-md border border-status-warning bg-status-warning-soft px-3 py-2">
+            <p className="text-xs text-status-warning">
               Nueva imagen lista — pesa {(pendingImage.size / 1024).toFixed(0)} KB.
             </p>
             <div className="flex gap-1">
@@ -257,7 +268,10 @@ export function SingleVariantQuickEditModal({
         {/* Editable details (código / talla / color / precio) */}
         <div className="grid grid-cols-2 gap-2">
           <div className="col-span-2">
-            <label htmlFor="svqe-code" className="block text-xs font-medium text-slate-600 mb-1">
+            <label
+              htmlFor="svqe-code"
+              className="block text-xs font-medium text-text-secondary mb-1"
+            >
               Código
             </label>
             <Input
@@ -271,19 +285,22 @@ export function SingleVariantQuickEditModal({
               aria-invalid={!codeValid}
             />
             {!codeValid && (
-              <p className="text-[11px] text-rose-600 mt-1">
+              <p className="text-[11px] text-status-danger mt-1">
                 Código inválido (2-15 caracteres: A-Z, 0-9, _).
               </p>
             )}
             {canEdit && codeIsDirty && codeValid && (
-              <p className="text-[11px] text-amber-700 mt-1">
+              <p className="text-[11px] text-status-warning mt-1">
                 Cambiar el código regenera los códigos de barras de TODAS las variantes.
               </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="svqe-size" className="block text-xs font-medium text-slate-600 mb-1">
+            <label
+              htmlFor="svqe-size"
+              className="block text-xs font-medium text-text-secondary mb-1"
+            >
               Talla
             </label>
             <select
@@ -291,7 +308,7 @@ export function SingleVariantQuickEditModal({
               value={draftSize}
               onChange={(e) => setDraftSize(e.target.value as Size)}
               disabled={!canEdit}
-              className="w-full rounded-md border border-surface-border bg-white px-2 py-1 text-sm disabled:bg-surface-sunken disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-surface-border bg-surface-raised px-2 py-1 text-sm disabled:bg-surface-sunken disabled:cursor-not-allowed"
             >
               {sizeOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -302,7 +319,10 @@ export function SingleVariantQuickEditModal({
           </div>
 
           <div>
-            <label htmlFor="svqe-color" className="block text-xs font-medium text-slate-600 mb-1">
+            <label
+              htmlFor="svqe-color"
+              className="block text-xs font-medium text-text-secondary mb-1"
+            >
               Color
             </label>
             <Input
@@ -318,7 +338,10 @@ export function SingleVariantQuickEditModal({
           </div>
 
           <div className="col-span-2">
-            <label htmlFor="svqe-price" className="block text-xs font-medium text-slate-600 mb-1">
+            <label
+              htmlFor="svqe-price"
+              className="block text-xs font-medium text-text-secondary mb-1"
+            >
               Precio (Bs)
             </label>
             <Input
@@ -333,12 +356,12 @@ export function SingleVariantQuickEditModal({
               className="text-sm py-1"
               aria-invalid={!priceValid}
             />
-            {!priceValid && <p className="text-[11px] text-rose-600 mt-1">Precio inválido.</p>}
+            {!priceValid && <p className="text-[11px] text-status-danger mt-1">Precio inválido.</p>}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-700">Cantidad</span>
+          <span className="text-sm text-text-secondary">Cantidad</span>
           <div className="flex items-center gap-1">
             <IconButton
               icon={<Minus className="h-4 w-4" />}
@@ -400,7 +423,7 @@ export function SingleVariantQuickEditModal({
               variant="primary"
               size="md"
               leftIcon={<Save className="h-4 w-4" />}
-              onClick={submit}
+              onClick={handleGuardarClick}
               isLoading={submitting || adjust.isPending}
               disabled={submitting || adjust.isPending || !anyDirty || !allValid}
             >
@@ -409,6 +432,18 @@ export function SingleVariantQuickEditModal({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={submit}
+        title="Confirmar edición de inventario"
+        description={`Vas a modificar el stock de ${row.productName}. Esta acción queda registrada en el historial.`}
+        requiresReason
+        reasonMinLength={3}
+        variant="default"
+        isPending={submitting || adjust.isPending}
+      />
     </Modal>
   );
 }

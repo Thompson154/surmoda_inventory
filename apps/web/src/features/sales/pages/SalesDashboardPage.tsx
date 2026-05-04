@@ -1,16 +1,20 @@
 import { useMemo, useState } from 'react';
 import type { DailyReportDTO } from '@surmoda/contracts';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { DailyReportDetailModal } from '../components/DailyReportDetailModal';
 import { useSalesDashboard } from '../hooks/useSales';
 import { useDailyReports } from '../hooks/useDailyReports';
-import { Alert, Card, CardContent, Skeleton } from '@/shared/ui';
+import { Alert, Button, Card, CardContent, Skeleton } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useStoreParam } from '@/shared/hooks/useStoreParam';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
+import { usePermissions } from '@/shared/auth/usePermissions';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { formatBs, formatBsShort } from '@/shared/format/currency';
+import { ReportGeneratorModal } from '@/features/reports/components/ReportGeneratorModal';
+import { ReportPreviewModal } from '@/features/reports/components/ReportPreviewModal';
+import type { SalesReportPreview, GenerateReportArgs } from '@/features/reports/types';
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -180,21 +184,37 @@ export function SalesDashboardPage() {
   const store = stores.data?.items.find((s) => s.id === storeId);
   const isWarehouse = store?.kind === 'warehouse';
   const { isVendedoraHere } = useStoreScope(storeId);
+  const { can } = usePermissions();
+  // Wave 5: encargada/admin get full view; vendedora gets closures-only
+  const canFullView = can('sales:full-view');
+  const canGenerateReport = can('reports:generate');
 
   const dashboard = useSalesDashboard(storeId);
   const closures = useDailyReports(storeId, { page: 1, pageSize: 10 });
   const [selectedReport, setSelectedReport] = useState<DailyReportDTO | null>(null);
   const [weekPopover, setWeekPopover] = useState<number | null>(null);
 
+  // Report modals (admin + encargada only — vendedora has no access per RBAC)
+  const [reportGeneratorOpen, setReportGeneratorOpen] = useState(false);
+  const [reportPreview, setReportPreview] = useState<SalesReportPreview | null>(null);
+  const [reportArgs, setReportArgs] = useState<GenerateReportArgs | null>(null);
+
+  function handlePreviewReady(preview: SalesReportPreview, args: GenerateReportArgs) {
+    setReportGeneratorOpen(false);
+    setReportPreview(preview);
+    setReportArgs(args);
+  }
+
   const bottomNav = useMemo<BottomNavTab[]>(() => {
-    const tabs: BottomNavTab[] = [
-      { to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' },
-      { to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' },
-    ];
+    const tabs: BottomNavTab[] = [];
+    // WHY: vendedora NO ve Inventario (Wave 5 le quitó inventory:read).
+    if (!isVendedoraHere) {
+      tabs.push({ to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' });
+    }
+    tabs.push({ to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' });
     if (!isWarehouse) {
-      if (!isVendedoraHere) {
-        tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
-      }
+      // WHY: Ventas visible para TODOS — vendedora ve sólo cierres, encargada/admin ven todo.
+      tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
       tabs.push({ to: `/sedes/${storeId}/scanner`, label: 'Scanner', icon: 'scanner' });
     }
     return tabs;
@@ -202,182 +222,225 @@ export function SalesDashboardPage() {
 
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-slate-900">
-        <header>
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
+        <header className="flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold">Ventas</h1>
+          {/* Reporte: solo admin y encargada. Vendedoras no generan reportes (Wave 5). */}
+          {canGenerateReport && !isWarehouse && (
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<FileSpreadsheet className="h-4 w-4" />}
+              onClick={() => setReportGeneratorOpen(true)}
+            >
+              Generar Reporte
+            </Button>
+          )}
         </header>
 
-        {dashboard.isLoading && (
-          <>
-            <Skeleton className="h-40 w-full" />
-            <div className="grid grid-cols-3 gap-2">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-          </>
+        {/* Report modals */}
+        {canGenerateReport && store && (
+          <ReportGeneratorModal
+            isOpen={reportGeneratorOpen}
+            onClose={() => setReportGeneratorOpen(false)}
+            storeId={storeId}
+            storeName={store.name}
+            onPreviewReady={handlePreviewReady}
+          />
+        )}
+        {reportPreview && (
+          <ReportPreviewModal
+            isOpen={!!reportPreview}
+            onClose={() => {
+              setReportPreview(null);
+              setReportArgs(null);
+            }}
+            preview={reportPreview}
+            downloadArgs={reportArgs ?? undefined}
+          />
         )}
 
-        {dashboard.isError && <Alert variant="error">No pudimos cargar el dashboard.</Alert>}
-
-        {dashboard.data && (
+        {/* Wave 5: vendedora gets closures-only; full dashboard for encargada/admin */}
+        {canFullView && (
           <>
-            <Card>
-              <CardContent className="flex flex-col gap-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Ventas hoy</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">
-                    {formatBsShort(dashboard.data.todayCents)}
-                  </span>
-                  {dashboard.data.deltaPct !== null && (
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
-                        dashboard.data.deltaPct >= 0
-                          ? 'bg-status-success-soft text-status-success'
-                          : 'bg-status-danger-soft text-status-danger'
-                      }`}
-                    >
-                      {dashboard.data.deltaPct >= 0 ? (
-                        <TrendingUp className="h-3 w-3" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3" />
+            {dashboard.isLoading && (
+              <>
+                <Skeleton className="h-40 w-full" />
+                <div className="grid grid-cols-3 gap-2">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              </>
+            )}
+
+            {dashboard.isError && <Alert variant="error">No pudimos cargar el dashboard.</Alert>}
+
+            {dashboard.data && (
+              <>
+                <Card>
+                  <CardContent className="flex flex-col gap-3">
+                    <p className="text-xs uppercase tracking-wide text-text-muted">Ventas hoy</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold">
+                        {formatBsShort(dashboard.data.todayCents)}
+                      </span>
+                      {dashboard.data.deltaPct !== null && (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
+                            dashboard.data.deltaPct >= 0
+                              ? 'bg-status-success-soft text-status-success'
+                              : 'bg-status-danger-soft text-status-danger'
+                          }`}
+                        >
+                          {dashboard.data.deltaPct >= 0 ? (
+                            <TrendingUp className="h-3 w-3" />
+                          ) : (
+                            <TrendingDown className="h-3 w-3" />
+                          )}
+                          {dashboard.data.deltaPct.toFixed(1)}%
+                        </span>
                       )}
-                      {dashboard.data.deltaPct.toFixed(1)}%
-                    </span>
-                  )}
+                    </div>
+                    <p className="text-xs text-text-muted">
+                      vs {formatBsShort(dashboard.data.yesterdayCents)} ayer
+                    </p>
+                    <Sparkline data={dashboard.data.last7Days} />
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Card>
+                    <CardContent className="py-3">
+                      <p className="text-xs text-text-muted">Total semana</p>
+                      <p className="text-base font-semibold mt-1">
+                        {formatBsShort(dashboard.data.weekCents)}
+                      </p>
+                      <p className="text-[10px] text-text-subtle mt-0.5">7 días</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="py-3">
+                      <p className="text-xs text-text-muted">Transacciones</p>
+                      <p className="text-base font-semibold mt-1">
+                        {dashboard.data.transactionsCount}
+                      </p>
+                      <p className="text-[10px] text-text-subtle mt-0.5">completadas</p>
+                    </CardContent>
+                  </Card>
                 </div>
-                <p className="text-xs text-slate-500">
-                  vs {formatBsShort(dashboard.data.yesterdayCents)} ayer
-                </p>
-                <Sparkline data={dashboard.data.last7Days} />
-              </CardContent>
-            </Card>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Card>
-                <CardContent className="py-3">
-                  <p className="text-xs text-slate-500">Total semana</p>
-                  <p className="text-base font-semibold mt-1">
-                    {formatBsShort(dashboard.data.weekCents)}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">7 días</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="py-3">
-                  <p className="text-xs text-slate-500">Transacciones</p>
-                  <p className="text-base font-semibold mt-1">{dashboard.data.transactionsCount}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">completadas</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardContent>
-                <p className="text-sm font-semibold mb-2">Resumen semanal (últimas 5 semanas)</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-surface-sunken text-slate-600">
-                      <tr>
-                        <th className="text-left px-2 py-2">Semana</th>
-                        <th className="text-right px-2 py-2">QR</th>
-                        <th className="text-right px-2 py-2">Tarjeta</th>
-                        <th className="text-right px-2 py-2">Efectivo</th>
-                        <th className="text-right px-2 py-2">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.data.weeklyBreakdown.map((row, idx) => (
-                        <tr key={row.weekStart} className="border-t border-surface-border">
-                          <td className="px-2 py-2">
-                            <button
-                              type="button"
-                              onClick={() => setWeekPopover(weekPopover === idx ? null : idx)}
-                              className="font-semibold text-left hover:text-brand-strong"
-                              aria-label={`Ver rango de fechas de ${weekLabel(idx)}`}
-                            >
-                              {weekLabel(idx)}
-                            </button>
-                            {weekPopover === idx && (
-                              <div className="mt-1 inline-block rounded-md bg-slate-900 text-white text-[10px] font-mono px-2 py-1 shadow">
-                                {weekRange(row.weekStart, row.weekEnd)}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-2 py-2 text-right font-mono">
-                            {formatBs(row.qrCents)}
-                          </td>
-                          <td className="px-2 py-2 text-right font-mono">
-                            {formatBs(row.cardCents)}
-                          </td>
-                          <td className="px-2 py-2 text-right font-mono">
-                            {formatBs(row.cashCents)}
-                          </td>
-                          <td className="px-2 py-2 text-right font-mono font-semibold">
-                            {formatBs(row.totalCents)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <p className="text-sm font-semibold mb-2">Historial de cierres diarios</p>
-                {closures.isLoading && <Skeleton className="h-16 w-full" />}
-                {closures.isError && <Alert variant="error">No pudimos cargar el historial.</Alert>}
-                {closures.data && closures.data.items.length === 0 && (
-                  <p className="text-sm text-slate-500">Aún no hay cierres registrados.</p>
-                )}
-                {closures.data && closures.data.items.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-surface-sunken text-slate-600">
-                        <tr>
-                          <th className="text-left px-2 py-2">Fecha</th>
-                          <th className="text-right px-2 py-2">Ítems</th>
-                          <th className="text-right px-2 py-2">Total</th>
-                          <th className="text-left px-2 py-2">Cierre</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {closures.data.items.map((row) => (
-                          <tr
-                            key={row.id}
-                            className="border-t border-surface-border cursor-pointer hover:bg-surface-sunken"
-                            onClick={() => setSelectedReport(row)}
-                          >
-                            <td className="px-2 py-2 font-mono text-brand-strong underline-offset-2 hover:underline">
-                              {row.date}
-                            </td>
-                            <td className="px-2 py-2 text-right">{row.itemCount}</td>
-                            <td className="px-2 py-2 text-right font-mono font-semibold">
-                              {formatBs(row.totalCents)}
-                            </td>
-                            <td className="px-2 py-2">
-                              {row.autoClosed ? (
-                                <span className="rounded bg-amber-100 text-amber-700 px-1.5 py-0.5">
-                                  Auto
-                                </span>
-                              ) : (
-                                <span className="rounded bg-emerald-100 text-emerald-700 px-1.5 py-0.5">
-                                  {row.closedByFullName ?? 'Manual'}
-                                </span>
-                              )}
-                            </td>
+                <Card>
+                  <CardContent>
+                    <p className="text-sm font-semibold mb-2">
+                      Resumen semanal (últimas 5 semanas)
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-surface-sunken text-text-secondary">
+                          <tr>
+                            <th className="text-left px-2 py-2">Semana</th>
+                            <th className="text-right px-2 py-2">QR</th>
+                            <th className="text-right px-2 py-2">Tarjeta</th>
+                            <th className="text-right px-2 py-2">Efectivo</th>
+                            <th className="text-right px-2 py-2">Total</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        </thead>
+                        <tbody>
+                          {dashboard.data.weeklyBreakdown.map((row, idx) => (
+                            <tr key={row.weekStart} className="border-t border-surface-border">
+                              <td className="px-2 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setWeekPopover(weekPopover === idx ? null : idx)}
+                                  className="font-semibold text-left hover:text-brand-strong"
+                                  aria-label={`Ver rango de fechas de ${weekLabel(idx)}`}
+                                >
+                                  {weekLabel(idx)}
+                                </button>
+                                {weekPopover === idx && (
+                                  <div className="mt-1 inline-block rounded-md bg-slate-900 text-white text-[10px] font-mono px-2 py-1 shadow">
+                                    {weekRange(row.weekStart, row.weekEnd)}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-2 py-2 text-right font-mono">
+                                {formatBs(row.qrCents)}
+                              </td>
+                              <td className="px-2 py-2 text-right font-mono">
+                                {formatBs(row.cardCents)}
+                              </td>
+                              <td className="px-2 py-2 text-right font-mono">
+                                {formatBs(row.cashCents)}
+                              </td>
+                              <td className="px-2 py-2 text-right font-mono font-semibold">
+                                {formatBs(row.totalCents)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </>
         )}
+
+        {/* Historial de cierres diarios — visible para todos los roles con acceso a ventas */}
+        <Card>
+          <CardContent>
+            <p className="text-sm font-semibold mb-2">Historial de cierres diarios</p>
+            {closures.isLoading && <Skeleton className="h-16 w-full" />}
+            {closures.isError && <Alert variant="error">No pudimos cargar el historial.</Alert>}
+            {closures.data && closures.data.items.length === 0 && (
+              <p className="text-sm text-text-muted">Aún no hay cierres registrados.</p>
+            )}
+            {closures.data && closures.data.items.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-surface-sunken text-text-secondary">
+                    <tr>
+                      <th className="text-left px-2 py-2">Fecha</th>
+                      <th className="text-right px-2 py-2">Ítems</th>
+                      <th className="text-right px-2 py-2">Total</th>
+                      <th className="text-left px-2 py-2">Cierre</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {closures.data.items.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-t border-surface-border cursor-pointer hover:bg-surface-sunken"
+                        onClick={() => setSelectedReport(row)}
+                      >
+                        <td className="px-2 py-2 font-mono text-brand-strong underline-offset-2 hover:underline">
+                          {row.date}
+                        </td>
+                        <td className="px-2 py-2 text-right">{row.itemCount}</td>
+                        <td className="px-2 py-2 text-right font-mono font-semibold">
+                          {formatBs(row.totalCents)}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.autoClosed ? (
+                            <span className="rounded bg-status-warning-soft text-status-warning px-1.5 py-0.5">
+                              Auto
+                            </span>
+                          ) : (
+                            <span className="rounded bg-status-success-soft text-status-success px-1.5 py-0.5">
+                              {row.closedByFullName ?? 'Manual'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <DailyReportDetailModal
           storeId={storeId}
