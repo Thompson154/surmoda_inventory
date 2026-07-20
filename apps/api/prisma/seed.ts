@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Size, StoreKind } from '@prisma/client';
+import { PrismaClient, Role, StoreKind } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
     },
   });
 
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'thompson@surmoda.com.bo' },
     update: { passwordHash: pwdThompson },
     create: {
