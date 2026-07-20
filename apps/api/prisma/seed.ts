@@ -1,105 +1,6 @@
 import { PrismaClient, Role, Size, StoreKind } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { generateBarcode } from '../src/modules/products/barcode';
-
 const prisma = new PrismaClient();
-
-interface VariantSeed {
-  size: Size;
-  color: string;
-  priceCents: number;
-}
-
-interface ProductSeed {
-  code: string;
-  name: string;
-  description?: string;
-  imageFileName: string;
-  variants: VariantSeed[];
-}
-
-const PRODUCT_SEEDS: ProductSeed[] = [
-  {
-    code: 'CHQ001',
-    name: 'Chaqueta clásica',
-    description: 'Chaqueta de uso diario, corte regular.',
-    imageFileName: 'chaqueta.png',
-    variants: [
-      { size: Size.m, color: 'negro', priceCents: 45000 },
-      { size: Size.l, color: 'negro', priceCents: 45000 },
-    ],
-  },
-  {
-    code: 'CHQ002',
-    name: 'Chaqueta cintura cuero',
-    description: 'Chaqueta con detalle de cuero en cintura.',
-    imageFileName: 'chaquetaCinturaCuero.png',
-    variants: [
-      { size: Size.s, color: 'beish', priceCents: 65000 },
-      { size: Size.m, color: 'beish', priceCents: 65000 },
-    ],
-  },
-  {
-    code: 'CHQ003',
-    name: 'Chaqueta negra',
-    description: 'Chaqueta negra entallada.',
-    imageFileName: 'chaquetaNegra.png',
-    variants: [
-      { size: Size.s, color: 'negro', priceCents: 50000 },
-      { size: Size.m, color: 'negro', priceCents: 50000 },
-      { size: Size.l, color: 'negro', priceCents: 50000 },
-    ],
-  },
-  {
-    code: 'CHQ004',
-    name: 'Chaqueta polo negro',
-    description: 'Chaqueta tipo polo color negro.',
-    imageFileName: 'chaquetaPoloNegro.png',
-    variants: [
-      { size: Size.m, color: 'negro', priceCents: 40000 },
-      { size: Size.l, color: 'negro', priceCents: 40000 },
-    ],
-  },
-  {
-    code: 'JN001',
-    name: 'Jean azul bota recta',
-    description: 'Jean clásico color azul, bota recta.',
-    imageFileName: 'JeanAzulBotaRecta.png',
-    variants: [
-      { size: Size.size_28, color: 'azul', priceCents: 30000 },
-      { size: Size.size_30, color: 'azul', priceCents: 30000 },
-      { size: Size.size_32, color: 'azul', priceCents: 30000 },
-    ],
-  },
-  {
-    code: 'PNT001',
-    name: 'Pantalón deportivo beish',
-    description: 'Pantalón deportivo color beish.',
-    imageFileName: 'PantalonDeportivoBeish.png',
-    variants: [
-      { size: Size.m, color: 'beish', priceCents: 28000 },
-      { size: Size.l, color: 'beish', priceCents: 28000 },
-    ],
-  },
-  {
-    code: 'PNT002',
-    name: 'Pantalón jean',
-    description: 'Pantalón jean clásico.',
-    imageFileName: 'PantalonJean.png',
-    variants: [
-      { size: Size.size_30, color: 'azul', priceCents: 32000 },
-      { size: Size.size_32, color: 'azul', priceCents: 32000 },
-      { size: Size.size_34, color: 'azul', priceCents: 32000 },
-    ],
-  },
-  {
-    code: 'PNT003',
-    name: 'Pantalón tela beish',
-    description: 'Pantalón de tela formal color beish.',
-    imageFileName: 'PantalonTelaBeish.png',
-    variants: [{ size: Size.standard, color: 'beish', priceCents: 35000 }],
-  },
-];
 
 const STORE_PRADO = 'store-prado-seed';
 const STORE_ZSUR = 'store-zsur-seed';
@@ -107,8 +8,15 @@ const STORE_ALMACEN = 'store-almacen-seed';
 
 async function main(): Promise<void> {
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
-  const adminPasswordHash = await bcrypt.hash('Surmoda2026_Admin', saltRounds);
-  const staffPasswordHash = await bcrypt.hash('Surmoda2026_Staff', saltRounds);
+  const pwdThompson = await bcrypt.hash('Th0mp$on_88_xZ!2026', saltRounds);
+  const pwdMagdalena = await bcrypt.hash('M4gd@lena_Jef4_#91kL', saltRounds);
+  const pwdLiz = await bcrypt.hash('L1z_Prad0_%77_sTr', saltRounds);
+  const pwdGloria = await bcrypt.hash('Gl0r!a_Zsur_#22_bTr', saltRounds);
+  const pwdNoemi = await bcrypt.hash('N0emi_Satel!te_88$x', saltRounds);
+  const pwdVendPrado = await bcrypt.hash('Vend_Pr@do_2026!Wq', saltRounds);
+  const pwdVendZsur = await bcrypt.hash('Vend_Zsur_%99_Lp$', saltRounds);
+  const pwdVendSatelite = await bcrypt.hash('Vend_Sat_#44_Jk!', saltRounds);
+  const pwdVendOnline = await bcrypt.hash('Vend_Onl!ne_55*Tr', saltRounds);
 
   await prisma.store.upsert({
     where: { code: 'ALMACEN' },
@@ -153,10 +61,10 @@ async function main(): Promise<void> {
 
   const admin = await prisma.user.upsert({
     where: { email: 'thompson@surmoda.com.bo' },
-    update: { passwordHash: adminPasswordHash },
+    update: { passwordHash: pwdThompson },
     create: {
       email: 'thompson@surmoda.com.bo',
-      passwordHash: adminPasswordHash,
+      passwordHash: pwdThompson,
       fullName: 'Administrador Thompson',
       isAdmin: true,
       isActive: true,
@@ -165,10 +73,10 @@ async function main(): Promise<void> {
 
   const encargadaPrado = await prisma.user.upsert({
     where: { email: 'liz@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdLiz },
     create: {
       email: 'liz@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdLiz,
       fullName: 'Liz Encargada',
       isAdmin: false,
       isActive: true,
@@ -177,10 +85,10 @@ async function main(): Promise<void> {
 
   const encargadaZsur = await prisma.user.upsert({
     where: { email: 'gloria@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdGloria },
     create: {
       email: 'gloria@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdGloria,
       fullName: 'Gloria Encargada',
       isAdmin: false,
       isActive: true,
@@ -189,10 +97,10 @@ async function main(): Promise<void> {
 
   const encargadaSatelite = await prisma.user.upsert({
     where: { email: 'noemi@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdNoemi },
     create: {
       email: 'noemi@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdNoemi,
       fullName: 'Noemi Encargada',
       isAdmin: false,
       isActive: true,
@@ -201,10 +109,10 @@ async function main(): Promise<void> {
 
   const encargadaJefa = await prisma.user.upsert({
     where: { email: 'magdalena@surmoda.com.bo' },
-    update: { passwordHash: adminPasswordHash },
+    update: { passwordHash: pwdMagdalena },
     create: {
       email: 'magdalena@surmoda.com.bo',
-      passwordHash: adminPasswordHash,
+      passwordHash: pwdMagdalena,
       fullName: 'Magdalena Encargada Jefa',
       isAdmin: true,
       isActive: true,
@@ -213,10 +121,10 @@ async function main(): Promise<void> {
 
   const vendedoraPrado = await prisma.user.upsert({
     where: { email: 'vendedora.prado@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdVendPrado },
     create: {
       email: 'vendedora.prado@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdVendPrado,
       fullName: 'Vendedora Prado',
       isAdmin: false,
       isActive: true,
@@ -225,10 +133,10 @@ async function main(): Promise<void> {
 
   const vendedoraZsur = await prisma.user.upsert({
     where: { email: 'vendedora.zsur@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdVendZsur },
     create: {
       email: 'vendedora.zsur@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdVendZsur,
       fullName: 'Vendedora Zona Sur',
       isAdmin: false,
       isActive: true,
@@ -237,10 +145,10 @@ async function main(): Promise<void> {
 
   const vendedoraSatelite = await prisma.user.upsert({
     where: { email: 'vendedora.satelite@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdVendSatelite },
     create: {
       email: 'vendedora.satelite@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdVendSatelite,
       fullName: 'Vendedora Satelite',
       isAdmin: false,
       isActive: true,
@@ -249,10 +157,10 @@ async function main(): Promise<void> {
 
   const vendedoraOnline = await prisma.user.upsert({
     where: { email: 'vendedora.online@surmoda.com.bo' },
-    update: { passwordHash: staffPasswordHash },
+    update: { passwordHash: pwdVendOnline },
     create: {
       email: 'vendedora.online@surmoda.com.bo',
-      passwordHash: staffPasswordHash,
+      passwordHash: pwdVendOnline,
       fullName: 'Vendedora Online',
       isAdmin: false,
       isActive: true,
@@ -280,202 +188,7 @@ async function main(): Promise<void> {
     }
   }
 
-  let productCount = 0;
-  let variantCount = 0;
-
-  for (const seed of PRODUCT_SEEDS) {
-    const product = await prisma.product.upsert({
-      where: { code: seed.code },
-      update: {},
-      create: {
-        code: seed.code,
-        name: seed.name,
-        description: seed.description,
-      },
-    });
-    productCount += 1;
-
-    for (const v of seed.variants) {
-      const barcode = generateBarcode(seed.code, v.size, v.color);
-      const existing = await prisma.variant.findFirst({
-        where: { productId: product.id, size: v.size, color: v.color, deletedAt: null },
-      });
-      if (!existing) {
-        await prisma.variant.create({
-          data: {
-            productId: product.id,
-            size: v.size,
-            color: v.color,
-            barcode,
-            priceCents: v.priceCents,
-            imagePath: `imagesTest/${seed.imageFileName}`,
-          },
-        });
-        variantCount += 1;
-      }
-    }
-  }
-
-  // Pre-create StockBySite rows for every (variant × active store) combination,
-  // so adjustments are simple updates. Idempotent.
-  const allVariants = await prisma.variant.findMany({
-    where: { deletedAt: null },
-    select: { id: true },
-  });
-  const allStores = await prisma.store.findMany({
-    where: { deletedAt: null, isActive: true },
-    select: { id: true },
-  });
-
-  // WHY: warehouse gets a non-zero starting stock so deliveries to branches can be tested
-  // out of the box. Branches stay at 0 until distribution moves stock to them.
-  const WAREHOUSE_DEFAULT_QTY = 50;
-  const warehouseStore = allStores.find((s) => s.id === STORE_ALMACEN);
-
-  let stockRowsCreated = 0;
-  for (const v of allVariants) {
-    for (const s of allStores) {
-      const existing = await prisma.stockBySite.findUnique({
-        where: { variantId_storeId: { variantId: v.id, storeId: s.id } },
-      });
-      if (!existing) {
-        const isWarehouse = warehouseStore?.id === s.id;
-        await prisma.stockBySite.create({
-          data: {
-            variantId: v.id,
-            storeId: s.id,
-            quantity: isWarehouse ? WAREHOUSE_DEFAULT_QTY : 0,
-          },
-        });
-        stockRowsCreated += 1;
-      }
-    }
-  }
-
-  // Refill warehouse rows that ended up at 0 (e.g. after integration tests cleared stock).
-  // Only touches still-empty rows so real operations are never overwritten.
-  let warehouseRefilled = 0;
-  if (warehouseStore) {
-    const empty = await prisma.stockBySite.findMany({
-      where: { storeId: warehouseStore.id, quantity: 0 },
-      select: { id: true },
-    });
-    for (const row of empty) {
-      await prisma.stockBySite.update({
-        where: { id: row.id },
-        data: { quantity: WAREHOUSE_DEFAULT_QTY },
-      });
-      warehouseRefilled += 1;
-    }
-  }
-
-  // -----------------------------------------------------------------------------
-  // Historical sales + daily-report seed (feature 007 demo flow).
-  // Idempotent: only runs when the store has no DailyReport rows yet.
-  // -----------------------------------------------------------------------------
-  let demoSalesCreated = 0;
-  let demoReportsCreated = 0;
-  for (const branchId of [STORE_PRADO, STORE_ZSUR]) {
-    const existingReports = await prisma.dailyReport.count({ where: { storeId: branchId } });
-    if (existingReports > 0) continue;
-
-    const branchVariants = await prisma.variant.findMany({
-      where: { deletedAt: null },
-      select: { id: true, priceCents: true },
-      take: 6,
-    });
-    if (branchVariants.length === 0) continue;
-
-    const branchSeller = branchId === STORE_PRADO ? vendedoraPrado.id : vendedoraZsur.id;
-    const branchEncargada = encargadaPrado.id; // closes both branches in demo
-    const TZ_OFFSET_MS = 4 * 60 * 60 * 1000;
-    const PMS = ['cash', 'qr', 'card'] as const;
-    const today = new Date();
-    const todayBoliviaIso = new Date(today.getTime() - TZ_OFFSET_MS).toISOString().slice(0, 10);
-    const todayKey = new Date(`${todayBoliviaIso}T00:00:00.000Z`);
-
-    // Generate 14 days of sales (oldest → today). Cierre snapshots cover days 1..7
-    // (i.e. the 7 days before today). Today is left open so the user can close it.
-    for (let i = 14; i >= 0; i -= 1) {
-      const dayKey = new Date(todayKey.getTime() - i * 24 * 60 * 60 * 1000);
-      const dayStartUtc = new Date(dayKey.getTime() + TZ_OFFSET_MS); // 00:00 Bolivia
-      const salesPerDay = 3 + ((i * 7 + (branchId === STORE_PRADO ? 0 : 1)) % 4); // 3..6
-
-      let totalCents = 0;
-      let qrCents = 0;
-      let cardCents = 0;
-      let cashCents = 0;
-      let itemCount = 0;
-
-      for (let s = 0; s < salesPerDay; s += 1) {
-        const variant = branchVariants[(i + s) % branchVariants.length]!;
-        const qty = 1 + ((i + s) % 3); // 1..3
-        const pm = PMS[(i + s) % PMS.length]!;
-        const lineTotal = variant.priceCents * qty;
-        const createdAt = new Date(dayStartUtc.getTime() + (8 + s * 2) * 60 * 60 * 1000);
-
-        await prisma.sale.create({
-          data: {
-            storeId: branchId,
-            recordedByUserId: branchSeller,
-            paymentMethod: pm,
-            totalCents: lineTotal,
-            createdAt,
-            items: {
-              create: [
-                {
-                  variantId: variant.id,
-                  quantity: qty,
-                  priceAtSaleCents: variant.priceCents,
-                  totalCents: lineTotal,
-                  subtotalCents: lineTotal,
-                },
-              ],
-            },
-          },
-        });
-        demoSalesCreated += 1;
-
-        totalCents += lineTotal;
-        itemCount += qty;
-        if (pm === 'qr') qrCents += lineTotal;
-        else if (pm === 'card') cardCents += lineTotal;
-        else cashCents += lineTotal;
-      }
-
-      // Close every past day (i ≥ 1). Mix manual + auto so the UI badge is visible.
-      if (i >= 1) {
-        const isAuto = i % 2 === 0;
-        const closedAt = new Date(dayStartUtc.getTime() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000);
-        await prisma.dailyReport.create({
-          data: {
-            storeId: branchId,
-            date: dayKey,
-            totalCents,
-            qrCents,
-            cardCents,
-            cashCents,
-            itemCount,
-            transactionsCount: salesPerDay,
-            closedByUserId: isAuto ? null : branchEncargada,
-            closedAt,
-            autoClosed: isAuto,
-          },
-        });
-        demoReportsCreated += 1;
-      }
-    }
-  }
-
-  // eslint-disable-next-line no-console
-  console.info(
-    `Seed OK — admin: ${admin.email}; staff: 4 users; assignments: ${assignments.length}; ` +
-      `placeholder stores: ${STORE_PRADO}, ${STORE_ZSUR}, ${STORE_ALMACEN}; ` +
-      `products: ${productCount}; variants created: ${variantCount}; ` +
-      `stock rows created: ${stockRowsCreated}; ` +
-      `warehouse rows refilled to ${WAREHOUSE_DEFAULT_QTY}: ${warehouseRefilled}; ` +
-      `demo sales: ${demoSalesCreated}; demo daily reports: ${demoReportsCreated}`,
-  );
+  console.info(`Seed OK — production users and stores initialized.`);
 }
 
 main()
