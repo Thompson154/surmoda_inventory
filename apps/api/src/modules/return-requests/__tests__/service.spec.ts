@@ -36,8 +36,13 @@ describe('ReturnRequestService.createReturnRequest', () => {
   let service: ReturnRequestService;
 
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(BASE_DATE);
     repo = buildMockRepo();
     service = buildReturnRequestService({ repo: repo as unknown as ReturnRequestRepository });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('creates a return request with pending status', async () => {

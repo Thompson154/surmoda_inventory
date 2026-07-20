@@ -8,6 +8,14 @@ import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { formatBs } from '@/shared/format/currency';
 import type { HttpError } from '@/shared/services/httpClient';
 
+interface LiveDayStats {
+  total: number;
+  cash: number;
+  card: number;
+  qr: number;
+  count: number;
+}
+
 interface CloseDayModalProps {
   storeId: string;
   open: boolean;
@@ -15,6 +23,10 @@ interface CloseDayModalProps {
   /** Optional callback fired when the cierre succeeds. Lets the page wipe the
    *  visible "today" state without persisting a real lock yet. */
   onClosedToday?: () => void;
+  /** Optional running totals to preview BEFORE the cierre is committed. When
+   *  set, the modal renders a per-payment-method breakdown so the operator can
+   *  validate against físico antes de confirmar. */
+  liveStats?: LiveDayStats;
 }
 
 function todayIsoBolivia(): string {
@@ -23,7 +35,13 @@ function todayIsoBolivia(): string {
   return local.toISOString().slice(0, 10);
 }
 
-export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDayModalProps) {
+export function CloseDayModal({
+  storeId,
+  open,
+  onClose,
+  onClosedToday,
+  liveStats,
+}: CloseDayModalProps) {
   const today = useMemo(() => todayIsoBolivia(), []);
   const existing = useDailyReportByDate(open ? storeId : undefined, open ? today : undefined);
   const closeMutation = useCloseToday(storeId);
@@ -108,6 +126,18 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
                 <span className="font-mono font-semibold">{formatBs(closedReport.totalCents)}</span>
               </li>
               <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">Efectivo</span>
+                <span className="font-mono">{formatBs(closedReport.cashCents)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">QR</span>
+                <span className="font-mono">{formatBs(closedReport.qrCents)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">Tarjeta</span>
+                <span className="font-mono">{formatBs(closedReport.cardCents)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
                 <span className="text-text-secondary">Trans. / Ítems</span>
                 <span className="font-mono">
                   {closedReport.transactionsCount} / {closedReport.itemCount}
@@ -115,6 +145,41 @@ export function CloseDayModal({ storeId, open, onClose, onClosedToday }: CloseDa
               </li>
             </ul>
           </>
+        )}
+
+        {/* Resumen PRE-cierre: muestra los totales actuales del día para validar */}
+        {/* contra físico antes de confirmar. Solo aparece si el día aún no fue cerrado. */}
+        {!closedReport && liveStats && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-semibold text-text-primary">
+              Resumen del día (vista previa)
+            </p>
+            <p className="text-xs text-text-muted">
+              Validá estos totales contra el físico antes de confirmar el cierre.
+            </p>
+            <ul className="rounded-lg border border-surface-border divide-y divide-surface-border text-sm">
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">Total</span>
+                <span className="font-mono font-semibold">{formatBs(liveStats.total)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">Efectivo</span>
+                <span className="font-mono">{formatBs(liveStats.cash)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">QR</span>
+                <span className="font-mono">{formatBs(liveStats.qr)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">Tarjeta</span>
+                <span className="font-mono">{formatBs(liveStats.card)}</span>
+              </li>
+              <li className="flex items-center justify-between px-3 py-2">
+                <span className="text-text-secondary">Prendas vendidas</span>
+                <span className="font-mono">{liveStats.count}</span>
+              </li>
+            </ul>
+          </div>
         )}
 
         <div>

@@ -37,11 +37,17 @@ const EnvSchema = z
      *  (useful for dev / thesis demo). Recommended in production: 365. */
     AUDIT_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(0),
 
-    IMAGE_STORAGE: z.enum(['local', 'cloudinary']).default('local'),
+    IMAGE_STORAGE: z.enum(['local', 'cloudinary', 's3']).default('local'),
     IMAGE_STORAGE_LOCAL_DIR: z.string().optional(),
     CLOUDINARY_CLOUD_NAME: z.string().optional(),
     CLOUDINARY_API_KEY: z.string().optional(),
     CLOUDINARY_API_SECRET: z.string().optional(),
+    S3_ENDPOINT: z.string().url().optional(),
+    S3_REGION: z.string().optional(),
+    S3_ACCESS_KEY_ID: z.string().optional(),
+    S3_SECRET_ACCESS_KEY: z.string().optional(),
+    S3_BUCKET_NAME: z.string().optional(),
+    S3_PUBLIC_URL_PREFIX: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.IMAGE_STORAGE === 'cloudinary') {
@@ -53,6 +59,25 @@ const EnvSchema = z
           code: z.ZodIssueCode.custom,
           path: ['IMAGE_STORAGE'],
           message: `IMAGE_STORAGE=cloudinary requires: ${missing.join(', ')}`,
+        });
+      }
+    }
+    if (data.IMAGE_STORAGE === 's3') {
+      const missing = (
+        [
+          'S3_ENDPOINT',
+          'S3_REGION',
+          'S3_ACCESS_KEY_ID',
+          'S3_SECRET_ACCESS_KEY',
+          'S3_BUCKET_NAME',
+          'S3_PUBLIC_URL_PREFIX',
+        ] as const
+      ).filter((k) => !data[k]);
+      if (missing.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['IMAGE_STORAGE'],
+          message: `IMAGE_STORAGE=s3 requires: ${missing.join(', ')}`,
         });
       }
     }

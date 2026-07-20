@@ -377,6 +377,7 @@ export function SalesRegisterPage() {
           storeId={storeId}
           open={closeDayOpen}
           onClose={() => setCloseDayOpen(false)}
+          liveStats={stats}
           onClosedToday={() => {
             setClosedAt(new Date());
             // FUTURE flow once the daily lock + auto-cleanup ships:
