@@ -107,8 +107,8 @@ const STORE_ALMACEN = 'store-almacen-seed';
 
 async function main(): Promise<void> {
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
-  const adminPasswordHash = await bcrypt.hash('Admin1234', saltRounds);
-  const staffPasswordHash = await bcrypt.hash('Pass1234', saltRounds);
+  const adminPasswordHash = await bcrypt.hash('Surmoda2026_Admin', saltRounds);
+  const staffPasswordHash = await bcrypt.hash('Surmoda2026_Staff', saltRounds);
 
   await prisma.store.upsert({
     where: { code: 'ALMACEN' },
@@ -150,9 +150,6 @@ async function main(): Promise<void> {
       kind: StoreKind.branch,
     },
   });
-
-  const adminPasswordHash = await bcrypt.hash('Surmoda2026_Admin', saltRounds);
-  const staffPasswordHash = await bcrypt.hash('Surmoda2026_Staff', saltRounds);
 
   const admin = await prisma.user.upsert({
     where: { email: 'thompson@surmoda.com.bo' },
@@ -270,6 +267,8 @@ async function main(): Promise<void> {
     { userId: encargadaSatelite.id, storeId: 'store-satelite-seed', role: Role.encargada },
     { userId: vendedoraSatelite.id, storeId: 'store-satelite-seed', role: Role.vendedora },
     { userId: vendedoraOnline.id, storeId: 'store-online-seed', role: Role.vendedora },
+    // Magdalena is admin, but assigning her to warehouse as well if she needs store scope:
+    { userId: encargadaJefa.id, storeId: STORE_ALMACEN, role: Role.encargada },
   ];
 
   for (const a of assignments) {
