@@ -122,7 +122,7 @@ export function DeliveriesPage() {
           {/* Transferir lateral — secundario al "+" FAB. Se queda en el header
               como icon-button para mantener la acción accesible sin competir
               visualmente con la creación de una nueva entrega. */}
-          {canCreate && !isWarehouse && (
+          {canCreate && (
             <button
               type="button"
               onClick={() => setTransferOpen(true)}
@@ -266,7 +266,7 @@ export function DeliveriesPage() {
         {canCreate && !isWarehouse && (
           <NewDeliveryModal storeId={storeId} open={newOpen} onClose={() => setNewOpen(false)} />
         )}
-        {canCreate && !isWarehouse && (
+        {canCreate && (
           <TransferToStoreModal
             fromStoreId={storeId}
             open={transferOpen}

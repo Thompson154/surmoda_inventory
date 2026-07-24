@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import JsBarcode from 'jsbarcode';
 import { Printer } from 'lucide-react';
 import { Alert, Button, Input, Modal } from '@/shared/ui';
@@ -135,49 +136,26 @@ export function BarcodePrintModal({
             Imprimir
           </Button>
         </div>
-
-        {/* Print-only sheet — hidden on screen, visible only during window.print(). */}
-        <div className="print-sheet">
-          <header className="print-header">
-            <h1>{sheetTitle}</h1>
-            <p>
-              {variantLine} · {printArray.length} etiqueta{printArray.length === 1 ? '' : 's'}
-            </p>
-          </header>
-          <div className="print-grid">
-            {printArray.map((_, i) => (
-              <BarcodeCell
-                key={i}
-                value={barcode}
-                productCode={productCode}
-                variantLine={variantLine}
-              />
-            ))}
-          </div>
-        </div>
       </div>
-
-      {/* Print CSS — kept inline to keep the component self-contained. */}
       <style>{`
         .print-sheet { display: none; }
         @media print {
           @page { size: A4; margin: 10mm; }
-          html, body { background: #fff !important; }
-          body * { visibility: hidden; }
-          .print-sheet, .print-sheet * { visibility: visible; }
-          /* WHY: posicionamos absolute sin 'bottom/inset' para que el sheet
-             pueda crecer verticalmente y paginarse en Chrome al imprimir.
-             El bug previo usaba 'inset:0' que fijaba el alto y hacía que las
-             etiquetas se sobrepusieran al pasar de una página. */
+          html, body { background: #fff !important; height: auto !important; min-height: auto !important; overflow: visible !important; }
+          
+          /* Hide the main app and modals during print */
+          body > *:not(.print-sheet) { display: none !important; }
+
+          /* The print sheet flows normally from the top of the body */
           .print-sheet {
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            display: block !important;
+            position: static !important;
             color: #000;
             background: #fff;
             font-family: ui-sans-serif, system-ui, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
           }
           .print-header {
             margin-bottom: 4mm;
@@ -189,14 +167,13 @@ export function BarcodePrintModal({
           .print-header h1 { font-size: 11pt; font-weight: 700; margin: 0; }
           .print-header p { font-size: 8pt; margin: 0.5mm 0 0; color: #555; }
           .print-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-auto-rows: auto;
-            column-gap: 3mm;
-            row-gap: 3mm;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3mm;
             align-items: stretch;
           }
           .print-cell {
+            width: calc(25% - 2.25mm);
             border: 0.2mm dashed #bbb;
             padding: 2mm;
             text-align: center;
@@ -208,6 +185,7 @@ export function BarcodePrintModal({
             align-items: center;
             min-height: 22mm;
             overflow: hidden;
+            box-sizing: border-box;
           }
           .print-cell svg {
             display: block;
@@ -220,17 +198,46 @@ export function BarcodePrintModal({
             font-family: ui-monospace, monospace;
             margin: 1mm 0 0;
             line-height: 1.1;
-            word-break: break-all;
+            /* Allow it to stay on one line instead of breaking aggressively */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .print-cell .desc {
             font-size: 6pt;
             color: #444;
             margin: 0.5mm 0 0;
             line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .screen-only { display: none !important; }
         }
       `}</style>
+      {open &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="print-sheet">
+            <header className="print-header">
+              <h1>{sheetTitle}</h1>
+              <p>
+                {variantLine} · {printArray.length} etiqueta{printArray.length === 1 ? '' : 's'}
+              </p>
+            </header>
+            <div className="print-grid">
+              {printArray.map((_, i) => (
+                <BarcodeCell
+                  key={i}
+                  value={barcode}
+                  productCode={productCode}
+                  variantLine={variantLine}
+                />
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
     </Modal>
   );
 }
