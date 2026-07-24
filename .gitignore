@@ -66,3 +66,6 @@ imagesTest/it_*
 
 # Stray pnpm lockfiles — proyecto usa npm workspaces
 pnpm-lock.yaml
+
+# Graphify — knowledge graph artifacts (never pushed)
+graphify-out/
