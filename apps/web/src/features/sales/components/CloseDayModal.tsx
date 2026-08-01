@@ -42,7 +42,8 @@ export function CloseDayModal({
   onClosedToday,
   liveStats,
 }: CloseDayModalProps) {
-  const today = useMemo(() => todayIsoBolivia(), []);
+  // Recompute today when the modal opens so it doesn't go stale across midnight.
+  const today = useMemo(() => todayIsoBolivia(), [open]);
   const existing = useDailyReportByDate(open ? storeId : undefined, open ? today : undefined);
   const closeMutation = useCloseToday(storeId);
   const currentUser = useAuthStore((s) => s.user);

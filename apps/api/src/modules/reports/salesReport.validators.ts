@@ -15,6 +15,7 @@ export const SalesReportBodySchema = z
     includeInventory: z.boolean().default(false),
     format: z.enum(['preview', 'xlsx']).default('preview'),
   })
+  .strict()
   .refine((d) => new Date(d.to) > new Date(d.from), {
     message: '`to` debe ser posterior a `from`',
     path: ['to'],

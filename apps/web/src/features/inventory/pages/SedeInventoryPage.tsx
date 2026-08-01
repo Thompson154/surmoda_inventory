@@ -32,6 +32,7 @@ import {
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 import { getImageUrl } from '@/features/products/services/productsService';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 // WHY: removed in Wave 5 — only admin edits inventory now (see ADR pending)
 
 const PAGE_SIZE = 20;
@@ -42,9 +43,9 @@ export function SedeInventoryPage() {
 
   const { can } = usePermissions();
   const stores = useStores();
-  const inventory = useInventoryGrouped(storeId, { page: 1, pageSize: PAGE_SIZE });
 
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 300);
   const [page, setPage] = useState(1);
   const [stockStatus, setStockStatus] = useState<'all' | 'low' | 'zero'>('all');
   const [movementsOpen, setMovementsOpen] = useState(false);
@@ -53,7 +54,7 @@ export function SedeInventoryPage() {
   const [scannedVariant, setScannedVariant] = useState<InventoryRow | null>(null);
 
   const filteredQuery = useInventoryGrouped(storeId, {
-    q: q || undefined,
+    q: debouncedQ || undefined,
     stockStatus: stockStatus === 'all' ? undefined : stockStatus,
     page,
     pageSize: PAGE_SIZE,
@@ -200,7 +201,7 @@ export function SedeInventoryPage() {
           })}
         </div>
 
-        {filteredQuery.isLoading && !inventory.data && (
+        {filteredQuery.isLoading && (
           <Card>
             <CardContent className="p-0">
               {Array.from({ length: 5 }).map((_, i) => (

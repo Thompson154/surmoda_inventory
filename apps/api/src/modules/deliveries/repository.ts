@@ -123,7 +123,7 @@ export interface DeliveryRepository {
     rows: DeliveryAdjustmentInput[],
     tx: DeliveryTx,
   ): Promise<void>;
-  findDelivery(deliveryId: string): Promise<DeliveryWithItems | null>;
+  findDelivery(deliveryId: string, tx?: DeliveryTx): Promise<DeliveryWithItems | null>;
   list(storeId: string, query: ListDeliveriesQuery): Promise<PaginatedDeliveries>;
   listGroupedByProduct(
     storeId: string,
@@ -368,8 +368,9 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
       });
     },
 
-    async findDelivery(deliveryId) {
-      const row = await db.delivery.findUnique({
+    async findDelivery(deliveryId, tx) {
+      const c = tx ?? db;
+      const row = await c.delivery.findUnique({
         where: { id: deliveryId },
         include: fullInclude,
       });

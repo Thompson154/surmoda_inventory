@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, ChevronRight, ChevronLeft, Package, ArrowLeft } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { getImageUrl } from '../services/productsService';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import {
   Alert,
   Badge,
@@ -20,11 +21,12 @@ const PAGE_SIZE = 20;
 
 export function ProductsListPage() {
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 300);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [page, setPage] = useState(1);
 
   const query = useProducts({
-    q: q || undefined,
+    q: debouncedQ || undefined,
     includeInactive: includeInactive || undefined,
     page,
     pageSize: PAGE_SIZE,

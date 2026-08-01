@@ -172,85 +172,84 @@ export function buildReportRepository(db: Database): ReportRepository {
           ? 0
           : Math.round(totals.totalCents / totals.transactionsCount);
 
-      // ── 4. Top products (always from raw sale_items in the date window) ──
+      // ── 4. Top products (raw SQL — grouped & sorted in the DB) ─────
       const { start: rangeStart } = boliviaDayWindow(fromKey);
       const { end: rangeEnd } = boliviaDayWindow(toKey);
-      const itemRows = await db.saleItem.findMany({
-        where: {
-          sale: { createdAt: { gte: rangeStart, lt: rangeEnd } },
-        },
-        include: {
-          variant: {
-            select: {
-              id: true,
-              size: true,
-              color: true,
-              product: { select: { code: true, name: true } },
-            },
-          },
-        },
-      });
-      const productAgg = new Map<string, ReportTopProductDTO>();
-      let discountCents = 0;
-      for (const it of itemRows) {
-        // Discount per line = (catalog price * qty) - what was actually charged.
-        // Negative-protected: if for any reason subtotal > priceAtSale*qty we
-        // ignore the surplus rather than reporting a negative "discount".
-        const lineCatalog = it.priceAtSaleCents * it.quantity;
-        if (lineCatalog > it.subtotalCents) {
-          discountCents += lineCatalog - it.subtotalCents;
-        }
-        const key = it.variantId;
-        const lineTotal = it.subtotalCents;
-        const existing = productAgg.get(key);
-        if (existing) {
-          existing.quantitySold += it.quantity;
-          existing.totalCents += lineTotal;
-        } else {
-          productAgg.set(key, {
-            variantId: it.variantId,
-            productCode: it.variant.product.code,
-            productName: it.variant.product.name,
-            size: SIZE_FROM_PRISMA[it.variant.size],
-            color: it.variant.color,
-            quantitySold: it.quantity,
-            totalCents: lineTotal,
-          });
-        }
-      }
-      const topProducts = Array.from(productAgg.values())
-        .sort((a, b) => b.totalCents - a.totalCents)
-        .slice(0, TOP_PRODUCTS_LIMIT);
+
+      const topProductRows = await db.$queryRaw<
+        Array<{
+          variantId: string;
+          productCode: string;
+          productName: string;
+          size: string;
+          color: string;
+          quantitySold: number;
+          totalCents: number;
+        }>
+      >`
+        SELECT v.id as "variantId", p.code as "productCode", p.name as "productName",
+               v.size as "size", v.color as "color",
+               SUM(si.quantity)::int as "quantitySold",
+               SUM(si.subtotal_cents)::int as "totalCents"
+        FROM sale_items si
+        JOIN variants v ON v.id = si.variant_id
+        JOIN products p ON p.id = v.product_id
+        JOIN sales s ON s.id = si.sale_id
+        WHERE s.created_at >= ${rangeStart} AND s.created_at < ${rangeEnd}
+        GROUP BY v.id, p.code, p.name, v.size, v.color
+        ORDER BY "totalCents" DESC
+        LIMIT ${TOP_PRODUCTS_LIMIT}
+      `;
+
+      const topProducts: ReportTopProductDTO[] = topProductRows.map((r) => ({
+        variantId: r.variantId,
+        productCode: r.productCode,
+        productName: r.productName,
+        size: SIZE_FROM_PRISMA[r.size as keyof typeof SIZE_FROM_PRISMA],
+        color: r.color,
+        quantitySold: r.quantitySold,
+        totalCents: r.totalCents,
+      }));
+
+      const [discountResult] = await db.$queryRaw<
+        Array<{ discountCents: number }>
+      >`
+        SELECT COALESCE(SUM(GREATEST(
+          si.price_at_sale_cents * si.quantity - si.subtotal_cents, 0
+        )), 0)::int as "discountCents"
+        FROM sale_items si
+        JOIN sales s ON s.id = si.sale_id
+        WHERE s.created_at >= ${rangeStart} AND s.created_at < ${rangeEnd}
+      `;
+      const discountCents = discountResult?.discountCents ?? 0;
       totals.discountCents = discountCents;
 
-      // ── 5. Top sellers (sales they recorded in the date window) ──────────
-      const sellerRows = await db.sale.findMany({
-        where: { createdAt: { gte: rangeStart, lt: rangeEnd } },
-        select: {
-          recordedByUserId: true,
-          totalCents: true,
-          user: { select: { fullName: true } },
-        },
-      });
-      const sellerAgg = new Map<string, ReportTopSellerDTO>();
-      for (const s of sellerRows) {
-        const key = s.recordedByUserId;
-        const existing = sellerAgg.get(key);
-        if (existing) {
-          existing.transactionsCount += 1;
-          existing.totalCents += s.totalCents;
-        } else {
-          sellerAgg.set(key, {
-            userId: key,
-            fullName: s.user.fullName,
-            transactionsCount: 1,
-            totalCents: s.totalCents,
-          });
-        }
-      }
-      const topSellers = Array.from(sellerAgg.values())
-        .sort((a, b) => b.totalCents - a.totalCents)
-        .slice(0, TOP_SELLERS_LIMIT);
+      // ── 5. Top sellers (raw SQL — grouped & sorted in the DB) ─────
+      const topSellerRows = await db.$queryRaw<
+        Array<{
+          userId: string;
+          fullName: string;
+          totalCents: number;
+          saleCount: number;
+        }>
+      >`
+        SELECT s.recorded_by_user_id as "userId", u.full_name as "fullName",
+               SUM(s.total_cents)::int as "totalCents",
+               COUNT(*)::int as "saleCount"
+        FROM sales s
+        JOIN users u ON u.id = s.recorded_by_user_id
+        WHERE s.created_at >= ${rangeStart} AND s.created_at < ${rangeEnd}
+        GROUP BY s.recorded_by_user_id, u.full_name
+        ORDER BY "totalCents" DESC
+        LIMIT ${TOP_SELLERS_LIMIT}
+      `;
+
+      const topSellers: ReportTopSellerDTO[] = topSellerRows.map((r) => ({
+        userId: r.userId,
+        fullName: r.fullName,
+        transactionsCount: r.saleCount,
+        totalCents: r.totalCents,
+      }));
 
       const byStore = Array.from(byStoreMap.values()).sort((a, b) => b.totalCents - a.totalCents);
 

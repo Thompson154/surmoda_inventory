@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { Database } from '../../infrastructure/database';
 import { PM_TO_PRISMA, PM_FROM_PRISMA } from '../../shared/enums/mappings';
+import { isoDateBolivia } from '../../shared/datetime/bolivia';
 
 export interface VariantRow {
   id: string;
@@ -69,6 +70,8 @@ export interface ApproveReturnRequestInput {
   originalSaleItemId?: string | null;
   newPaymentMethod?: ReturnPaymentMethod | null;
   newSubtotalCents?: number | null;
+  /** Payment method of the original sale — used for audit trail accuracy. */
+  originalPaymentMethod?: ReturnPaymentMethod | null;
 }
 
 export interface RejectReturnRequestInput {
@@ -408,27 +411,57 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
           });
           // WHY: Wave 5 — when newPaymentMethod present, update the PARENT Sale's
           //     paymentMethod (Sale-level field, not per-item in current schema).
+          //     Also recalculate Sale.totalCents so the daily report is correct.
           if (input.newPaymentMethod) {
             const item = await tx.saleItem.findUnique({
               where: { id: input.originalSaleItemId },
               select: { saleId: true },
             });
             if (item) {
+              const itemSum = await tx.saleItem.aggregate({
+                where: { saleId: item.saleId },
+                _sum: { subtotalCents: true },
+              });
               await tx.sale.update({
                 where: { id: item.saleId },
-                data: { paymentMethod: PM_TO_PRISMA[input.newPaymentMethod] },
+                data: {
+                  paymentMethod: PM_TO_PRISMA[input.newPaymentMethod],
+                  totalCents: itemSum._sum.subtotalCents ?? 0,
+                },
               });
             }
           }
         }
 
-        const returnedStock = await tx.stockBySite.update({
+        // Use upsert to avoid crashes when the stock row doesn't exist (e.g. admin
+        // manually zeroed it). Prefer incrementing if the row is already present.
+        const paymentMethod = input.originalPaymentMethod ?? 'cash';
+        const existingReturnStock = await tx.stockBySite.findUnique({
           where: {
             variantId_storeId: { variantId: input.returnedVariantId, storeId: input.storeId },
           },
-          data: { quantity: { increment: input.returnedQuantity } },
-          select: { quantity: true },
+          select: { id: true, quantity: true },
         });
+
+        let balanceAfter: number;
+        if (existingReturnStock) {
+          const updated = await tx.stockBySite.update({
+            where: { id: existingReturnStock.id },
+            data: { quantity: { increment: input.returnedQuantity } },
+            select: { quantity: true },
+          });
+          balanceAfter = updated.quantity;
+        } else {
+          const created = await tx.stockBySite.create({
+            data: {
+              variantId: input.returnedVariantId,
+              storeId: input.storeId,
+              quantity: input.returnedQuantity,
+            },
+            select: { quantity: true },
+          });
+          balanceAfter = created.quantity;
+        }
 
         const returnMovement = await tx.stockMovement.create({
           data: {
@@ -438,8 +471,8 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
             type: 'sale_return',
             payload: {
               quantity: input.returnedQuantity,
-              balanceAfter: returnedStock.quantity,
-              paymentMethod: 'cash',
+              balanceAfter,
+              paymentMethod,
               reason: 'Solicitud aprobada por admin',
               requestId: input.id,
             },
@@ -449,13 +482,38 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
         let saleMovement = null;
 
         if (input.hasExchange && input.exchangeVariantId) {
-          const exchangeStock = await tx.stockBySite.update({
+          const existingExchangeStock = await tx.stockBySite.findUnique({
             where: {
               variantId_storeId: { variantId: input.exchangeVariantId, storeId: input.storeId },
             },
-            data: { quantity: { decrement: input.returnedQuantity } },
-            select: { quantity: true },
+            select: { id: true, quantity: true },
           });
+
+          let exchangeQuantity: number;
+          if (existingExchangeStock) {
+            const updated = await tx.stockBySite.update({
+              where: { id: existingExchangeStock.id },
+              data: { quantity: { decrement: input.returnedQuantity } },
+              select: { quantity: true },
+            });
+            exchangeQuantity = updated.quantity;
+          } else {
+            // Defensive: create at 0 then decrement — prevents P2025 crash.
+            const created = await tx.stockBySite.create({
+              data: {
+                variantId: input.exchangeVariantId,
+                storeId: input.storeId,
+                quantity: 0,
+              },
+              select: { id: true },
+            });
+            const updated = await tx.stockBySite.update({
+              where: { id: created.id },
+              data: { quantity: { decrement: input.returnedQuantity } },
+              select: { quantity: true },
+            });
+            exchangeQuantity = updated.quantity;
+          }
 
           saleMovement = await tx.stockMovement.create({
             data: {
@@ -465,8 +523,8 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
               type: 'sale_out',
               payload: {
                 quantity: input.returnedQuantity,
-                balanceAfter: exchangeStock.quantity,
-                paymentMethod: 'cash',
+                balanceAfter: exchangeQuantity,
+                paymentMethod,
                 reason: 'Cambio aprobado',
                 requestId: input.id,
               },
@@ -560,7 +618,10 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
         orderBy: { createdAt: 'desc' },
       });
 
-      const dayKey = (d: Date): string => d.toISOString().slice(0, 10);
+      // Group sales by Bolivia-local date so a sale at 21:00 BOT (01:00 UTC)
+      // correctly belongs to its actual calendar day. UTC grouping would put it
+      // in the wrong daily closure.
+      const dayKey = (d: Date): string => isoDateBolivia(d);
 
       const closureMap = new Map<string, { closureId: string | null; date: string }>();
       for (const c of closures) {

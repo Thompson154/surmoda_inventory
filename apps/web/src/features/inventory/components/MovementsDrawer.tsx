@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -101,7 +101,7 @@ interface MovementCardProps {
   m: StockMovement;
 }
 
-function MovementCard({ m }: MovementCardProps) {
+const MovementCard = memo(function MovementCard({ m }: MovementCardProps) {
   // Defensive: backwards-compat with movements stored before the
   // productName/variantSize/variantColor fields existed on the contract.
   // If the BE response shape ever drifts (e.g. cached SW serving an older
@@ -210,7 +210,7 @@ function MovementCard({ m }: MovementCardProps) {
       </div>
     </Card>
   );
-}
+});
 
 export function MovementsDrawer({ storeId, open, onClose }: MovementsDrawerProps) {
   const [page, setPage] = useState(1);

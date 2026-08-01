@@ -19,6 +19,9 @@ type SizeKey = WarehouseIntakeVariantPayload['size'];
 
 const SIZE_OPTIONS: SizeKey[] = ['s', 'm', 'l', 'xl', 'xxl', '28', '30', '32', '34', 'standard'];
 
+const PRODUCT_CODE_PATTERN = /^[A-Z0-9_]{2,15}$/;
+const PRODUCT_CODE_HINT = '2 a 15 caracteres: mayúsculas, números o guion bajo (ej: JN001)';
+
 interface DraftVariant {
   size: SizeKey;
   color: string;
@@ -61,12 +64,14 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIntakeModalProps) {
   const [code, setCode] = useState('');
+  const [codeTouched, setCodeTouched] = useState(false);
   const [productName, setProductName] = useState('');
   const [productDescription, setProductDescription] = useState('');
   const [title, setTitle] = useState('');
   const [variants, setVariants] = useState<DraftVariant[]>([emptyVariant()]);
 
   const upperCode = code.trim().toUpperCase();
+  const codeValid = !codeTouched || upperCode.length === 0 || PRODUCT_CODE_PATTERN.test(upperCode);
   const lookup = useWarehouseIntakeLookup(open ? warehouseId : undefined, upperCode);
   const intake = useWarehouseIntake(warehouseId);
   const errorMsg = useErrorMessage(intake.error as HttpError | null);
@@ -122,6 +127,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
       if (v.previewUrl) URL.revokeObjectURL(v.previewUrl);
     }
     setCode('');
+    setCodeTouched(false);
     setProductName('');
     setProductDescription('');
     setTitle('');
@@ -174,7 +180,10 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
       (v) => v.color.trim().length > 0 && (v.matchesExisting || v.priceCents > 0),
     );
     if (!valid) return;
-    if (!upperCode) return;
+    if (!upperCode || !PRODUCT_CODE_PATTERN.test(upperCode)) {
+      setCodeTouched(true);
+      return;
+    }
 
     intake.mutate(
       {
@@ -208,12 +217,21 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             id="intake-code"
             type="text"
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase());
+              setCodeTouched(true);
+            }}
             placeholder="p. ej. JN001"
             maxLength={15}
+            pattern="[A-Z0-9_]{2,15}"
+            title={PRODUCT_CODE_HINT}
             className="font-mono uppercase mt-1"
             autoCapitalize="characters"
+            error={!codeValid}
           />
+          {!codeValid && (
+            <p className="text-[11px] text-status-danger mt-1">{PRODUCT_CODE_HINT}</p>
+          )}
           {upperCode.length >= 2 && lookup.data && (
             <p className="text-xs mt-1 text-text-secondary">
               {exists
@@ -436,6 +454,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             disabled={
               intake.isPending ||
               upperCode.length < 2 ||
+              !PRODUCT_CODE_PATTERN.test(upperCode) ||
               totalUnits === 0 ||
               variants.some(
                 (v) =>

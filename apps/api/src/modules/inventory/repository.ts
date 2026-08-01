@@ -63,6 +63,8 @@ export interface InventoryRepository {
   ): Promise<PaginatedGroupedInventory>;
   listVariantsForProductInStore(storeId: string, productId: string): Promise<InventoryRowDTO[]>;
   findRow(storeId: string, variantId: string, tx?: InventoryTx): Promise<InventoryRowDTO | null>;
+  /** Lightweight existence check — prevents orphan stock rows on adjust. */
+  findVariantById(variantId: string, tx?: InventoryTx): Promise<{ id: string } | null>;
   findByBarcode(
     storeId: string,
     barcode: string,
@@ -338,6 +340,13 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
 
     async findRow(storeId, variantId, tx) {
       return loadInventoryRow(client(tx), storeId, variantId);
+    },
+
+    async findVariantById(variantId, tx) {
+      return client(tx).variant.findUnique({
+        where: { id: variantId, deletedAt: null },
+        select: { id: true },
+      });
     },
 
     async findByBarcode(storeId, barcode, tx) {

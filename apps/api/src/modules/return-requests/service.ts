@@ -253,6 +253,7 @@ export function buildReturnRequestService({
         originalSaleItemId: rr.originalSaleItemId,
         newPaymentMethod: rr.newPaymentMethod,
         newSubtotalCents: rr.newSubtotalCents,
+        originalPaymentMethod: rr.originalPaymentMethod,
       });
     },
 

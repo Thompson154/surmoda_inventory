@@ -9,6 +9,6 @@ import { z } from 'zod';
  */
 export const TriggerSnapshotBodySchema = z.object({
   storeId: z.string().min(1).optional(),
-});
+}).strict();
 
 export type TriggerSnapshotBody = z.infer<typeof TriggerSnapshotBodySchema>;
