@@ -1,3 +1,4 @@
+// DEAD CODE — this RBAC matrix is no longer enforced; all enforcement is ad-hoc in services.
 // WHY: centralised role→action matrix prevents drift across modules.
 
 export type Action =

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Plus, Search, ChevronRight, ChevronLeft, Users } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import {
   Alert,
   Badge,
@@ -17,9 +18,10 @@ import {
 
 export function UsersListPage() {
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 300);
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const query = useUsers({ q: q || undefined, page, pageSize });
+  const query = useUsers({ q: debouncedQ || undefined, page, pageSize });
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">

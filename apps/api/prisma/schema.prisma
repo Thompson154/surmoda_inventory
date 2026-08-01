@@ -284,6 +284,7 @@ model StockBySite {
 
   @@unique([variantId, storeId])
   @@index([storeId])
+  @@index([storeId, variantId])
   @@map("stock_by_site")
 }
 
@@ -417,6 +418,7 @@ model Sale {
   returnRequests  ReturnRequest[]
 
   @@index([storeId, createdAt])
+  @@index([createdAt])
   @@map("sales")
 }
 

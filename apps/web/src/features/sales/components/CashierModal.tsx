@@ -1,15 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Banknote, CreditCard, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
 import { useCreateSale } from '../hooks/useSales';
-import { Alert, Button, IconButton, Input, Modal, useToast } from '@/shared/ui';
+import { Alert, Button, IconButton, Input, Modal, Skeleton, useToast } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { httpClient } from '@/shared/services/httpClient';
 import { enqueueSale } from '@/shared/services/offlineQueue';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
-import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
+import type { BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
+
+// Lazy-loaded — the barcode-detector WASM polyfill is ~200KB+.
+const BarcodeScanner = lazy(() =>
+  import('@/shared/components/BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })),
+);
 
 interface CashierModalProps {
   storeId: string;
@@ -105,7 +110,11 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
               ? {
                   ...i,
                   quantity: newQty,
-                  subtotalCents: wasUntouched ? row.priceCents * newQty : i.subtotalCents,
+                  // When user manually edited the discount, scale it proportionally to
+          // the new quantity so we don't accidentally charge half the intended amount.
+          subtotalCents: wasUntouched
+            ? row.priceCents * newQty
+            : Math.round((existing.subtotalCents / existing.quantity) * newQty),
                 }
               : i,
           );
@@ -151,7 +160,9 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
         return {
           ...i,
           quantity: safeQty,
-          subtotalCents: wasUntouched ? i.unitPriceCents * safeQty : i.subtotalCents,
+          subtotalCents: wasUntouched
+            ? i.unitPriceCents * safeQty
+            : Math.round((i.subtotalCents / i.quantity) * safeQty),
         };
       }),
     );
@@ -224,11 +235,13 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   return (
     <Modal isOpen={open} onClose={onClose} title="Registro de venta">
       <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
-        <BarcodeScanner
-          handleRef={scannerRef}
-          hint="Apuntá al código del producto"
-          onDetected={(c) => void addByBarcode(c)}
-        />
+        <Suspense fallback={<Skeleton className="h-32 w-full rounded-md" />}>
+          <BarcodeScanner
+            handleRef={scannerRef}
+            hint="Apuntá al código del producto"
+            onDetected={(c) => void addByBarcode(c)}
+          />
+        </Suspense>
 
         <div>
           <label htmlFor="cashier-code" className="text-sm font-medium text-text-secondary">

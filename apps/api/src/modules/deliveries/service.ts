@@ -210,7 +210,7 @@ export function buildDeliveryService({
       // and reception kind can omit it. The mandatory check fires only when an
       // explicit confirm-draft transition is requested without one set.
 
-      const deliveryId = await deliveries.runSerializable(async (tx) => {
+      const full = await deliveries.runSerializable(async (tx) => {
         const aggregated = await aggregateAndValidateItems(input.items, tx);
 
         // Resolve origin (`fromStoreId`):
@@ -310,10 +310,9 @@ export function buildDeliveryService({
           );
         }
 
-        return created.id;
+        return deliveries.findDelivery(created.id, tx);
       });
 
-      const full = await deliveries.findDelivery(deliveryId);
       if (!full)
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
@@ -338,7 +337,7 @@ export function buildDeliveryService({
     },
 
     async updateDraft(deliveryId, input, auth) {
-      const updated = await deliveries.runSerializable(async (tx) => {
+      const full = await deliveries.runSerializable(async (tx) => {
         const current = await deliveries.loadForUpdate(deliveryId, tx);
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
@@ -371,16 +370,15 @@ export function buildDeliveryService({
             tx,
           );
         }
-        return deliveryId;
+        return deliveries.findDelivery(deliveryId, tx);
       });
-      const full = await deliveries.findDelivery(updated);
       if (!full)
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
 
     async confirmDraft(deliveryId, input, auth) {
-      const id = await deliveries.runSerializable(async (tx) => {
+      const full = await deliveries.runSerializable(async (tx) => {
         const current = await deliveries.loadForUpdate(deliveryId, tx);
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
@@ -425,16 +423,15 @@ export function buildDeliveryService({
         }
 
         await deliveries.setStatus(deliveryId, 'sent', { sentAt: new Date() }, null, tx);
-        return deliveryId;
+        return deliveries.findDelivery(deliveryId, tx);
       });
-      const full = await deliveries.findDelivery(id);
       if (!full)
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
     },
 
     async receive(deliveryId, input, auth) {
-      const id = await deliveries.runSerializable(async (tx) => {
+      const full = await deliveries.runSerializable(async (tx) => {
         const current = await deliveries.loadForUpdate(deliveryId, tx);
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
@@ -565,9 +562,8 @@ export function buildDeliveryService({
           tx,
         );
 
-        return deliveryId;
+        return deliveries.findDelivery(deliveryId, tx);
       });
-      const full = await deliveries.findDelivery(id);
       if (!full)
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
@@ -690,7 +686,25 @@ export function buildDeliveryService({
         imagesByIndex.set(i, { buffer: buf, mimetype: mime });
       }
 
-      const deliveryId = await deliveries.runSerializable(async (tx) => {
+      // Upload images to R2/S3 BEFORE the transaction so network I/O
+      // does not hold Serializable PostgreSQL locks.
+      const imagePaths = new Map<number, string>();
+      for (const [i, img] of imagesByIndex) {
+        const v = input.variants[i]!;
+        imagePaths.set(
+          i,
+          await imageStorage.save(
+            {
+              buffer: img.buffer,
+              mimetype: img.mimetype,
+              originalName: `intake.${extensionFromMime(img.mimetype)}`,
+            },
+            { productCode: input.productCode, size: v.size, color: v.color },
+          ),
+        );
+      }
+
+      const full = await deliveries.runSerializable(async (tx) => {
         // 1. Upsert product. If new, create with provided name + description.
         //    If existing and a productDescription was sent, update it (encargada
         //    can refine the description on each intake).
@@ -724,36 +738,16 @@ export function buildDeliveryService({
           if (existing) {
             // Reposición: keep DB price; only set image if currently null and
             // the operator provided one in this intake.
-            if (!existing.imagePath && imagesByIndex.has(i)) {
-              const img = imagesByIndex.get(i)!;
-              const path = await imageStorage.save(
-                {
-                  buffer: img.buffer,
-                  mimetype: img.mimetype,
-                  originalName: `intake.${extensionFromMime(img.mimetype)}`,
-                },
-                { productCode: product.code, size: v.size, color: v.color },
-              );
+            if (!existing.imagePath && imagePaths.has(i)) {
               await tx.variant.update({
                 where: { id: existing.id },
-                data: { imagePath: path },
+                data: { imagePath: imagePaths.get(i)! },
               });
             }
             variantId = existing.id;
           } else {
             // Nueva variante. Use provided price + (optional) image.
-            let imagePath: string | null = null;
-            if (imagesByIndex.has(i)) {
-              const img = imagesByIndex.get(i)!;
-              imagePath = await imageStorage.save(
-                {
-                  buffer: img.buffer,
-                  mimetype: img.mimetype,
-                  originalName: `intake.${extensionFromMime(img.mimetype)}`,
-                },
-                { productCode: product.code, size: v.size, color: v.color },
-              );
-            }
+            const imagePath = imagePaths.has(i) ? imagePaths.get(i)! : null;
             const created = await variants.create(
               {
                 productId: product.id,
@@ -821,10 +815,9 @@ export function buildDeliveryService({
           tx,
         );
 
-        return created.id;
+        return deliveries.findDelivery(created.id, tx);
       });
 
-      const full = await deliveries.findDelivery(deliveryId);
       if (!full)
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;

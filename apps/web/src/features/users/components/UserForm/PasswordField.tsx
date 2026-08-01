@@ -10,7 +10,7 @@ export function PasswordField({ value, onChange }: PasswordFieldProps) {
     <Field label="Contraseña inicial (mín. 8 caracteres)" htmlFor="user-password">
       <Input
         id="user-password"
-        type="text"
+        type="password"
         required
         minLength={8}
         autoComplete="off"

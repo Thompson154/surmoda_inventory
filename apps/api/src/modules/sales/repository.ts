@@ -61,9 +61,9 @@ export interface SaleRepository {
     items: CreateSaleItemRow[],
     tx: SaleTx,
   ): Promise<{ id: string }>;
-  findSale(saleId: string): Promise<SaleWithItems | null>;
+  findSale(saleId: string, tx?: SaleTx): Promise<SaleWithItems | null>;
   /** Tier 3.A.3 — alias for findSale used by the idempotency replay path. */
-  findById(saleId: string): Promise<SaleWithItems | null>;
+  findById(saleId: string, tx?: SaleTx): Promise<SaleWithItems | null>;
   /** Tier 3.A.3 — lookup an existing (storeId, key) → saleId mapping. */
   findIdempotentSale(storeId: string, key: string): Promise<{ saleId: string } | null>;
   /** Tier 3.A.3 — record the idempotency key in the same tx as the sale. */
@@ -186,12 +186,12 @@ export function buildSaleRepository(db: Database): SaleRepository {
       return { id: created.id };
     },
 
-    async findSale(saleId) {
-      return loadSale(db, saleId);
+    async findSale(saleId, tx) {
+      return loadSale(tx ?? db, saleId);
     },
 
-    async findById(saleId) {
-      return loadSale(db, saleId);
+    async findById(saleId, tx) {
+      return loadSale(tx ?? db, saleId);
     },
 
     async findIdempotentSale(storeId, key) {

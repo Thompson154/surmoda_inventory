@@ -10,6 +10,7 @@ import { Alert, Badge, Card, CardContent, EmptyState, Input, Skeleton } from '@/
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useStoreParam } from '@/shared/hooks/useStoreParam';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import { AppShell } from '@/shared/layout/AppShell';
 import type { BottomNavTab } from '@/shared/layout/BottomNav';
 
@@ -71,6 +72,7 @@ export function DeliveriesPage() {
   const canCreate = canManage;
 
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 300);
   const [filter, setFilter] = useState<Filter>('all');
   const [direction, setDirection] = useState<'incoming' | 'outgoing'>('incoming');
   const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export function DeliveriesPage() {
   const [transferOpen, setTransferOpen] = useState(false);
 
   const list = useDeliveriesList(storeId, {
-    q: q || undefined,
+    q: debouncedQ || undefined,
     status: FILTER_TO_STATUS[filter],
     direction,
     page: 1,

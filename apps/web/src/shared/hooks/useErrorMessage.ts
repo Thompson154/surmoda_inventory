@@ -135,6 +135,27 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const DEFAULT_MESSAGE = 'No pudimos completar la operación.';
 
+interface ZodIssue {
+  path: (string | number)[];
+  message: string;
+  code: string;
+}
+
+/**
+ * Format a single Zod issue into a human-readable label.
+ * "\"variants\",0,\"color\"" → "variante 1 · color"
+ */
+function formatZodPath(path: (string | number)[]): string {
+  const parts = path.map((segment, i) => {
+    if (typeof segment === 'number') {
+      // Prepend a space and translate; "0" → "1" for end-user display.
+      return i === 0 ? String(segment + 1) : ` ${segment + 1}`;
+    }
+    return i === 0 ? segment : ` · ${segment}`;
+  });
+  return parts.join('');
+}
+
 export function useErrorMessage(
   error: HttpError | null | undefined,
   fallback?: string,
@@ -144,5 +165,17 @@ export function useErrorMessage(
   const code = error.code;
   if (code === undefined) return fallback ?? DEFAULT_MESSAGE;
 
-  return ERROR_MESSAGES[code] ?? fallback ?? DEFAULT_MESSAGE;
+  const base = ERROR_MESSAGES[code] ?? fallback ?? DEFAULT_MESSAGE;
+
+  // For validation errors, append the first Zod issue so the user knows what to fix.
+  if (code === ERROR_CODES.VALIDATION_ERROR && Array.isArray(error.details)) {
+    const issues = error.details as ZodIssue[];
+    if (issues.length > 0) {
+      const first = issues[0]!;
+      const pathLabel = formatZodPath(first.path);
+      return `${base} (${pathLabel}: ${first.message})`;
+    }
+  }
+
+  return base;
 }

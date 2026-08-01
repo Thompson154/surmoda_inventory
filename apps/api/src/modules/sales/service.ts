@@ -116,7 +116,7 @@ export function buildSaleService({
       }
       const variantIds = Array.from(aggregated.keys());
 
-      const saleId = await sales.runSerializable(async (tx) => {
+      const full = await sales.runSerializable(async (tx) => {
         // Feature 012 — daily sales lock. Gated by ENABLE_DAILY_SALES_LOCK so
         // the column exists in dev/prod without enforcing the behaviour until
         // product flips the switch. Lock is applied by the dailyLock cron at
@@ -250,10 +250,9 @@ export function buildSaleService({
           await sales.recordIdempotencyKey(storeId, input.idempotencyKey, created.id, tx);
         }
 
-        return created.id;
+        return sales.findSale(created.id, tx);
       });
 
-      const full = await sales.findSale(saleId);
       if (!full) {
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'No se pudo recuperar la venta.');
       }

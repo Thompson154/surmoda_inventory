@@ -1,14 +1,18 @@
 import bcrypt from 'bcryptjs';
 import type { Database } from '../../infrastructure/database';
+import { loadConfig } from '../../infrastructure/config';
 
 // A valid bcrypt hash of a fixed dummy string. Used by login() when no user
 // matches the email so the constant bcrypt.compare cost still happens —
 // closes the timing-attack vector that lets an attacker enumerate registered
 // emails by measuring response delay (no-user paths return in <1ms vs
-// real-user paths in ~150ms). Re-hashed at process start with whatever
-// BCRYPT_SALT_ROUNDS the env declares so the dummy compare cost matches the
-// real one. The plaintext "decoy" is irrelevant — nobody can ever submit it.
-const TIMING_DECOY_HASH = bcrypt.hashSync('timing-equalisation-decoy', 4);
+// real-user paths in ~150ms). Re-hashed at process start with the configured
+// BCRYPT_SALT_ROUNDS so the dummy compare cost matches the real one.
+// The plaintext "decoy" is irrelevant — nobody can ever submit it.
+const TIMING_DECOY_HASH = bcrypt.hashSync(
+  'timing-equalisation-decoy',
+  loadConfig().BCRYPT_SALT_ROUNDS,
+);
 import {
   generateRefreshTokenOpaque,
   hashRefreshToken,

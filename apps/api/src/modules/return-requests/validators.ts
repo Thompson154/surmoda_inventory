@@ -25,6 +25,7 @@ export const CreateReturnRequestBodySchema = z
     newPaymentMethod: PaymentMethodEnum.optional(),
     newSubtotalCents: z.number().int().nonnegative().optional(),
   })
+  .strict()
   .refine(
     (val) => {
       const hasAny =

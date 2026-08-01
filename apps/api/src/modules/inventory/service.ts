@@ -137,8 +137,15 @@ export function buildInventoryService({ inventory }: InventoryServiceDeps): Inve
 
         const existing = await inventory.findRow(storeId, variantId, tx);
         if (!existing) {
-          // WHY: variant must exist; row may not yet (defensive — fast-create on first touch).
-          // We still verify the variant via barcode lookup in the storesite to avoid orphan rows.
+          // Verify the variant exists so we never create orphan stock rows.
+          const variant = await inventory.findVariantById(variantId, tx);
+          if (!variant) {
+            throw new AppError(
+              404,
+              ERROR_CODES.VARIANT_NOT_FOUND,
+              'Variante no encontrada.',
+            );
+          }
         }
 
         const { previous, next } = await inventory.upsertQuantity(

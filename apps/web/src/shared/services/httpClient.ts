@@ -63,7 +63,9 @@ async function rawRequest<T>(method: string, path: string, opts: RequestOptions 
   if (res.status === 401 && !skipAuth) {
     const refreshed = await ensureAccessToken();
     if (refreshed) {
-      return rawRequest<T>(method, path, { ...opts, skipAuth: true });
+      // Retry WITH the fresh token — skipAuth:true would suppress the
+      // Authorization header, causing another 401 and destroying the session.
+      return rawRequest<T>(method, path, opts);
     }
     useAuthStore.getState().clearAuth();
   }
