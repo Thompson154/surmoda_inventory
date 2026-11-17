@@ -216,7 +216,11 @@ export function buildSaleService({
         }
 
         // Decrement stock + write sale_out movement per variant.
-        for (const [variantId, { quantity: qty }] of aggregated.entries()) {
+        // WHY: sort variant IDs canonically to prevent cross-transaction deadlocks (40P01).
+        const sortedEntries = Array.from(aggregated.entries()).sort(([a], [b]) =>
+          a.localeCompare(b),
+        );
+        for (const [variantId, { quantity: qty }] of sortedEntries) {
           const after = await sales.decrementStock(storeId, variantId, qty, tx);
           await sales.createMovement(
             {

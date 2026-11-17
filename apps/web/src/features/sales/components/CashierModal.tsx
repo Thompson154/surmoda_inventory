@@ -10,6 +10,7 @@ import { enqueueSale } from '@/shared/services/offlineQueue';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
+import { generateUUID } from '@/shared/utils/uuid';
 
 interface CashierModalProps {
   storeId: string;
@@ -176,7 +177,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     // The same key is reused if the request gets queued and replayed by
     // useOfflineSaleSync — the BE returns the originally-cached sale on
     // the eventual successful drain.
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = generateUUID();
     const payload = {
       idempotencyKey,
       items: toSend.map((i) => ({

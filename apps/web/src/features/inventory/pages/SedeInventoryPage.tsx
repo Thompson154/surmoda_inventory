@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ClipboardList,
   ScanLine,
+  AlertTriangle,
 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
 import { useInventoryGrouped } from '../hooks/useInventoryGrouped';
@@ -15,6 +16,7 @@ import { ProductDetailDrawer } from '../components/ProductDetailDrawer';
 import { MovementsDrawer } from '../components/MovementsDrawer';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { SingleVariantQuickEditModal } from '../components/SingleVariantQuickEditModal';
+import { cn } from '@/shared/ui/cn';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { usePermissions } from '@/shared/auth/usePermissions';
 import {
@@ -100,23 +102,34 @@ export function SedeInventoryPage() {
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
-        <header className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-xl font-semibold truncate">Inventario</h1>
-            {store && (
-              <Badge variant={isWarehouse ? 'info' : 'default'}>
-                {isWarehouse ? 'Almacén' : 'Sucursal'}
-              </Badge>
-            )}
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 pb-1">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shadow-xs shrink-0">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventario</h1>
+                {store && (
+                  <Badge variant={isWarehouse ? 'info' : 'default'} dot>
+                    {isWarehouse ? 'Almacén' : 'Sucursal'}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-text-muted">Control de stock y catálogo de prendas</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <IconButton
-              icon={<ScanLine className="h-5 w-5" />}
-              label="Escanear código"
-              variant="secondary"
+            <Button
+              type="button"
+              variant="primary"
               size="sm"
+              leftIcon={<ScanLine className="h-4 w-4" />}
               onClick={() => setScannerOpen(true)}
-            />
+              className="shadow-sm shadow-brand-primary/25"
+            >
+              Escanear código
+            </Button>
             {canSeeMovements && (
               <Button
                 type="button"
@@ -132,15 +145,15 @@ export function SedeInventoryPage() {
         </header>
 
         {lowStockProbe.data && lowStockProbe.data.total > 0 && stockStatus !== 'low' && (
-          <div className="flex items-center justify-between gap-3 rounded-md border border-status-warning bg-status-warning-soft px-3 py-2">
-            <p className="text-sm text-status-warning flex items-center gap-2">
-              <span aria-hidden className="text-status-warning">
-                ⚠
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-status-warning/40 bg-status-warning-soft/60 backdrop-blur-xs px-4 py-3 shadow-xs">
+            <p className="text-xs sm:text-sm font-medium text-status-warning flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-status-warning" />
+              <span>
+                {lowStockProbe.data.total}{' '}
+                {lowStockProbe.data.total === 1
+                  ? 'producto requiere reposición'
+                  : 'productos requieren reposición'}
               </span>
-              {lowStockProbe.data.total}{' '}
-              {lowStockProbe.data.total === 1
-                ? 'producto requiere reposición'
-                : 'productos requieren reposición'}
             </p>
             <button
               type="button"
@@ -148,25 +161,25 @@ export function SedeInventoryPage() {
                 setStockStatus('low');
                 setPage(1);
               }}
-              className="text-sm font-semibold text-status-warning underline underline-offset-2 hover:text-status-warning"
+              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-status-warning/15 text-status-warning hover:bg-status-warning/25 transition-all active:scale-95"
             >
-              Ver
+              Ver productos
             </button>
           </div>
         )}
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle pointer-events-none" />
+        <div className="relative group">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle group-focus-within:text-brand-primary transition-colors pointer-events-none" />
           <Input
             id="inventory-search"
             type="search"
-            placeholder="Buscar por código, nombre o barcode..."
+            placeholder="Buscar por código, prenda o código de barras..."
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
               setPage(1);
             }}
-            className="pl-9"
+            className="pl-10 h-11 rounded-xl bg-surface-raised/80 backdrop-blur-xs border-surface-border/80 focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all text-sm"
             aria-label="Buscar inventario"
           />
         </div>
@@ -188,11 +201,12 @@ export function SedeInventoryPage() {
                   setStockStatus(opt.value);
                   setPage(1);
                 }}
-                className={
+                className={cn(
+                  'rounded-lg text-xs font-medium px-3 py-1.5 transition-all duration-150 active:scale-95 flex items-center gap-1.5',
                   active
-                    ? 'rounded-full bg-brand-primary text-white text-xs font-semibold px-3 py-1.5'
-                    : 'rounded-full border border-surface-border bg-surface-raised text-text-secondary text-xs px-3 py-1.5 hover:bg-surface-sunken'
-                }
+                    ? 'bg-brand-primary text-white shadow-xs font-semibold'
+                    : 'border border-surface-border bg-surface-raised text-text-secondary hover:bg-surface-sunken hover:border-surface-border-strong',
+                )}
               >
                 {opt.label}
               </button>
@@ -237,76 +251,77 @@ export function SedeInventoryPage() {
               <Card>
                 <CardContent className="p-0">
                   <ul>
-                    {filteredQuery.data.items.map((row) => {
+                    {filteredQuery.data.items.map((row, idx) => {
                       const imageUrl = getImageUrl(row.imagePath);
                       return (
                         <li
                           key={row.productId}
-                          className="border-b border-surface-border last:border-b-0"
+                          className="border-b border-surface-border/70 last:border-b-0 animate-slide-up"
+                          style={{ animationDelay: `${Math.min(idx, 8) * 40}ms` }}
                         >
                           <button
                             type="button"
                             onClick={() => setOpenProductId(row.productId)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-sunken transition-colors text-left"
+                            className="w-full flex items-center gap-3.5 px-4 py-3.5 hover:bg-surface-sunken/80 transition-all text-left group active:bg-surface-sunken"
                           >
-                            <div className="h-14 w-14 shrink-0 rounded-md border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden">
+                            <div className="h-14 w-14 shrink-0 rounded-xl border border-surface-border bg-surface-sunken flex items-center justify-center overflow-hidden shadow-2xs group-hover:border-brand-primary/40 group-hover:shadow-xs transition-all">
                               {imageUrl ? (
                                 <img
                                   src={imageUrl}
                                   alt=""
                                   loading="lazy"
                                   decoding="async"
-                                  className="h-full w-full object-cover"
+                                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 />
                               ) : (
                                 <ImageIcon className="h-5 w-5 text-text-subtle" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-text-primary truncate">
+                              <p className="text-sm font-semibold text-text-primary truncate group-hover:text-brand-primary transition-colors">
                                 {row.productName}
                               </p>
-                              <p className="text-xs mt-0.5 font-mono flex items-center gap-1 flex-wrap">
-                                <span className="text-text-secondary">{row.productCode}</span>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-surface-sunken text-text-secondary border border-surface-border/60 font-tabular font-medium">
+                                  {row.productCode}
+                                </span>
                                 {row.representativeBarcode && (
-                                  <>
-                                    <span className="text-text-subtle">·</span>
-                                    <span className="text-text-muted truncate">
-                                      {row.representativeBarcode}
-                                    </span>
-                                  </>
+                                  <span className="text-[11px] font-mono text-text-muted truncate">
+                                    {row.representativeBarcode}
+                                  </span>
                                 )}
-                              </p>
-                              <p className="text-xs text-text-muted mt-0.5">
+                              </div>
+                              <p className="text-xs text-text-muted mt-1">
                                 {row.variantsCount === 1
                                   ? '1 variante'
                                   : `${row.variantsCount} variantes`}
                               </p>
                               {(row.lowVariantsCount > 0 || row.zeroVariantsCount > 0) && (
-                                <div className="flex flex-wrap gap-1 mt-1">
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
                                   {row.zeroVariantsCount > 0 && (
-                                    <span className="rounded-full bg-status-danger-soft text-status-danger text-[10px] px-1.5 py-0.5">
+                                    <span className="rounded-md bg-status-danger-soft/90 text-status-danger text-[11px] px-2 py-0.5 font-medium border border-status-danger/20 flex items-center gap-1">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-status-danger animate-pulse" />
                                       {row.zeroVariantsCount} sin stock
                                     </span>
                                   )}
                                   {row.lowVariantsCount > 0 && (
-                                    <span className="rounded-full bg-status-warning-soft text-status-warning text-[10px] px-1.5 py-0.5">
-                                      {row.lowVariantsCount} variante
-                                      {row.lowVariantsCount === 1 ? '' : 's'} con stock bajo
+                                    <span className="rounded-md bg-status-warning-soft/90 text-status-warning text-[11px] px-2 py-0.5 font-medium border border-status-warning/20 flex items-center gap-1">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-status-warning" />
+                                      {row.lowVariantsCount} stock bajo
                                     </span>
                                   )}
                                 </div>
                               )}
                             </div>
-                            <div className="flex flex-col items-end shrink-0">
-                              <span className="text-base font-semibold text-text-primary">
+                            <div className="flex flex-col items-end shrink-0 pl-2">
+                              <span className="text-base font-bold text-text-primary font-tabular px-2.5 py-1 rounded-lg bg-surface-sunken/80 border border-surface-border/50 group-hover:border-brand-primary/30 transition-colors">
                                 {row.totalQuantity}
                               </span>
-                              <span className="text-[10px] text-text-subtle uppercase tracking-wide">
+                              <span className="text-[10px] text-text-subtle uppercase tracking-wider font-semibold mt-0.5">
                                 Total
                               </span>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-text-subtle" />
+                            <ChevronRight className="h-5 w-5 text-text-subtle group-hover:text-brand-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                           </button>
                         </li>
                       );

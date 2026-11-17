@@ -140,13 +140,20 @@ export function BarcodeScanner({
           const expiry = handledRef.current.get(detected);
           const now = Date.now();
           if (expiry !== undefined && now < expiry) return;
-          // Set a default cooldown immediately so the same poll-loop doesn't
-          // re-fire while the parent is still processing. Parent can extend
-          // via markHandled().
           handledRef.current.set(detected, now + defaultCooldownMs);
+
+          // Haptic feedback on detection (safe-guarded for mobile)
+          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate(40);
+            } catch {
+              // Ignore if blocked by browser policy
+            }
+          }
+
           onDetected(detected);
         } catch {
-          // Ignore intermittent decode errors.
+          // Ignore intermittent decode errors
         }
       }, pollMs);
     } catch (err) {
@@ -162,19 +169,19 @@ export function BarcodeScanner({
   };
 
   return (
-    <div className="relative aspect-video w-full rounded-xl border-2 border-dashed border-surface-border bg-slate-900 overflow-hidden">
+    <div className="relative aspect-video w-full rounded-2xl border-2 border-dashed border-surface-border bg-slate-950 overflow-hidden shadow-inner">
       <video
         ref={videoRef}
         playsInline
         muted
-        className={`absolute inset-0 h-full w-full object-cover ${
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
           cameraOn ? 'opacity-100' : 'opacity-0'
         }`}
       />
       {!cameraOn && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-subtle">
-          <ScanLine className="h-12 w-12" />
-          <p className="text-xs">{hint}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-text-subtle p-4">
+          <ScanLine className="h-10 w-10 text-brand-primary/70 animate-pulse" />
+          <p className="text-xs text-text-muted">{hint}</p>
           <Button
             type="button"
             variant="primary"
@@ -188,16 +195,35 @@ export function BarcodeScanner({
         </div>
       )}
       {cameraOn && (
-        <button
-          type="button"
-          onClick={() => setCameraOn(false)}
-          className="absolute top-2 right-2 rounded-full bg-black/50 text-white text-xs px-2 py-0.5"
-        >
-          Apagar
-        </button>
-      )}
-      {cameraOn && (
-        <div className="absolute inset-x-8 top-1/2 h-0.5 bg-status-danger/80 animate-pulse pointer-events-none" />
+        <>
+          <button
+            type="button"
+            onClick={() => setCameraOn(false)}
+            className="absolute top-3 right-3 z-10 rounded-full bg-black/60 backdrop-blur-xs text-white text-xs px-2.5 py-1 hover:bg-black/80 active:scale-95 transition-all"
+          >
+            Apagar
+          </button>
+
+          {/* Viewfinder reticle & GPU-accelerated laser */}
+          <div className="absolute inset-4 sm:inset-6 pointer-events-none flex flex-col justify-between">
+            {/* Top corners */}
+            <div className="flex justify-between">
+              <div className="h-6 w-6 border-t-2 border-l-2 border-brand-primary rounded-tl-lg shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+              <div className="h-6 w-6 border-t-2 border-r-2 border-brand-primary rounded-tr-lg shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+            </div>
+
+            {/* Laser scanning line */}
+            <div className="relative w-full h-0">
+              <div className="absolute inset-x-2 -top-0.5 h-0.5 bg-gradient-to-r from-transparent via-brand-primary to-transparent animate-laser-scan shadow-[0_0_10px_rgba(99,102,241,0.8)]" />
+            </div>
+
+            {/* Bottom corners */}
+            <div className="flex justify-between">
+              <div className="h-6 w-6 border-b-2 border-l-2 border-brand-primary rounded-bl-lg shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+              <div className="h-6 w-6 border-b-2 border-r-2 border-brand-primary rounded-br-lg shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

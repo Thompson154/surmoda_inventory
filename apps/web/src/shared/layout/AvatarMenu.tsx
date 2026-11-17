@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Boxes, ShieldCheck, User as UserIcon, Sun, Moon, Monitor } from 'lucide-react';
+import {
+  LogOut,
+  Boxes,
+  ShieldCheck,
+  User as UserIcon,
+  Sun,
+  Moon,
+  Monitor,
+  Zap,
+  ZapOff,
+} from 'lucide-react';
 import { authService } from '@/features/auth/services/authService';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useTheme } from '@/shared/theme/useTheme';
+import { usePerformanceMode } from '@/shared/theme/usePerformanceMode';
 import { cn } from '@/shared/ui/cn';
 
 function initialsFromName(name: string | undefined): string {
@@ -26,6 +37,7 @@ export function AvatarMenu() {
   const user = useAuthStore((s) => s.user);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const { theme, toggleTheme } = useTheme();
+  const { reduceMotion, togglePerformanceMode } = usePerformanceMode();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,6 +146,32 @@ export function AvatarMenu() {
           >
             <ThemeIcon className="h-4 w-4 text-text-subtle transition-transform duration-200" />
             {themeEntry.label}
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={togglePerformanceMode}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              {reduceMotion ? (
+                <ZapOff className="h-4 w-4 text-status-warning" />
+              ) : (
+                <Zap className="h-4 w-4 text-text-subtle" />
+              )}
+              <span>Animaciones y efectos</span>
+            </span>
+            <span
+              className={cn(
+                'text-[11px] px-1.5 py-0.5 rounded font-medium',
+                reduceMotion
+                  ? 'bg-status-warning-soft text-status-warning'
+                  : 'bg-status-success-soft text-status-success',
+              )}
+            >
+              {reduceMotion ? 'Reducidos' : 'Activos'}
+            </span>
           </button>
 
           <div className="border-t border-surface-border">

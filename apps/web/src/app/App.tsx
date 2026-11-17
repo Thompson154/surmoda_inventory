@@ -5,8 +5,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { usePermissions } from '@/shared/auth/usePermissions';
 import { Skeleton } from '@/shared/ui';
 
-// WHY: vendedora va al scanner; encargada/admin a inventario. Antes el
-// redirect estático mandaba a 'inventario' y vendedora caía en loop.
+// Redirección por rol: vendedora va a scanner; encargada/admin a inventario
 function SedeRoleRedirect() {
   const { storeId } = useParams<{ storeId: string }>();
   const { role } = usePermissions();
@@ -15,9 +14,7 @@ function SedeRoleRedirect() {
   return <Navigate to={target} replace />;
 }
 
-// Eager: routes hit on every login.
-// Login is the entry path; SedePicker / Inventory / Sales lead the warm path
-// for vendedoras (the majority of users); the AppShell already pulls them.
+// Rutas de carga inmediata (flujo principal)
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { SedePickerPage } from '@/features/inventory/pages/SedePickerPage';
 import { SedeInventoryPage } from '@/features/inventory/pages/SedeInventoryPage';
@@ -25,7 +22,7 @@ import { DeliveriesPage } from '@/features/deliveries/pages/DeliveriesPage';
 import { SalesRegisterPage } from '@/features/sales/pages/SalesRegisterPage';
 import { SalesDashboardPage } from '@/features/sales/pages/SalesDashboardPage';
 
-// Lazy: return-requests module — not hit on the normal vendedora flow
+// Rutas diferidas (lazy)
 const CreateReturnRequestPage = lazy(() =>
   import('@/features/return-requests/pages/CreateReturnRequestPage').then((m) => ({
     default: m.CreateReturnRequestPage,
@@ -47,9 +44,7 @@ const ReviewReturnRequestPage = lazy(() =>
   })),
 );
 
-// Lazy: admin-only or low-frequency surfaces. Each becomes its own JS chunk
-// so a vendedora's first paint isn't burdened with the catalog/users/audit
-// editors she will never open. Constitution PARTE II requires FCP < 3s on 3G.
+// Módulos administrativos diferidos (code splitting)
 const AdminHomePage = lazy(() =>
   import('@/features/admin/AdminHomePage').then((m) => ({ default: m.AdminHomePage })),
 );
@@ -93,11 +88,7 @@ const ProductDetailPage = lazy(() =>
   })),
 );
 
-/**
- * Generic skeleton shown while a lazy-loaded route fetches its chunk. The
- * Skeleton component already exists in shared/ui; we wrap it in the same
- * mobile container the real pages use so the layout doesn't jump on swap.
- */
+// Skeleton de carga para rutas diferidas
 function RouteFallback() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-3 p-4">

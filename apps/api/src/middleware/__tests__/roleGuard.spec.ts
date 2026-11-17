@@ -1,6 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import { roleGuard } from '../roleGuard';
-import { ForbiddenRoleError, ForbiddenStoreError, TokenInvalidError } from '../../shared/errors/authErrors';
+import {
+  ForbiddenRoleError,
+  ForbiddenStoreError,
+  TokenInvalidError,
+} from '../../shared/errors/authErrors';
 
 jest.mock('../../infrastructure/database', () => {
   const findFirst = jest.fn();
@@ -44,7 +48,10 @@ describe('roleGuard', () => {
 
   it('non-admin without storeId in params is rejected with ForbiddenStoreError', async () => {
     const next = jest.fn();
-    const req = makeReq({ auth: { userId: 'u1', isAdmin: false }, params: {} as Request['params'] });
+    const req = makeReq({
+      auth: { userId: 'u1', isAdmin: false },
+      params: {} as Request['params'],
+    });
     await roleGuard(['vendedora'])(req, makeRes(), next as unknown as NextFunction);
     expect(next.mock.calls[0]?.[0]).toBeInstanceOf(ForbiddenStoreError);
   });
@@ -79,6 +86,10 @@ describe('roleGuard', () => {
       params: { storeId: 's1' } as Request['params'],
     });
     await roleGuard(['vendedora'])(req, makeRes(), next as unknown as NextFunction);
+    expect(dbModule.__findFirst).toHaveBeenCalledWith({
+      where: { userId: 'u1', storeId: 's1', deletedAt: null },
+      select: { role: true },
+    });
     expect(next).toHaveBeenCalledWith();
   });
 });

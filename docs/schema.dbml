@@ -1,0 +1,438 @@
+// ═══════════════════════════════════════════════
+//  Surmoda Inventory — Database Schema (DBML)
+//  Pegar en: https://dbdiagram.io
+//  18 tablas · 8 enums
+// ═══════════════════════════════════════════════
+
+// ─────────────── ENUMS ───────────────
+Enum user_role {
+  encargada
+  vendedora
+}
+
+Enum store_kind {
+  warehouse
+  branch
+}
+
+Enum variant_size {
+  s
+  m
+  l
+  xl
+  xxl
+  "28"
+  "30"
+  "32"
+  "34"
+  standard
+}
+
+Enum stock_movement_type {
+  adjusted
+  edit_permission_toggled
+  delivery_in
+  delivery_out
+  delivery_received_adjusted
+  sale_out
+  sale_return
+}
+
+Enum delivery_kind {
+  reception
+  distribution
+}
+
+Enum delivery_status {
+  draft
+  sent
+  received
+  partial
+}
+
+Enum payment_method {
+  cash
+  card
+  qr
+}
+
+Enum return_request_status {
+  pending
+  approved
+  rejected
+}
+
+Enum delivery_edit_request_status {
+  pending
+  approved
+  rejected
+}
+
+// ═══════════════════════ NÚCLEO ═══════════════════════
+
+Table stores {
+  id varchar [pk]
+  code varchar [unique, not null]
+  name varchar [not null]
+  kind store_kind [not null]
+  is_active boolean [default: true]
+  sales_locked_at datetime
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+  deleted_at datetime
+
+  Indexes {
+    code [unique]
+    (is_active, kind)
+  }
+}
+
+Table products {
+  id varchar [pk]
+  code varchar [unique, not null]
+  name varchar [not null]
+  description text
+  is_active boolean [default: true]
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+  deleted_at datetime
+
+  Indexes {
+    code [unique]
+    (is_active)
+  }
+}
+
+Table variants {
+  id varchar [pk]
+  product_id varchar [not null, ref: > products.id]
+  size variant_size [not null]
+  color varchar [not null]
+  barcode varchar [unique, not null]
+  price_cents integer [not null]
+  image_path varchar
+  is_active boolean [default: true]
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+  deleted_at datetime
+
+  Indexes {
+    barcode [unique]
+    (product_id, size, color, deleted_at) [unique, name: 'uq_variant_tuple']
+    (product_id, is_active)
+  }
+}
+
+Table users {
+  id varchar [pk]
+  email varchar [unique, not null]
+  password_hash varchar [not null]
+  full_name varchar [not null]
+  is_admin boolean [default: false]
+  is_active boolean [default: true]
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+  deleted_at datetime
+
+  Indexes {
+    email [unique]
+    (is_active, is_admin)
+  }
+}
+
+Table user_stores {
+  id varchar [pk]
+  user_id varchar [not null, ref: > users.id]
+  store_id varchar [not null, ref: > stores.id]
+  role user_role [not null]
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+  deleted_at datetime
+
+  Indexes {
+    (user_id, store_id, deleted_at) [unique]
+    (user_id)
+    (store_id)
+  }
+}
+
+// ═══════════════════════ AUTH ═══════════════════════
+
+Table refresh_tokens {
+  id varchar [pk]
+  user_id varchar [not null, ref: > users.id]
+  token_hash varchar [unique, not null]
+  parent_token_id varchar [ref: > refresh_tokens.id]
+  expires_at datetime [not null]
+  revoked_at datetime
+  ip varchar
+  user_agent varchar
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (user_id, revoked_at, expires_at)
+    (parent_token_id)
+  }
+}
+
+// ═══════════════════════ INVENTARIO ═══════════════════════
+
+Table stock_by_site {
+  id varchar [pk]
+  variant_id varchar [not null, ref: > variants.id]
+  store_id varchar [not null, ref: > stores.id]
+  quantity integer [default: 0]
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (variant_id, store_id) [unique]
+    (store_id)
+    (store_id, variant_id)
+  }
+}
+
+Table stock_movements {
+  id varchar [pk]
+  store_id varchar [not null, ref: > stores.id]
+  variant_id varchar [ref: > variants.id]
+  user_id varchar [not null, ref: > users.id]
+  type stock_movement_type [not null]
+  payload jsonb [default: '{}']
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (store_id, created_at)
+    (variant_id)
+  }
+}
+
+Table store_edit_permission {
+  store_id varchar [pk, ref: > stores.id]
+  is_enabled boolean [default: false]
+  toggled_by_user_id varchar [ref: > users.id]
+  toggled_at datetime
+}
+
+// ═══════════════════════ VENTAS ═══════════════════════
+
+Table sales {
+  id varchar [pk]
+  store_id varchar [not null, ref: > stores.id]
+  recorded_by_user_id varchar [not null, ref: > users.id]
+  payment_method payment_method [not null]
+  total_cents integer [not null]
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (store_id, created_at)
+    (created_at)
+  }
+}
+
+Table sale_items {
+  id varchar [pk]
+  sale_id varchar [not null, ref: > sales.id]
+  variant_id varchar [not null, ref: > variants.id]
+  quantity integer [not null]
+  price_at_sale_cents integer [not null]
+  total_cents integer [not null]
+  subtotal_cents integer [not null]
+
+  Indexes {
+    (sale_id)
+    (variant_id)
+  }
+}
+
+Table idempotency_keys {
+  id varchar [pk]
+  key varchar [not null]
+  store_id varchar [not null, ref: > stores.id]
+  sale_id varchar [not null, ref: > sales.id]
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (store_id, key) [unique]
+    (created_at)
+  }
+}
+
+// ═══════════════════════ ENTREGAS ═══════════════════════
+
+Table deliveries {
+  id varchar [pk]
+  number integer [unique, not null]
+  kind delivery_kind [not null]
+  title varchar
+  status delivery_status [default: 'received']
+  from_store_id varchar [ref: > stores.id]
+  to_store_id varchar [not null, ref: > stores.id]
+  created_by_user_id varchar [not null, ref: > users.id]
+  sent_at datetime
+  received_at datetime
+  received_by_user_id varchar [ref: > users.id]
+  note text
+  created_at datetime [default: `now()`, not null]
+  updated_at datetime [default: `now()`, not null]
+
+  Indexes {
+    number [unique]
+    (status, to_store_id)
+    (to_store_id, created_at)
+    (from_store_id, created_at)
+  }
+}
+
+Table delivery_items {
+  id varchar [pk]
+  delivery_id varchar [not null, ref: > deliveries.id]
+  variant_id varchar [not null, ref: > variants.id]
+  quantity integer [not null]
+  received_quantity integer
+
+  Indexes {
+    (delivery_id)
+    (variant_id)
+  }
+}
+
+Table delivery_item_adjustments {
+  id varchar [pk]
+  delivery_id varchar [not null, ref: > deliveries.id]
+  delivery_item_id varchar [not null, ref: > delivery_items.id]
+  expected_qty integer [not null]
+  actual_qty integer [not null]
+  reason text
+  adjusted_by_user_id varchar [not null, ref: > users.id]
+  adjusted_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (delivery_id)
+    (adjusted_by_user_id, adjusted_at)
+  }
+}
+
+Table delivery_edit_requests {
+  id varchar [pk]
+  delivery_id varchar [not null, ref: > deliveries.id]
+  requester_id varchar [not null, ref: > users.id]
+  reason text [not null]
+  status delivery_edit_request_status [default: 'pending']
+  reviewed_by varchar [ref: > users.id]
+  reviewed_at datetime
+  rejection_reason text
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (delivery_id, status)
+    (requester_id, created_at)
+    (status, created_at)
+  }
+}
+
+// ═══════════════════════ DEVOLUCIONES ═══════════════════════
+
+Table return_requests {
+  id varchar [pk]
+  requester_id varchar [not null, ref: > users.id]
+  store_id varchar [not null, ref: > stores.id]
+  status return_request_status [default: 'pending']
+  returned_variant_id varchar [not null, ref: > variants.id]
+  returned_quantity integer [default: 1]
+  sale_date datetime [not null]
+  exchange_variant_id varchar [ref: > variants.id]
+  reason text [not null]
+  reviewed_by varchar [ref: > users.id]
+  reviewed_at datetime
+  rejection_reason text
+  applied_return_movement_id varchar
+  applied_sale_movement_id varchar
+  original_sale_id varchar [ref: > sales.id]
+  original_sale_item_id varchar
+  original_closure_date date
+  original_payment_method payment_method
+  original_subtotal_cents integer
+  new_payment_method payment_method
+  new_subtotal_cents integer
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (store_id, status)
+    (requester_id, created_at)
+    (status, created_at)
+    (original_sale_id)
+  }
+}
+
+// ═══════════════════════ REPORTES ═══════════════════════
+
+Table daily_reports {
+  id varchar [pk]
+  store_id varchar [not null, ref: > stores.id]
+  date date [not null]
+  total_cents integer [not null]
+  qr_cents integer [not null]
+  card_cents integer [not null]
+  cash_cents integer [not null]
+  item_count integer [not null]
+  transactions_count integer [not null]
+  closed_by_user_id varchar [ref: > users.id]
+  closed_at datetime [not null]
+  auto_closed boolean [default: false]
+
+  Indexes {
+    (store_id, date) [unique]
+  }
+}
+
+Table daily_report_attendance {
+  id varchar [pk]
+  daily_report_id varchar [not null, ref: > daily_reports.id]
+  full_name varchar [not null]
+  user_id varchar [ref: > users.id]
+
+  Indexes {
+    (daily_report_id)
+    (user_id)
+  }
+}
+
+// ═══════════════════════ AUDITORIA ═══════════════════════
+
+Table inventory_snapshots {
+  id varchar [pk]
+  store_id varchar [not null, ref: > stores.id]
+  variant_id varchar [not null, ref: > variants.id]
+  quantity integer [not null]
+  captured_at datetime [not null]
+  created_at datetime [default: `now()`, not null]
+
+  Indexes {
+    (store_id, variant_id, captured_at) [unique, name: 'uq_snapshot']
+    (store_id, captured_at)
+    (captured_at)
+  }
+}
+
+Table audit_logs {
+  id varchar [pk]
+  user_id varchar
+  action varchar [not null]
+  entity varchar [not null]
+  entity_id varchar
+  payload jsonb [not null]
+  ip varchar
+  user_agent varchar
+  timestamp datetime [default: `now()`, not null]
+
+  Indexes {
+    (user_id, timestamp)
+    (entity, entity_id)
+    (action, timestamp)
+  }
+}
+
+// ═══════════════════════ 18 TABLAS · 8 ENUMS ═══════════════════════
+// Todas las relaciones se infieren de ref: > en las columnas.
+// Pegar en https://dbdiagram.io

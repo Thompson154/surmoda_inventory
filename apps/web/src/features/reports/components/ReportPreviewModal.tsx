@@ -3,6 +3,7 @@
 // y botón para descargar el Excel completo.
 
 import { X, Download, Banknote, CreditCard, QrCode } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useDownloadXlsx } from '../hooks/useGenerateReport';
 import type { SalesReportPreview, GenerateReportArgs } from '../types';
 import { cn } from '@/shared/ui/cn';
@@ -52,10 +53,10 @@ export function ReportPreviewModal({
     includeInventory: !!inventory,
   };
 
-  return (
+  const content = (
     <div
       className={cn(
-        'fixed inset-0 z-50 flex items-start justify-center pt-4 pb-4 px-4',
+        'fixed inset-0 z-[100] flex items-start justify-center pt-4 pb-4 px-4',
         'bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto',
       )}
       onClick={onClose}
@@ -270,6 +271,8 @@ export function ReportPreviewModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────

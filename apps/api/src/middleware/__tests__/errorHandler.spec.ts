@@ -58,4 +58,25 @@ describe('errorHandler', () => {
     expect(res.body).toEqual(expect.objectContaining({ code: 'INTERNAL_ERROR' }));
     expect(JSON.stringify(res.body)).not.toContain('secret leaking');
   });
+
+  it('delegates to next(err) when headersSent is true', () => {
+    const res = buildResMock();
+    (res as unknown as { headersSent: boolean }).headersSent = true;
+    const localNext = jest.fn();
+    const err = new Error('streaming failed mid-transfer');
+    errorHandler(err, req, asRes(res), localNext as unknown as NextFunction);
+    expect(localNext).toHaveBeenCalledWith(err);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('maps MulterError LIMIT_FILE_SIZE to 413 VARIANT_IMAGE_TOO_LARGE', () => {
+    const res = buildResMock();
+    const multerErr = Object.assign(new Error('File too large'), {
+      name: 'MulterError',
+      code: 'LIMIT_FILE_SIZE',
+    });
+    errorHandler(multerErr, req, asRes(res), next);
+    expect(res.statusCode).toBe(413);
+    expect(res.body).toEqual(expect.objectContaining({ code: 'VARIANT_IMAGE_TOO_LARGE' }));
+  });
 });

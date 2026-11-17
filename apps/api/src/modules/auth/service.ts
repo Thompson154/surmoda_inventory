@@ -54,7 +54,7 @@ export function buildAuthService({ db, refreshTokens }: AuthServiceDeps): AuthSe
     async login(input, meta) {
       const user = await db.user.findUnique({
         where: { email: input.email },
-        include: { assignments: true },
+        include: { assignments: { where: { deletedAt: null } } },
       });
       // Timing-equalisation: ALWAYS run bcrypt.compare even when no user
       // matches, against a fixed decoy hash. Without this, a "user not found"
@@ -134,7 +134,7 @@ export function buildAuthService({ db, refreshTokens }: AuthServiceDeps): AuthSe
     async me(userId) {
       const user = await db.user.findUnique({
         where: { id: userId },
-        include: { assignments: true },
+        include: { assignments: { where: { deletedAt: null } } },
       });
       if (!user) throw new RefreshTokenNotFoundError();
       if (!user.isActive) throw new UserInactiveError();

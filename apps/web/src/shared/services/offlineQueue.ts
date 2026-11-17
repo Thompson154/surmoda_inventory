@@ -23,6 +23,7 @@
 // The queue is keyed by storeId so each branch's offline queue is isolated.
 
 import type { CreateSalePayload } from '@surmoda/contracts';
+import { generateUUID } from '@/shared/utils/uuid';
 
 export interface OfflineSaleEntry {
   /** Stable id stored in the queue — used to remove the entry on success. */
@@ -62,13 +63,6 @@ function safeWrite(entries: OfflineSaleEntry[]): void {
   }
 }
 
-function genId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
 /** Adds a sale to the queue. Returns the entry so the UI can show its id. */
 export function enqueueSale(storeId: string, body: CreateSalePayload): OfflineSaleEntry {
   // The BE expects idempotencyKey on every offline-replayed sale so that the
@@ -77,10 +71,10 @@ export function enqueueSale(storeId: string, body: CreateSalePayload): OfflineSa
   // used for every retry of THIS entry.
   const ensuredBody: CreateSalePayload = {
     ...body,
-    idempotencyKey: body.idempotencyKey ?? genId(),
+    idempotencyKey: body.idempotencyKey ?? generateUUID(),
   };
   const entry: OfflineSaleEntry = {
-    id: genId(),
+    id: generateUUID(),
     storeId,
     body: ensuredBody,
     enqueuedAt: new Date().toISOString(),

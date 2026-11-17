@@ -1,23 +1,10 @@
 # Guía de Despliegue Producción: Surmoda Inventory
 
-Esta guía detalla paso a paso cómo desplegar el sistema usando la infraestructura elegida: **Railway** (Backend), **Cloudflare Pages** (Frontend), **Neon** (Base de Datos) y **Cloudflare R2** (Almacenamiento de imágenes).
+Esta guía detalla paso a paso cómo desplegar el sistema usando la infraestructura elegida: **Railway** (Backend y Base de Datos PostgreSQL nativa), **Cloudflare Pages** (Frontend PWA) y **Cloudflare R2** (Almacenamiento de imágenes).
 
 ---
 
-## 1. Base de Datos (Neon)
-
-Neon provee Postgres serverless con un Free Tier muy generoso.
-
-1. Creá una cuenta en [Neon.tech](https://neon.tech) (podés usar tu GitHub).
-2. Creá un nuevo proyecto. Llamalo `surmoda-inventory`.
-3. Seleccioná la región más cercana a Bolivia (usualmente us-east-1 o us-east-2, Virginia/Ohio).
-4. En el dashboard del proyecto recién creado, andá a la sección **Connection Details**.
-5. Copiá el `Connection string` (asegurate de que tenga el password incluido y empiece con `postgresql://`).
-6. **Guardá este connection string**; lo usaremos en Railway como `DATABASE_URL`.
-
----
-
-## 2. Almacenamiento de Imágenes (Cloudflare R2)
+## 1. Almacenamiento de Imágenes (Cloudflare R2)
 
 R2 es el object storage de Cloudflare, compatible con S3 pero sin costos de salida (egress fees).
 
@@ -37,23 +24,31 @@ R2 es el object storage de Cloudflare, compatible con S3 pero sin costos de sali
 
 ---
 
-## 3. Backend (Railway)
+## 2. Base de Datos y Backend (Railway)
 
-1. Ingresá a [Railway.app](https://railway.app) y logueate con GitHub.
-2. Hacé clic en **New Project** > **Deploy from GitHub repo**.
-3. Seleccioná el repositorio `Thompson154/surmoda_inventory`.
-4. Railway detectará automáticamente el monorepo pero necesitamos guiarlo a la API.
-5. Andá a los **Settings** del servicio recién creado en Railway:
+### A. Crear Proyecto y Base de Datos PostgreSQL
+
+1. Ingresá a [Railway.app](https://railway.app) y suscribite al plan **Hobby** ($5/mes).
+2. Hacé clic en **New Project** > **Provision PostgreSQL**.
+   - Esto levantará al instante una instancia administrada de PostgreSQL 16 corriendo 24/7.
+   - En la pestaña **Variables** del servicio Postgres verás variables automáticas como `DATABASE_URL` y `DATABASE_PRIVATE_URL`.
+
+### B. Desplegar el Backend (API)
+
+1. En el mismo proyecto de Railway, hacé clic en **+ New** > **GitHub Repo**.
+2. Seleccioná el repositorio `Thompson154/surmoda_inventory`.
+3. Andá a los **Settings** del servicio recién creado en Railway:
    - En **Build**:
      - Builder: Nixpacks
      - Build Command: `npm run build`
    - En **Deploy**:
      - Start Command: `npm run start -w @proyecto-degrado/api`
-6. Andá a la pestaña **Variables** y agregá:
+4. Andá a la pestaña **Variables** del servicio de la API y agregá:
+
    ```env
    NODE_ENV=production
    PORT=3000
-   DATABASE_URL=<pegar_el_connection_string_de_Neon>
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
    JWT_SECRET=<generar_un_string_aleatorio_seguro_de_32_caracteres>
    COOKIE_DOMAIN=<tu_dominio.com> o dejalo vacío si aún no tenés
    FE_ORIGIN=https://<la_url_que_te_de_cloudflare_pages>
@@ -66,16 +61,20 @@ R2 es el object storage de Cloudflare, compatible con S3 pero sin costos de sali
    S3_PUBLIC_URL_PREFIX=<url_publica_del_bucket_r2>
    ENABLE_DAILY_SALES_LOCK=true
    ```
-7. Para migrar la base de datos en Neon, andá a la pestaña **Deployments** en Railway, abrí el CLI (Terminal) del contenedor o ejecutá un comando ad-hoc:
-   ```bash
-   npm run prisma:deploy -w @proyecto-degrado/api
-   npm run prisma:seed -w @proyecto-degrado/api
-   ```
-8. En la pestaña **Settings** > **Networking**, hacé clic en **Generate Domain**. Esta URL (e.g., `surmoda-api.up.railway.app`) será el `VITE_API_BASE_URL` de tu frontend.
+
+   _(Nota: Railway resuelve `${{Postgres.DATABASE_URL}}` automáticamente conectando la API con el Postgres interno)._
+
+5. Para aplicar las migraciones iniciales y el seed en la base de datos:
+   - En Railway, abrí el servicio de la API, andá a la pestaña **Deployments** o hacé clic en **View Logs** / **Terminal** (o ejecutá vía Railway CLI):
+     ```bash
+     npm run prisma:deploy -w @proyecto-degrado/api
+     npm run prisma:seed -w @proyecto-degrado/api
+     ```
+6. En la pestaña **Settings** > **Networking**, hacé clic en **Generate Domain**. Esta URL (ej. `surmoda-api.up.railway.app`) será el `VITE_API_BASE_URL` para tu frontend.
 
 ---
 
-## 4. Frontend (Cloudflare Pages)
+## 3. Frontend (Cloudflare Pages)
 
 1. En el dashboard de [Cloudflare](https://dash.cloudflare.com/), andá a **Workers & Pages**.
 2. Hacé clic en **Create application** > pestaña **Pages** > **Connect to Git**.
@@ -97,4 +96,4 @@ R2 es el object storage de Cloudflare, compatible con S3 pero sin costos de sali
 
 ---
 
-**¡Listo!** Con esto tenés tu PWA corriendo en el edge global de Cloudflare, tu backend en Railway, tu DB serverless en Neon, y las imágenes persistidas de forma económica en R2.
+**¡Listo!** Con esto tenés tu PWA corriendo en el edge global de Cloudflare, tu backend y base de datos comunicándose a ultra baja latencia en la red privada de Railway, y las imágenes persistidas de forma económica en R2.

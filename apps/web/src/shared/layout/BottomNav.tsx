@@ -24,12 +24,12 @@ export function BottomNav({ tabs }: BottomNavProps) {
     <nav
       aria-label="Secciones de la sucursal"
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-20 bg-surface-raised supports-[backdrop-filter]:bg-glass-nav backdrop-blur-sm will-change-[backdrop-filter]',
-        'border-t border-glass-border',
+        'fixed bottom-0 left-0 right-0 z-20 bg-surface-raised/90 supports-[backdrop-filter]:bg-glass-nav backdrop-blur-md',
+        'border-t border-surface-border/80 shadow-lg',
         'pb-[env(safe-area-inset-bottom)]',
       )}
     >
-      <ul className="mx-auto max-w-4xl flex items-stretch justify-around">
+      <ul className="mx-auto max-w-lg flex items-center justify-around px-2 py-1.5">
         {tabs.map((tab) => {
           const Icon = ICON_MAP[tab.icon];
           return (
@@ -39,14 +39,16 @@ export function BottomNav({ tabs }: BottomNavProps) {
                 end
                 className={({ isActive }) =>
                   cn(
-                    'flex flex-col items-center justify-center gap-1 py-2.5 text-xs',
-                    'transition-colors duration-150',
-                    isActive ? 'text-brand-primary' : 'text-text-muted hover:text-text-secondary',
+                    'flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-medium',
+                    'transition-all duration-150 active:scale-95',
+                    isActive
+                      ? 'text-brand-primary bg-brand-primary/10 shadow-xs font-semibold'
+                      : 'text-text-muted hover:text-text-secondary hover:bg-surface-sunken/60',
                   )
                 }
               >
                 <Icon className="h-5 w-5" aria-hidden="true" />
-                <span>{tab.label}</span>
+                <span className="text-[11px] tracking-tight">{tab.label}</span>
               </NavLink>
             </li>
           );

@@ -67,17 +67,22 @@ interface PaymentRowProps {
 function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
   const pct = totalCents === 0 ? 0 : Math.round((cents / totalCents) * 100);
   const palette = {
-    QR: { bg: 'bg-violet-100', text: 'text-violet-600', bar: 'bg-violet-500', Icon: QrCode },
+    QR: {
+      bg: 'bg-violet-100 dark:bg-violet-950/50',
+      text: 'text-violet-600 dark:text-violet-400',
+      bar: 'bg-gradient-to-r from-violet-500 to-purple-500',
+      Icon: QrCode,
+    },
     Efectivo: {
-      bg: 'bg-status-success-soft',
-      text: 'text-status-success',
-      bar: 'bg-status-success',
+      bg: 'bg-emerald-100 dark:bg-emerald-950/50',
+      text: 'text-emerald-600 dark:text-emerald-400',
+      bar: 'bg-gradient-to-r from-emerald-500 to-teal-500',
       Icon: Banknote,
     },
     Tarjeta: {
       bg: 'bg-surface-sunken',
       text: 'text-text-secondary',
-      bar: 'bg-slate-700',
+      bar: 'bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-slate-600',
       Icon: CreditCard,
     },
   }[label];
@@ -85,19 +90,22 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
   return (
     <div className="flex items-center gap-3">
       <div
-        className={`h-9 w-9 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}
+        className={`h-9 w-9 rounded-xl ${palette.bg} ${palette.text} flex items-center justify-center shrink-0 border border-surface-border/50`}
       >
         <Icon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-text-secondary">{label}</span>
-          <span className="text-text-muted font-mono">
+          <span className="text-text-muted font-mono font-tabular">
             {formatBsShort(cents)} · {pct}%
           </span>
         </div>
-        <div className="mt-1 h-1.5 rounded-full bg-surface-sunken overflow-hidden">
-          <div className={`h-full ${palette.bar}`} style={{ width: `${pct}%` }} />
+        <div className="mt-1.5 h-2 rounded-full bg-surface-sunken overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${palette.bar}`}
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
     </div>
@@ -106,30 +114,39 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
 
 interface ItemSaleCardProps {
   row: FlatItemRow;
+  index?: number;
   onImageClick: (src: string) => void;
 }
 
-function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
+function ItemSaleCard({ row, index = 0, onImageClick }: ItemSaleCardProps) {
   const palette =
     row.paymentMethod === 'qr'
-      ? { bg: 'bg-violet-100', text: 'text-violet-600', Icon: QrCode }
+      ? {
+          bg: 'bg-violet-100 dark:bg-violet-950/50',
+          text: 'text-violet-600 dark:text-violet-400',
+          Icon: QrCode,
+        }
       : row.paymentMethod === 'cash'
-        ? { bg: 'bg-status-success-soft', text: 'text-status-success', Icon: Banknote }
+        ? {
+            bg: 'bg-emerald-100 dark:bg-emerald-950/50',
+            text: 'text-emerald-600 dark:text-emerald-400',
+            Icon: Banknote,
+          }
         : { bg: 'bg-surface-sunken', text: 'text-text-secondary', Icon: CreditCard };
   const { Icon } = palette;
-  // Antes usábamos resolveImageUrl (helper que devolvía rutas relativas al FE),
-  // pero las imágenes viven en el BE bajo /static/images. getImageUrl ya hace
-  // ese mapeo y respeta URLs absolutas (Cloudinary) cuando aplica.
   const src = getImageUrl(row.imagePath);
   const showDiscount = row.subtotalCents !== row.catalogTotalCents;
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-surface-border bg-surface-raised px-3 py-2.5">
+    <div
+      className="group flex items-center gap-3 rounded-2xl border border-surface-border/80 bg-surface-raised/90 backdrop-blur-sm px-3.5 py-3 shadow-2xs hover:shadow-md hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
+      style={{ animationDelay: `${Math.min(index * 40, 240)}ms` }}
+    >
       {src ? (
         <button
           type="button"
           onClick={() => onImageClick(src)}
-          className="h-12 w-12 rounded-lg overflow-hidden bg-surface-sunken shrink-0 focus:outline focus:outline-brand"
+          className="h-12 w-12 rounded-xl overflow-hidden bg-surface-sunken shrink-0 border border-surface-border/60 focus:outline focus:outline-brand-primary group-hover:border-brand-primary/50 transition-colors"
           aria-label="Ver imagen del producto"
         >
           <img
@@ -137,12 +154,12 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
             alt={row.productName}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         </button>
       ) : (
         <div
-          className={`h-12 w-12 rounded-lg ${palette.bg} ${palette.text} flex items-center justify-center shrink-0`}
+          className={`h-12 w-12 rounded-xl ${palette.bg} ${palette.text} flex items-center justify-center shrink-0 border border-surface-border/40`}
         >
           <Icon className="h-5 w-5" />
         </div>
@@ -152,23 +169,23 @@ function ItemSaleCard({ row, onImageClick }: ItemSaleCardProps) {
         <p className="text-sm font-semibold text-text-primary truncate">
           {row.productCode} · <span className="capitalize">{row.color}</span> · {row.size}
         </p>
-        <p className="text-xs text-text-muted">
+        <p className="text-xs text-text-muted mt-0.5 font-tabular">
           {timeOfDay(row.createdAt)} · {row.quantity} {row.quantity === 1 ? 'unidad' : 'unidades'}
         </p>
       </div>
 
       <div className="flex flex-col items-end shrink-0">
         <div
-          className={`h-5 w-5 rounded ${palette.bg} ${palette.text} flex items-center justify-center mb-0.5`}
+          className={`h-5 w-5 rounded-md ${palette.bg} ${palette.text} flex items-center justify-center mb-0.5`}
         >
           <Icon className="h-3 w-3" />
         </div>
         {showDiscount && (
-          <p className="text-[10px] text-text-subtle font-mono line-through">
+          <p className="text-[10px] text-text-subtle font-mono line-through font-tabular">
             {formatBsBig(row.catalogTotalCents)}
           </p>
         )}
-        <p className="text-sm font-mono font-semibold text-text-primary">
+        <p className="text-sm font-mono font-bold text-text-primary font-tabular">
           {formatBsBig(row.subtotalCents)}
         </p>
       </div>
@@ -282,8 +299,21 @@ export function SalesRegisterPage() {
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         {/* Header — Cerrar día button */}
         <header className="flex items-center justify-between">
-          <h1 className="text-base font-semibold">{store?.name ?? 'Ventas'}</h1>
-          <Button type="button" variant="secondary" size="sm" onClick={() => setCloseDayOpen(true)}>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-text-primary">
+              {store?.name ?? 'Ventas'}
+            </h1>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+              Caja
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setCloseDayOpen(true)}
+            className="rounded-xl border-surface-border/80 hover:bg-surface-sunken"
+          >
             Cerrar día
           </Button>
         </header>
@@ -294,17 +324,25 @@ export function SalesRegisterPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 md:gap-6 gap-4">
           {/* Day summary card */}
           <div className="md:col-span-1">
-            <Card className="md:sticky md:top-4">
-              <CardContent className="py-4">
-                <p className="text-[11px] uppercase tracking-wider text-text-muted font-semibold">
-                  Ventas del día
+            <Card className="md:sticky md:top-4 relative overflow-hidden border border-surface-border/80 bg-surface-raised/90 backdrop-blur-md shadow-md rounded-2xl before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-brand-primary before:via-indigo-500 before:to-violet-500">
+              <CardContent className="py-4.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-wider text-text-muted font-bold">
+                    Ventas del día
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    En vivo
+                  </span>
+                </div>
+                <p className="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight font-tabular text-text-primary">
+                  {formatBsBig(stats.total)}
                 </p>
-                <p className="mt-1 text-3xl font-bold tracking-tight">{formatBsBig(stats.total)}</p>
-                <p className="mt-0.5 text-xs text-text-muted">
+                <p className="mt-1 text-xs text-text-muted font-medium">
                   {stats.count} {stats.count === 1 ? 'prenda vendida' : 'prendas vendidas'}
                 </p>
 
-                <div className="mt-4 flex flex-col gap-3">
+                <div className="mt-5 flex flex-col gap-3.5">
                   <PaymentRow label="QR" cents={stats.qr} totalCents={stats.total} />
                   <PaymentRow label="Efectivo" cents={stats.cash} totalCents={stats.total} />
                   <PaymentRow label="Tarjeta" cents={stats.card} totalCents={stats.total} />
@@ -328,17 +366,12 @@ export function SalesRegisterPage() {
             {/* Grid 1 col en mobile, 2 cols en md+ para aprovechar el ancho
                 del laptop sin estirar individualmente cada card. */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {/* En mobile mantenemos el preview de 3; en desktop el grid
-                  necesita un mínimo de 6 para ocupar 3 filas de 2 columnas
-                  visualmente balanceadas — usamos visibleItemsDesktop. La
-                  diferencia se materializa con CSS (hidden md:flex) para no
-                  duplicar arrays innecesariamente. */}
               {visibleItemsDesktop.map((row, idx) => (
                 <div
                   key={row.itemId}
                   className={idx >= previewCount && !showAll ? 'hidden md:block' : ''}
                 >
-                  <ItemSaleCard row={row} onImageClick={setZoomImage} />
+                  <ItemSaleCard row={row} index={idx} onImageClick={setZoomImage} />
                 </div>
               ))}
             </div>
@@ -380,12 +413,6 @@ export function SalesRegisterPage() {
           liveStats={stats}
           onClosedToday={() => {
             setClosedAt(new Date());
-            // FUTURE flow once the daily lock + auto-cleanup ships:
-            //   - 22:00 Bolivia: server flips a `salesLockedAt` flag on the store
-            //     so /sales POST returns 423. CashierModal greys out + tooltips why.
-            //   - 00:00 Bolivia: server-driven reset — closedAt is irrelevant
-            //     because the new day's sales list is empty by definition.
-            //   - Until then, this client-side wipe is enough.
           }}
         />
 
@@ -426,24 +453,27 @@ export function SalesRegisterPage() {
 
       {/* Floating action buttons — scan (primary) and return (warning-soft).
           WHY: both are "instant scan" actions; grouping them avoids hunting. */}
-      <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-2">
+      <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-2.5">
         <button
           type="button"
           onClick={() => setReturnOpen(true)}
-          className="h-11 w-11 rounded-full bg-status-warning-soft text-status-warning shadow-md hover:shadow-lg active:scale-95 transition flex items-center justify-center border border-status-warning/30"
+          className="h-11 w-11 rounded-full bg-surface-raised/95 backdrop-blur-md text-status-warning shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center border border-status-warning/40 hover:border-status-warning/70"
           aria-label="Registrar devolución"
         >
           <RotateCcw className="h-5 w-5" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => setCashierOpen(true)}
-          className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition flex items-center justify-center"
-          aria-label="Escanear venta"
-        >
-          <ScanLine className="h-6 w-6" />
-        </button>
+        <div className="relative group">
+          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 via-brand-primary to-violet-600 opacity-40 blur-md group-hover:opacity-75 transition-opacity" />
+          <button
+            type="button"
+            onClick={() => setCashierOpen(true)}
+            className="relative h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 via-brand-primary to-violet-600 text-white shadow-xl active:scale-95 transition-all flex items-center justify-center hover:scale-105"
+            aria-label="Escanear venta"
+          >
+            <ScanLine className="h-6 w-6" />
+          </button>
+        </div>
       </div>
     </AppShell>
   );

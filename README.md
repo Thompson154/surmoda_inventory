@@ -274,15 +274,6 @@ main                              ← producción, siempre estable
 
 ---
 
-## Documentación
-
-- [Constitución del proyecto](./.specify/memory/constitution.md) — v1.1.0, source of truth
-- [ADRs](./decisions/) — Architecture Decision Records (evidencia de tesis Flipped Interaction)
-- [OpenAPI](./docs/api/openapi.yaml) — contrato de la API generado desde Zod
-- [Documento de tesis](./docs/) (donde aplique)
-
----
-
 ## Licencia
 
 MIT

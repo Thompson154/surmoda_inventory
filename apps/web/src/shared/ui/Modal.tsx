@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from './cn';
 
@@ -94,16 +95,12 @@ export function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  const content = (
     <div
       className={cn(
-        'fixed inset-0 z-50 flex items-center justify-center',
-        'bg-slate-900/60 backdrop-blur-sm animate-fade-in',
+        'fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4',
+        'bg-slate-950/65 backdrop-blur-sm animate-fade-in',
       )}
-      // Backdrop click closes the modal. Keyboard equivalent is Escape, which
-      // is wired in the effect above — the static-element jsx-a11y warning is
-      // a known acceptable pattern for modal scrims.
-
       onClick={onClose}
     >
       <div
@@ -112,14 +109,24 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          'relative z-10 bg-surface-raised supports-[backdrop-filter]:bg-glass-elevated backdrop-blur-md border border-glass-border rounded-xl shadow-2xl animate-scale-in',
-          'max-w-md w-full mx-4',
+          'relative z-10 bg-surface-raised supports-[backdrop-filter]:bg-glass-elevated backdrop-blur-md',
+          'border border-glass-border shadow-2xl',
+          'w-full max-w-md',
+          'max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:animate-sheet-up max-sm:max-h-[90dvh] max-sm:overflow-y-auto',
+          'max-sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]',
+          'sm:rounded-2xl sm:animate-scale-in',
         )}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile handle indicator */}
+        <div
+          className="sm:hidden mx-auto mt-3 h-1.5 w-12 rounded-full bg-text-subtle/30"
+          aria-hidden="true"
+        />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-surface-border">
-          <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+        <div className="flex items-center justify-between px-6 pt-3 pb-3 sm:pt-5 sm:pb-4 border-b border-surface-border">
+          <h2 id={titleId} className="text-base sm:text-lg font-semibold text-text-primary">
             {title}
           </h2>
           <button
@@ -127,9 +134,9 @@ export function Modal({
             onClick={onClose}
             aria-label="Cerrar"
             className={cn(
-              'h-8 w-8 rounded-md flex items-center justify-center',
-              'text-text-subtle hover:text-text-secondary hover:bg-surface-sunken',
-              'transition-colors duration-150',
+              'h-8 w-8 rounded-lg flex items-center justify-center',
+              'text-text-subtle hover:text-text-secondary hover:bg-surface-sunken active:scale-95',
+              'transition-all duration-150',
               'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1',
             )}
           >
@@ -142,4 +149,6 @@ export function Modal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }

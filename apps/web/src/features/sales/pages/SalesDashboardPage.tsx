@@ -278,25 +278,33 @@ export function SalesDashboardPage() {
 
             {dashboard.data && (
               <>
-                <Card>
-                  <CardContent className="flex flex-col gap-3">
-                    <p className="text-xs uppercase tracking-wide text-text-muted">Ventas hoy</p>
+                <Card className="relative overflow-hidden border border-surface-border/80 bg-surface-raised/90 backdrop-blur-md shadow-md rounded-2xl before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-brand-primary before:via-indigo-500 before:to-violet-500">
+                  <CardContent className="flex flex-col gap-3 py-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] uppercase tracking-wider text-text-muted font-bold">
+                        Ventas hoy
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        En vivo
+                      </span>
+                    </div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">
+                      <span className="text-3xl sm:text-4xl font-extrabold tracking-tight font-tabular text-text-primary">
                         {formatBsShort(dashboard.data.todayCents)}
                       </span>
                       {dashboard.data.deltaPct !== null && (
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                             dashboard.data.deltaPct >= 0
                               ? 'bg-status-success-soft text-status-success'
                               : 'bg-status-danger-soft text-status-danger'
                           }`}
                         >
                           {dashboard.data.deltaPct >= 0 ? (
-                            <TrendingUp className="h-3 w-3" />
+                            <TrendingUp className="h-3.5 w-3.5" />
                           ) : (
-                            <TrendingDown className="h-3 w-3" />
+                            <TrendingDown className="h-3.5 w-3.5" />
                           )}
                           {dashboard.data.deltaPct.toFixed(1)}%
                         </span>
@@ -309,51 +317,62 @@ export function SalesDashboardPage() {
                   </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Card>
-                    <CardContent className="py-3">
-                      <p className="text-xs text-text-muted">Total semana</p>
-                      <p className="text-base font-semibold mt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <Card className="rounded-2xl border border-surface-border/80 bg-surface-raised/80 backdrop-blur-sm hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-200">
+                    <CardContent className="py-3.5">
+                      <p className="text-xs font-semibold text-text-muted">Total semana</p>
+                      <p className="text-xl font-bold font-tabular mt-1 text-text-primary">
                         {formatBsShort(dashboard.data.weekCents)}
                       </p>
-                      <p className="text-[10px] text-text-subtle mt-0.5">7 días</p>
+                      <p className="text-[10px] text-text-subtle mt-0.5 font-medium">
+                        Últimos 7 días
+                      </p>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardContent className="py-3">
-                      <p className="text-xs text-text-muted">Transacciones</p>
-                      <p className="text-base font-semibold mt-1">
+                  <Card className="rounded-2xl border border-surface-border/80 bg-surface-raised/80 backdrop-blur-sm hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-200">
+                    <CardContent className="py-3.5">
+                      <p className="text-xs font-semibold text-text-muted">Transacciones</p>
+                      <p className="text-xl font-bold font-tabular mt-1 text-text-primary">
                         {dashboard.data.transactionsCount}
                       </p>
-                      <p className="text-[10px] text-text-subtle mt-0.5">completadas</p>
+                      <p className="text-[10px] text-text-subtle mt-0.5 font-medium">
+                        completadas hoy
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
 
-                <Card>
-                  <CardContent>
-                    <p className="text-sm font-semibold mb-2">
+                <Card className="rounded-2xl border border-surface-border/80 bg-surface-raised/90 backdrop-blur-sm shadow-2xs overflow-hidden">
+                  <CardContent className="py-4">
+                    <p className="text-sm font-semibold mb-3 text-text-primary">
                       Resumen semanal (últimas 5 semanas)
                     </p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-surface-sunken text-text-secondary">
+                        <thead className="bg-surface-sunken text-text-secondary rounded-lg">
                           <tr>
-                            <th className="text-left px-2 py-2">Semana</th>
-                            <th className="text-right px-2 py-2">QR</th>
-                            <th className="text-right px-2 py-2">Tarjeta</th>
-                            <th className="text-right px-2 py-2">Efectivo</th>
-                            <th className="text-right px-2 py-2">Total</th>
+                            <th className="text-left px-3 py-2 rounded-l-lg font-semibold">
+                              Semana
+                            </th>
+                            <th className="text-right px-3 py-2 font-semibold">QR</th>
+                            <th className="text-right px-3 py-2 font-semibold">Tarjeta</th>
+                            <th className="text-right px-3 py-2 font-semibold">Efectivo</th>
+                            <th className="text-right px-3 py-2 rounded-r-lg font-semibold">
+                              Total
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {dashboard.data.weeklyBreakdown.map((row, idx) => (
-                            <tr key={row.weekStart} className="border-t border-surface-border">
-                              <td className="px-2 py-2">
+                            <tr
+                              key={row.weekStart}
+                              className="border-t border-surface-border/60 hover:bg-surface-sunken/50 transition-colors"
+                            >
+                              <td className="px-3 py-2.5">
                                 <button
                                   type="button"
                                   onClick={() => setWeekPopover(weekPopover === idx ? null : idx)}
-                                  className="font-semibold text-left hover:text-brand-strong"
+                                  className="font-semibold text-left text-text-primary hover:text-brand-primary transition-colors"
                                   aria-label={`Ver rango de fechas de ${weekLabel(idx)}`}
                                 >
                                   {weekLabel(idx)}
@@ -364,16 +383,16 @@ export function SalesDashboardPage() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-2 py-2 text-right font-mono">
+                              <td className="px-3 py-2.5 text-right font-mono font-tabular">
                                 {formatBs(row.qrCents)}
                               </td>
-                              <td className="px-2 py-2 text-right font-mono">
+                              <td className="px-3 py-2.5 text-right font-mono font-tabular">
                                 {formatBs(row.cardCents)}
                               </td>
-                              <td className="px-2 py-2 text-right font-mono">
+                              <td className="px-3 py-2.5 text-right font-mono font-tabular">
                                 {formatBs(row.cashCents)}
                               </td>
-                              <td className="px-2 py-2 text-right font-mono font-semibold">
+                              <td className="px-3 py-2.5 text-right font-mono font-bold font-tabular text-text-primary">
                                 {formatBs(row.totalCents)}
                               </td>
                             </tr>
