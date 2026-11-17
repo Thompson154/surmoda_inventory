@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Banknote, CreditCard, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
 import { useCreateSale } from '../hooks/useSales';

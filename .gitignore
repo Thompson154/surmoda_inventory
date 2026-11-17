@@ -75,6 +75,12 @@ graphify-out/
 .atl/
 .opencode/
 .codegraph/
+.agents/
+.codex/
+skills-lock.json
+.github/agents/
+.github/hooks/
+.github/skills/
 
 # Local/scratch scripts
 seed_dev_temp.ts
