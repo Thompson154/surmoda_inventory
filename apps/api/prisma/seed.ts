@@ -1,35 +1,35 @@
 import { PrismaClient, Role, StoreKind } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
 const prisma = new PrismaClient();
 
+const STORE_ALMACEN = 'store-almacen-seed';
 const STORE_PRADO = 'store-prado-seed';
 const STORE_ZSUR = 'store-zsur-seed';
-const STORE_ALMACEN = 'store-almacen-seed';
 const STORE_SATELITE = 'store-satelite-seed';
 const STORE_ONLINE = 'store-online-seed';
 
 async function main(): Promise<void> {
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
 
-  // Admin (mantener)
+  // Contraseñas predecibles para el entorno de producción/demo inicial
   const pwdThompson = await bcrypt.hash('Th0mp$on_88_xZ!2026', saltRounds);
-  // Encargadas
-  const pwdGloria = await bcrypt.hash('EIq0m3M7tfq7v3zs', saltRounds);
-  const pwdLiz = await bcrypt.hash('Jtebe4miNV97iG/w', saltRounds);
-  const pwdNoemi = await bcrypt.hash('yfA/obU5gTZlUXdF', saltRounds);
-  const pwdMalena = await bcrypt.hash('qBc5FrmOV8EcVN4+', saltRounds);
-  // Vendedoras
-  const pwdCaricia = await bcrypt.hash('QuucXx0rKhnEVOD8', saltRounds);
-  const pwdCorina = await bcrypt.hash('3WGQja0pf0TbTZTF', saltRounds);
-  const pwdJhesica = await bcrypt.hash('BCar+kMj7gGaHOzH', saltRounds);
-  const pwdDiana = await bcrypt.hash('xTdwUze3wGDVjkiP', saltRounds);
-  const pwdAleida = await bcrypt.hash('4S61/l/72KD1fSzw', saltRounds);
-  const pwdErika = await bcrypt.hash('HN61udDhnoLAbr6S', saltRounds);
+  const pwdMagdalena = await bcrypt.hash('Magda_Surmoda_2026!', saltRounds);
+  const pwdGloria = await bcrypt.hash('Gloria_Almacen_2026!', saltRounds);
+  const pwdLiz = await bcrypt.hash('Liz_Online_2026!', saltRounds);
+  const pwdJessy = await bcrypt.hash('Jessy_Prado_2026!', saltRounds);
+  const pwdCorina = await bcrypt.hash('Corina_ZSur_2026!', saltRounds);
+  const pwdCaricia = await bcrypt.hash('Caricia_Satelite_2026!', saltRounds);
 
-  // ── Stores ──────────────────────────────────────────────────────────
+  const pwdVendedoraPrado = await bcrypt.hash('Ventas_Prado_2026!', saltRounds);
+  const pwdVendedoraZSur = await bcrypt.hash('Ventas_ZSur_2026!', saltRounds);
+  const pwdVendedoraSatelite = await bcrypt.hash('Ventas_Satelite_2026!', saltRounds);
+  const pwdVendedoraOnline = await bcrypt.hash('Ventas_Online_2026!', saltRounds);
+
+  // ── 1. Stores ────────────────────────────────────────────────────────
   await prisma.store.upsert({
     where: { code: 'ALMACEN' },
-    update: {},
+    update: { name: 'Almacén Central', kind: StoreKind.warehouse },
     create: {
       id: STORE_ALMACEN,
       code: 'ALMACEN',
@@ -37,19 +37,32 @@ async function main(): Promise<void> {
       kind: StoreKind.warehouse,
     },
   });
+
   await prisma.store.upsert({
     where: { code: 'PRADO' },
-    update: {},
-    create: { id: STORE_PRADO, code: 'PRADO', name: 'Sucursal Prado', kind: StoreKind.branch },
+    update: { name: 'Sucursal Prado', kind: StoreKind.branch },
+    create: {
+      id: STORE_PRADO,
+      code: 'PRADO',
+      name: 'Sucursal Prado',
+      kind: StoreKind.branch,
+    },
   });
+
   await prisma.store.upsert({
     where: { code: 'ZSUR' },
-    update: {},
-    create: { id: STORE_ZSUR, code: 'ZSUR', name: 'Sucursal Zona Sur', kind: StoreKind.branch },
+    update: { name: 'Sucursal Zona Sur', kind: StoreKind.branch },
+    create: {
+      id: STORE_ZSUR,
+      code: 'ZSUR',
+      name: 'Sucursal Zona Sur',
+      kind: StoreKind.branch,
+    },
   });
+
   await prisma.store.upsert({
     where: { code: 'SATELITE' },
-    update: {},
+    update: { name: 'Sucursal Satélite', kind: StoreKind.branch },
     create: {
       id: STORE_SATELITE,
       code: 'SATELITE',
@@ -57,17 +70,22 @@ async function main(): Promise<void> {
       kind: StoreKind.branch,
     },
   });
+
   await prisma.store.upsert({
     where: { code: 'ONLINE' },
-    update: {},
-    create: { id: STORE_ONLINE, code: 'ONLINE', name: 'Ventas Online', kind: StoreKind.branch },
+    update: { name: 'Ventas Online', kind: StoreKind.branch },
+    create: {
+      id: STORE_ONLINE,
+      code: 'ONLINE',
+      name: 'Ventas Online',
+      kind: StoreKind.branch,
+    },
   });
 
-  // ── Users ────────────────────────────────────────────────────────────
-  // Admin (mantener)
+  // ── 2. Administradores ───────────────────────────────────────────────
   await prisma.user.upsert({
     where: { email: 'thompson@surmoda.com.bo' },
-    update: { passwordHash: pwdThompson },
+    update: { fullName: 'Adrián Thompson', isAdmin: true, isActive: true },
     create: {
       email: 'thompson@surmoda.com.bo',
       passwordHash: pwdThompson,
@@ -77,9 +95,35 @@ async function main(): Promise<void> {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: 'magdalena@surmoda.com.bo' },
+    update: { fullName: 'Magdalena Machaca', isAdmin: true, isActive: true },
+    create: {
+      email: 'magdalena@surmoda.com.bo',
+      passwordHash: pwdMagdalena,
+      fullName: 'Magdalena Machaca',
+      isAdmin: true,
+      isActive: true,
+    },
+  });
+
+  // Alias para mantener compatibilidad con malena@
+  await prisma.user.upsert({
+    where: { email: 'malena@surmoda.com.bo' },
+    update: { fullName: 'Magdalena Machaca', isAdmin: true, isActive: true },
+    create: {
+      email: 'malena@surmoda.com.bo',
+      passwordHash: pwdMagdalena,
+      fullName: 'Magdalena Machaca',
+      isAdmin: true,
+      isActive: true,
+    },
+  });
+
+  // ── 3. Encargadas de Inventario ──────────────────────────────────────
   const gloria = await prisma.user.upsert({
     where: { email: 'gloria@surmoda.com.bo' },
-    update: { passwordHash: pwdGloria },
+    update: { fullName: 'Gloria Atahuichi', isAdmin: false, isActive: true },
     create: {
       email: 'gloria@surmoda.com.bo',
       passwordHash: pwdGloria,
@@ -91,7 +135,7 @@ async function main(): Promise<void> {
 
   const liz = await prisma.user.upsert({
     where: { email: 'liz@surmoda.com.bo' },
-    update: { passwordHash: pwdLiz },
+    update: { fullName: 'Liz Huanca', isAdmin: false, isActive: true },
     create: {
       email: 'liz@surmoda.com.bo',
       passwordHash: pwdLiz,
@@ -101,37 +145,26 @@ async function main(): Promise<void> {
     },
   });
 
-  const noemi = await prisma.user.upsert({
-    where: { email: 'noemi@surmoda.com.bo' },
-    update: { passwordHash: pwdNoemi },
+  const jessy = await prisma.user.upsert({
+    where: { email: 'jessy@surmoda.com.bo' },
+    update: { fullName: 'Jhesica Yapuchura', isAdmin: false, isActive: true },
     create: {
-      email: 'noemi@surmoda.com.bo',
-      passwordHash: pwdNoemi,
-      fullName: 'Noemi Huanca',
+      email: 'jessy@surmoda.com.bo',
+      passwordHash: pwdJessy,
+      fullName: 'Jhesica Yapuchura',
       isAdmin: false,
       isActive: true,
     },
   });
 
-  const malena = await prisma.user.upsert({
-    where: { email: 'malena@surmoda.com.bo' },
-    update: { passwordHash: pwdMalena },
+  // Alias para jhesica@
+  await prisma.user.upsert({
+    where: { email: 'jhesica@surmoda.com.bo' },
+    update: { fullName: 'Jhesica Yapuchura', isAdmin: false, isActive: true },
     create: {
-      email: 'malena@surmoda.com.bo',
-      passwordHash: pwdMalena,
-      fullName: 'Malena Machaca',
-      isAdmin: true,
-      isActive: true,
-    },
-  });
-
-  const caricia = await prisma.user.upsert({
-    where: { email: 'caricia@surmoda.com.bo' },
-    update: { passwordHash: pwdCaricia },
-    create: {
-      email: 'caricia@surmoda.com.bo',
-      passwordHash: pwdCaricia,
-      fullName: 'Caricia Llanos',
+      email: 'jhesica@surmoda.com.bo',
+      passwordHash: pwdJessy,
+      fullName: 'Jhesica Yapuchura',
       isAdmin: false,
       isActive: true,
     },
@@ -139,7 +172,7 @@ async function main(): Promise<void> {
 
   const corina = await prisma.user.upsert({
     where: { email: 'corina@surmoda.com.bo' },
-    update: { passwordHash: pwdCorina },
+    update: { fullName: 'Corina Limachi', isAdmin: false, isActive: true },
     create: {
       email: 'corina@surmoda.com.bo',
       passwordHash: pwdCorina,
@@ -149,92 +182,109 @@ async function main(): Promise<void> {
     },
   });
 
-  const jhesica = await prisma.user.upsert({
-    where: { email: 'jhesica@surmoda.com.bo' },
-    update: { passwordHash: pwdJhesica },
+  const caricia = await prisma.user.upsert({
+    where: { email: 'caricia@surmoda.com.bo' },
+    update: { fullName: 'Caricia Llanos', isAdmin: false, isActive: true },
     create: {
-      email: 'jhesica@surmoda.com.bo',
-      passwordHash: pwdJhesica,
-      fullName: 'Jhesica Yapuchura',
+      email: 'caricia@surmoda.com.bo',
+      passwordHash: pwdCaricia,
+      fullName: 'Caricia Llanos',
       isAdmin: false,
       isActive: true,
     },
   });
 
-  const diana = await prisma.user.upsert({
-    where: { email: 'diana@surmoda.com.bo' },
-    update: { passwordHash: pwdDiana },
+  // ── 4. Cuentas Genéricas de Vendedoras por Sucursal ─────────────────
+  const vendedoraPrado = await prisma.user.upsert({
+    where: { email: 'vendedora.prado@surmoda.com.bo' },
+    update: { fullName: 'Vendedora Prado', isAdmin: false, isActive: true },
     create: {
-      email: 'diana@surmoda.com.bo',
-      passwordHash: pwdDiana,
-      fullName: 'Diana Blanco',
+      email: 'vendedora.prado@surmoda.com.bo',
+      passwordHash: pwdVendedoraPrado,
+      fullName: 'Vendedora Prado',
       isAdmin: false,
       isActive: true,
     },
   });
 
-  const aleida = await prisma.user.upsert({
-    where: { email: 'aleida@surmoda.com.bo' },
-    update: { passwordHash: pwdAleida },
+  const vendedoraZSur = await prisma.user.upsert({
+    where: { email: 'vendedora.zonasur@surmoda.com.bo' },
+    update: { fullName: 'Vendedora Zona Sur', isAdmin: false, isActive: true },
     create: {
-      email: 'aleida@surmoda.com.bo',
-      passwordHash: pwdAleida,
-      fullName: 'Aleida Riquelme',
+      email: 'vendedora.zonasur@surmoda.com.bo',
+      passwordHash: pwdVendedoraZSur,
+      fullName: 'Vendedora Zona Sur',
       isAdmin: false,
       isActive: true,
     },
   });
 
-  const erika = await prisma.user.upsert({
-    where: { email: 'erika@surmoda.com.bo' },
-    update: { passwordHash: pwdErika },
+  const vendedoraSatelite = await prisma.user.upsert({
+    where: { email: 'vendedora.satelite@surmoda.com.bo' },
+    update: { fullName: 'Vendedora Satélite', isAdmin: false, isActive: true },
     create: {
-      email: 'erika@surmoda.com.bo',
-      passwordHash: pwdErika,
-      fullName: 'Erika Domingo',
+      email: 'vendedora.satelite@surmoda.com.bo',
+      passwordHash: pwdVendedoraSatelite,
+      fullName: 'Vendedora Satélite',
       isAdmin: false,
       isActive: true,
     },
   });
 
-  // ── UserStore assignments ───────────────────────────────────────────
+  const vendedoraOnline = await prisma.user.upsert({
+    where: { email: 'vendedora.online@surmoda.com.bo' },
+    update: { fullName: 'Vendedora Online', isAdmin: false, isActive: true },
+    create: {
+      email: 'vendedora.online@surmoda.com.bo',
+      passwordHash: pwdVendedoraOnline,
+      fullName: 'Vendedora Online',
+      isAdmin: false,
+      isActive: true,
+    },
+  });
+
+  // ── 5. UserStore assignments ─────────────────────────────────────────
   const assignments: Array<{ userId: string; storeId: string; role: Role }> = [
-    // Gloria — encargada en SATELITE y PRADO
-    { userId: gloria.id, storeId: STORE_SATELITE, role: Role.encargada },
+    // Gloria: Almacén Central + visibilidad en todas las sucursales (puede ver todos los inventarios)
+    { userId: gloria.id, storeId: STORE_ALMACEN, role: Role.encargada },
     { userId: gloria.id, storeId: STORE_PRADO, role: Role.encargada },
-    // Liz — encargada + vendedora en ONLINE
+    { userId: gloria.id, storeId: STORE_ZSUR, role: Role.encargada },
+    { userId: gloria.id, storeId: STORE_SATELITE, role: Role.encargada },
+    { userId: gloria.id, storeId: STORE_ONLINE, role: Role.encargada },
+
+    // Liz: Únicamente Tienda Online (Encargada + Vendedora para registrar ventas)
     { userId: liz.id, storeId: STORE_ONLINE, role: Role.encargada },
     { userId: liz.id, storeId: STORE_ONLINE, role: Role.vendedora },
-    // Noemi — encargada en SATELITE y PRADO
-    { userId: noemi.id, storeId: STORE_SATELITE, role: Role.encargada },
-    { userId: noemi.id, storeId: STORE_PRADO, role: Role.encargada },
-    // Malena — admin + encargada en ALMACEN
-    { userId: malena.id, storeId: STORE_ALMACEN, role: Role.encargada },
-    // Caricia — vendedora en SATELITE
-    { userId: caricia.id, storeId: STORE_SATELITE, role: Role.vendedora },
-    // Corina — vendedora en ZONA SUR
+
+    // Jessy: Únicamente Prado (Encargada + Vendedora para registrar ventas)
+    { userId: jessy.id, storeId: STORE_PRADO, role: Role.encargada },
+    { userId: jessy.id, storeId: STORE_PRADO, role: Role.vendedora },
+
+    // Corina: Únicamente Zona Sur (Encargada + Vendedora para registrar ventas)
+    { userId: corina.id, storeId: STORE_ZSUR, role: Role.encargada },
     { userId: corina.id, storeId: STORE_ZSUR, role: Role.vendedora },
-    // Jhesica — vendedora en PRADO
-    { userId: jhesica.id, storeId: STORE_PRADO, role: Role.vendedora },
-    // Diana — vendedora en PRADO y SATELITE
-    { userId: diana.id, storeId: STORE_PRADO, role: Role.vendedora },
-    { userId: diana.id, storeId: STORE_SATELITE, role: Role.vendedora },
-    // Aleida — vendedora en PRADO
-    { userId: aleida.id, storeId: STORE_PRADO, role: Role.vendedora },
-    // Erika — vendedora en PRADO
-    { userId: erika.id, storeId: STORE_PRADO, role: Role.vendedora },
+
+    // Caricia: Únicamente Satélite (Encargada + Vendedora para registrar ventas)
+    { userId: caricia.id, storeId: STORE_SATELITE, role: Role.encargada },
+    { userId: caricia.id, storeId: STORE_SATELITE, role: Role.vendedora },
+
+    // Vendedoras por sucursal (1 por sede, solo rol vendedora)
+    { userId: vendedoraPrado.id, storeId: STORE_PRADO, role: Role.vendedora },
+    { userId: vendedoraZSur.id, storeId: STORE_ZSUR, role: Role.vendedora },
+    { userId: vendedoraSatelite.id, storeId: STORE_SATELITE, role: Role.vendedora },
+    { userId: vendedoraOnline.id, storeId: STORE_ONLINE, role: Role.vendedora },
   ];
 
   for (const a of assignments) {
     const existing = await prisma.userStore.findFirst({
-      where: { userId: a.userId, storeId: a.storeId, deletedAt: null },
+      where: { userId: a.userId, storeId: a.storeId, role: a.role, deletedAt: null },
     });
     if (!existing) {
       await prisma.userStore.create({ data: a });
     }
   }
 
-  console.info(`Seed OK — ${assignments.length} store assignments configured.`);
+  console.info(`Seed OK — ${assignments.length} asignaciones de sedes y roles configuradas.`);
 }
 
 main()

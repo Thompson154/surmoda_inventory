@@ -3,27 +3,52 @@ import { cn } from './cn';
 
 export interface BadgeProps {
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+  dot?: boolean;
   children: ReactNode;
   className?: string;
 }
 
-const variantClasses: Record<NonNullable<BadgeProps['variant']>, string> = {
-  default: 'bg-surface-sunken text-text-secondary',
-  success: 'bg-status-success-soft text-status-success',
-  warning: 'bg-status-warning-soft text-status-warning',
-  danger: 'bg-status-danger-soft text-status-danger',
-  info: 'bg-status-info-soft text-sky-700',
+const variantClasses: Record<NonNullable<BadgeProps['variant']>, { badge: string; dot: string }> = {
+  default: {
+    badge: 'bg-surface-sunken/80 text-text-secondary border border-surface-border/60',
+    dot: 'bg-text-muted',
+  },
+  success: {
+    badge: 'bg-status-success-soft/70 text-status-success border border-status-success/30',
+    dot: 'bg-status-success animate-pulse',
+  },
+  warning: {
+    badge: 'bg-status-warning-soft/70 text-status-warning border border-status-warning/30',
+    dot: 'bg-status-warning animate-pulse',
+  },
+  danger: {
+    badge: 'bg-status-danger-soft/70 text-status-danger border border-status-danger/30',
+    dot: 'bg-status-danger animate-pulse',
+  },
+  info: {
+    badge: 'bg-status-info-soft/70 text-status-info border border-status-info/30',
+    dot: 'bg-status-info',
+  },
 };
 
-export function Badge({ variant = 'default', children, className }: BadgeProps): JSX.Element {
+export function Badge({
+  variant = 'default',
+  dot = false,
+  children,
+  className,
+}: BadgeProps): JSX.Element {
+  const current = variantClasses[variant];
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-        variantClasses[variant],
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium backdrop-blur-xs transition-colors',
+        current.badge,
         className,
       )}
     >
+      {dot && (
+        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', current.dot)} aria-hidden="true" />
+      )}
       {children}
     </span>
   );

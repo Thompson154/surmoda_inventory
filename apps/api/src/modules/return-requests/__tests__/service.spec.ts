@@ -462,8 +462,13 @@ describe('ReturnRequestService.createReturnRequest — Wave 5 original-sale bloc
   let service: ReturnRequestService;
 
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(BASE_DATE);
     repo = buildMockRepo();
     service = buildReturnRequestService({ repo: repo as unknown as ReturnRequestRepository });
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
   });
 
   it('throws RETURN_REQUEST_CREATE_ORIGINAL_SALE_NOT_FOUND when originalSale lookup returns null', async () => {

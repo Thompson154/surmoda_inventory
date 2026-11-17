@@ -79,7 +79,9 @@ export async function applyOriginDebit(
     }
   }
 
-  for (const { variantId, quantity } of args.items) {
+  // WHY: sort by variantId to guarantee canonical row lock order across transactions (prevents 40P01 deadlocks).
+  const sortedItems = args.items.slice().sort((a, b) => a.variantId.localeCompare(b.variantId));
+  for (const { variantId, quantity } of sortedItems) {
     if (quantity <= 0) continue;
     const after = await repo.decrementStock(args.fromStoreId, variantId, quantity, tx);
     await repo.createMovement(
@@ -106,7 +108,9 @@ export async function applyDestinationCredit(
   args: DestinationCreditArgs,
   tx: DeliveryTx,
 ): Promise<void> {
-  for (const { variantId, quantity } of args.items) {
+  // WHY: sort by variantId to guarantee canonical row lock order across transactions (prevents 40P01 deadlocks).
+  const sortedItems = args.items.slice().sort((a, b) => a.variantId.localeCompare(b.variantId));
+  for (const { variantId, quantity } of sortedItems) {
     if (quantity <= 0) continue;
     const after = await repo.incrementStock(args.toStoreId, variantId, quantity, tx);
     await repo.createMovement(

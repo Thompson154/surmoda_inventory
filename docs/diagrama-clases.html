@@ -1,0 +1,2007 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Surmoda — Esquema de Base de Datos</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --card: #161b22;
+        --border: #30363d;
+        --text: #c9d1d9;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --green: #3fb950;
+        --yellow: #d2991d;
+        --red: #f85149;
+        --purple: #a371f7;
+        --orange: #f0883e;
+        --table-header: #21262d;
+        --table-stripe: #161b22;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        min-height: 100vh;
+      }
+      header {
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        padding: 1.25rem 2rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      header h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      header .meta {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      nav.tabs {
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        padding: 0 2rem;
+        display: flex;
+        gap: 0;
+        position: sticky;
+        top: 70px;
+        z-index: 99;
+        overflow-x: auto;
+      }
+      nav.tabs button {
+        background: none;
+        border: none;
+        color: var(--muted);
+        padding: 0.75rem 1.25rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s;
+        white-space: nowrap;
+        font-family: inherit;
+      }
+      nav.tabs button:hover {
+        color: var(--text);
+      }
+      nav.tabs button.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+      }
+
+      main {
+        max-width: 1800px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+      }
+
+      /* ERD */
+      .erd-container {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        overflow-x: auto;
+        min-height: 500px;
+      }
+
+      /* Table view */
+      .table-section {
+        margin-bottom: 2rem;
+      }
+      .table-section h3 {
+        font-size: 1rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .table-section h3 .tbl-badge {
+        font-size: 0.65rem;
+        background: var(--border);
+        padding: 0.15rem 0.5rem;
+        border-radius: 99px;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+      }
+      thead th {
+        background: var(--table-header);
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--muted);
+        border-bottom: 2px solid var(--border);
+        position: sticky;
+        top: 0;
+      }
+      tbody td {
+        padding: 0.45rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      tbody tr:nth-child(even) {
+        background: var(--table-stripe);
+      }
+      tbody tr:hover {
+        background: #1c2129;
+      }
+
+      .col-name {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .col-type {
+        color: var(--yellow);
+      }
+      .col-constraint {
+        font-size: 0.7rem;
+      }
+      .pk {
+        color: var(--green);
+      }
+      .fk {
+        color: var(--purple);
+      }
+      .uq {
+        color: var(--orange);
+      }
+      .idx {
+        color: var(--muted);
+      }
+      .nullable {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      /* Index display */
+      .index-list {
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: var(--bg);
+        border-radius: 6px;
+        font-size: 0.72rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .index-item {
+        padding: 0.2rem 0.55rem;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        font-family: monospace;
+        white-space: nowrap;
+      }
+      .index-item.unique {
+        border-color: var(--orange);
+        color: var(--orange);
+      }
+      .index-item.regular {
+        border-color: var(--muted);
+        color: var(--muted);
+      }
+
+      .legend-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        padding: 0.75rem 1.5rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-size: 0.75rem;
+        align-items: center;
+      }
+
+      footer {
+        text-align: center;
+        padding: 2rem;
+        font-size: 0.75rem;
+        color: #484f58;
+        border-top: 1px solid var(--border);
+        margin-top: 2rem;
+      }
+
+      kbd {
+        background: var(--border);
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>🗄️ Surmoda — Esquema Completo de Base de Datos</h1>
+        <p style="color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem">
+          PostgreSQL · 18 tablas · 8 enums · Relaciones, índices y constraints
+        </p>
+      </div>
+      <span class="meta">Prisma Schema</span>
+    </header>
+
+    <nav class="tabs">
+      <button class="active" onclick="switchPanel('diagram')">📊 Diagrama ER</button>
+      <button onclick="switchPanel('tables')">📋 Tablas Detalladas</button>
+    </nav>
+
+    <main>
+      <!-- ═══════════════ DIAGRAM ER ═══════════════ -->
+      <div id="panel-diagram" class="panel active">
+        <div class="erd-container">
+          <div class="mermaid">
+            erDiagram %% ── STORES ── stores { string id PK "cuid()" string code UK string name
+            store_kind kind boolean is_active "default true" timestamp sales_locked_at "nullable"
+            timestamp created_at timestamp updated_at timestamp deleted_at "nullable" } products {
+            string id PK "cuid()" string code UK string name string description "nullable" boolean
+            is_active "default true" timestamp created_at timestamp updated_at timestamp deleted_at
+            "nullable" } variants { string id PK "cuid()" string product_id FK variant_size size
+            string color string barcode UK int price_cents string image_path "nullable" boolean
+            is_active "default true" timestamp created_at timestamp updated_at timestamp deleted_at
+            "nullable" } users { string id PK "cuid()" string email UK string password_hash string
+            full_name boolean is_admin "default false" boolean is_active "default true" timestamp
+            created_at timestamp updated_at timestamp deleted_at "nullable" } user_stores { string
+            id PK "cuid()" string user_id FK string store_id FK user_role role timestamp created_at
+            timestamp updated_at timestamp deleted_at "nullable" } refresh_tokens { string id PK
+            "cuid()" string user_id FK string token_hash UK string parent_token_id "nullable FK"
+            timestamp expires_at timestamp revoked_at "nullable" string ip "nullable" string
+            user_agent "nullable" timestamp created_at } stock_by_site { string id PK "cuid()"
+            string variant_id FK string store_id FK int quantity "default 0" timestamp created_at
+            timestamp updated_at } stock_movements { string id PK "cuid()" string store_id FK string
+            variant_id "nullable FK" string user_id FK stock_movement_type type json payload
+            "default {}" timestamp created_at } store_edit_permission { string store_id PK FK
+            boolean is_enabled "default false" string toggled_by_user_id "nullable FK" timestamp
+            toggled_at "nullable" } sales { string id PK "cuid()" string store_id FK string
+            recorded_by_user_id FK payment_method payment_method int total_cents timestamp
+            created_at } sale_items { string id PK "cuid()" string sale_id FK string variant_id FK
+            int quantity int price_at_sale_cents int total_cents int subtotal_cents }
+            idempotency_keys { string id PK "cuid()" string key string store_id FK string sale_id FK
+            timestamp created_at } deliveries { string id PK "cuid()" int number UK "auto"
+            delivery_kind kind string title "nullable" delivery_status status "default received"
+            string from_store_id "nullable FK" string to_store_id FK string created_by_user_id FK
+            timestamp sent_at "nullable" timestamp received_at "nullable" string received_by_user_id
+            "nullable FK" string note "nullable" timestamp created_at timestamp updated_at }
+            delivery_items { string id PK "cuid()" string delivery_id FK string variant_id FK int
+            quantity int received_quantity "nullable" } delivery_item_adjustments { string id PK
+            "cuid()" string delivery_id FK string delivery_item_id FK int expected_qty int
+            actual_qty string reason "nullable" string adjusted_by_user_id FK timestamp adjusted_at
+            } delivery_edit_requests { string id PK "cuid()" string delivery_id FK string
+            requester_id FK string reason "text" delivery_edit_request_status status "default
+            pending" string reviewed_by "nullable FK" timestamp reviewed_at "nullable" string
+            rejection_reason "nullable text" timestamp created_at } return_requests { string id PK
+            "cuid()" string requester_id FK string store_id FK return_request_status status "default
+            pending" string returned_variant_id FK int returned_quantity "default 1" timestamp
+            sale_date string exchange_variant_id "nullable FK" string reason "text" string
+            reviewed_by "nullable FK" timestamp reviewed_at "nullable" string rejection_reason
+            "nullable text" string applied_return_movement_id "nullable" string
+            applied_sale_movement_id "nullable" string original_sale_id "nullable FK" string
+            original_sale_item_id "nullable" date original_closure_date "nullable" payment_method
+            original_payment_method "nullable" int original_subtotal_cents "nullable" payment_method
+            new_payment_method "nullable" int new_subtotal_cents "nullable" timestamp created_at }
+            daily_reports { string id PK "cuid()" string store_id FK date date int total_cents int
+            qr_cents int card_cents int cash_cents int item_count int transactions_count string
+            closed_by_user_id "nullable FK" timestamp closed_at boolean auto_closed "default false"
+            } daily_report_attendance { string id PK "cuid()" string daily_report_id FK string
+            full_name string user_id "nullable FK" } inventory_snapshots { string id PK "cuid()"
+            string store_id FK string variant_id FK int quantity timestamp captured_at timestamp
+            created_at } audit_logs { string id PK "cuid()" string user_id "nullable" string action
+            string entity string entity_id "nullable" json payload string ip "nullable" string
+            user_agent "nullable" timestamp timestamp } %% ── RELATIONSHIPS ── products ||--o{
+            variants : "product_id" stores ||--o{ user_stores : "store_id" users ||--o{ user_stores
+            : "user_id" stores ||--o{ stock_by_site : "store_id" variants ||--o{ stock_by_site :
+            "variant_id" stores ||--o{ stock_movements : "store_id" variants ||--o{ stock_movements
+            : "variant_id" users ||--o{ stock_movements : "user_id" stores ||--||
+            store_edit_permission : "store_id" users ||--o{ store_edit_permission : "toggled_by"
+            stores ||--o{ sales : "store_id" users ||--o{ sales : "recorded_by" sales ||--o{
+            sale_items : "sale_id" variants ||--o{ sale_items : "variant_id" sales ||--o{
+            idempotency_keys : "sale_id" stores ||--o{ deliveries : "to_store" stores ||--o{
+            deliveries : "from_store" users ||--o{ deliveries : "created_by" users ||--o{ deliveries
+            : "received_by" deliveries ||--o{ delivery_items : "delivery_id" variants ||--o{
+            delivery_items : "variant_id" deliveries ||--o{ delivery_item_adjustments :
+            "delivery_id" delivery_items ||--o{ delivery_item_adjustments : "item_id" users ||--o{
+            delivery_item_adjustments : "adjusted_by" deliveries ||--o{ delivery_edit_requests :
+            "delivery_id" users ||--o{ delivery_edit_requests : "requester" users ||--o{
+            return_requests : "requester" stores ||--o{ return_requests : "store_id" variants ||--o{
+            return_requests : "returned" variants ||--o{ return_requests : "exchange" sales ||--o{
+            return_requests : "original_sale" stores ||--o{ daily_reports : "store_id" users ||--o{
+            daily_reports : "closed_by" daily_reports ||--o{ daily_report_attendance :
+            "daily_report_id" users ||--o{ daily_report_attendance : "user_id" stores ||--o{
+            inventory_snapshots : "store_id" variants ||--o{ inventory_snapshots : "variant_id"
+            users ||--o{ refresh_tokens : "user_id" refresh_tokens ||--o{ refresh_tokens :
+            "token_family"
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ TABLA DETALLADA ═══════════════ -->
+      <div id="panel-tables" class="panel">
+        <div class="legend-bar">
+          <span style="color: var(--green)">🟢 PK</span>
+          <span style="color: var(--purple)">🟣 FK</span>
+          <span style="color: var(--orange)">🟠 UNIQUE</span>
+          <span style="color: var(--muted)">⬜ INDEX</span>
+          <span style="color: var(--yellow)">🟡 tipo SQL</span>
+          <span style="color: var(--accent)">🔵 nombre columna</span>
+        </div>
+
+        <!-- stores -->
+        <div class="table-section">
+          <h3>📦 stores <span class="tbl-badge">4 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">code</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="uq">UNIQUE</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">name</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">kind</td>
+                <td class="col-type">store_kind</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">is_active</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>true</td>
+              </tr>
+              <tr>
+                <td class="col-name">sales_locked_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">deleted_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: code</span>
+            <span class="index-item regular">📌 IDX: (is_active, kind)</span>
+          </div>
+        </div>
+
+        <!-- products -->
+        <div class="table-section">
+          <h3>👕 products <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">code</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="uq">UNIQUE</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">name</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">description</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">is_active</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>true</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">deleted_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: code</span>
+            <span class="index-item regular">📌 IDX: (is_active)</span>
+          </div>
+        </div>
+
+        <!-- variants -->
+        <div class="table-section">
+          <h3>🎨 variants <span class="tbl-badge">5 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">product_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → products.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">size</td>
+                <td class="col-type">variant_size</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">color</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">barcode</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="uq">UNIQUE</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">price_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">image_path</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">is_active</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>true</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">deleted_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: barcode</span>
+            <span class="index-item unique">🔑 UK: (product_id, size, color, deleted_at)</span>
+            <span class="index-item regular">📌 IDX: (product_id, is_active)</span>
+            <span class="index-item regular">📌 IDX: (barcode)</span>
+          </div>
+        </div>
+
+        <!-- users -->
+        <div class="table-section">
+          <h3>👤 users <span class="tbl-badge">4 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">email</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="uq">UNIQUE</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">password_hash</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">full_name</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">is_admin</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>false</td>
+              </tr>
+              <tr>
+                <td class="col-name">is_active</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>true</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">deleted_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: email</span>
+            <span class="index-item regular">📌 IDX: (email)</span>
+            <span class="index-item regular">📌 IDX: (is_active, is_admin)</span>
+          </div>
+        </div>
+
+        <!-- user_stores -->
+        <div class="table-section">
+          <h3>🔗 user_stores <span class="tbl-badge">4 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">role</td>
+                <td class="col-type">user_role</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">deleted_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: (user_id, store_id, deleted_at)</span>
+            <span class="index-item regular">📌 IDX: (user_id)</span>
+            <span class="index-item regular">📌 IDX: (store_id)</span>
+          </div>
+        </div>
+
+        <!-- refresh_tokens -->
+        <div class="table-section">
+          <h3>🔐 refresh_tokens <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">token_hash</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="uq">UNIQUE</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">parent_token_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → refresh_tokens.id</span>
+                  <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">expires_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">revoked_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">ip</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_agent</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: token_hash</span>
+            <span class="index-item regular">📌 IDX: (user_id, revoked_at, expires_at)</span>
+            <span class="index-item regular">📌 IDX: (parent_token_id)</span>
+          </div>
+        </div>
+
+        <!-- stock_by_site -->
+        <div class="table-section">
+          <h3>📊 stock_by_site <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → variants.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">quantity</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>0</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: (variant_id, store_id)</span>
+            <span class="index-item regular">📌 IDX: (store_id)</span>
+            <span class="index-item regular">📌 IDX: (store_id, variant_id) ← nuevo</span>
+          </div>
+        </div>
+
+        <!-- stock_movements -->
+        <div class="table-section">
+          <h3>📈 stock_movements <span class="tbl-badge">2 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → variants.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">type</td>
+                <td class="col-type">stock_movement_type</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">payload</td>
+                <td class="col-type">jsonb</td>
+                <td></td>
+                <td>'{}'</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (store_id, created_at)</span>
+            <span class="index-item regular">📌 IDX: (variant_id)</span>
+          </div>
+        </div>
+
+        <!-- store_edit_permission -->
+        <div class="table-section">
+          <h3>⚙️ store_edit_permission <span class="tbl-badge">1 índice</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="pk">PK</span> <span class="fk">FK → stores.id</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">is_enabled</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>false</td>
+              </tr>
+              <tr>
+                <td class="col-name">toggled_by_user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → users.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">toggled_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: store_id</span>
+          </div>
+        </div>
+
+        <!-- sales -->
+        <div class="table-section">
+          <h3>💵 sales <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">recorded_by_user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">payment_method</td>
+                <td class="col-type">payment_method</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">total_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (store_id, created_at)</span>
+            <span class="index-item regular">📌 IDX: (created_at) ← nuevo</span>
+          </div>
+        </div>
+
+        <!-- sale_items -->
+        <div class="table-section">
+          <h3>🧾 sale_items <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">sale_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → sales.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → variants.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">quantity</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">price_at_sale_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">total_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">subtotal_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (sale_id)</span>
+            <span class="index-item regular">📌 IDX: (variant_id)</span>
+          </div>
+        </div>
+
+        <!-- idempotency_keys -->
+        <div class="table-section">
+          <h3>🔁 idempotency_keys <span class="tbl-badge">2 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">key</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">sale_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → sales.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: (store_id, key)</span>
+            <span class="index-item regular">📌 IDX: (created_at)</span>
+          </div>
+        </div>
+
+        <!-- deliveries -->
+        <div class="table-section">
+          <h3>🚚 deliveries <span class="tbl-badge">5 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">number</td>
+                <td class="col-type">int</td>
+                <td class="col-constraint"><span class="uq">UNIQUE</span> autoincrement</td>
+                <td>auto</td>
+              </tr>
+              <tr>
+                <td class="col-name">kind</td>
+                <td class="col-type">delivery_kind</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">title</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">status</td>
+                <td class="col-type">delivery_status</td>
+                <td></td>
+                <td>received</td>
+              </tr>
+              <tr>
+                <td class="col-name">from_store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → stores.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">to_store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_by_user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">sent_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">received_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">received_by_user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → users.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">note</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+              <tr>
+                <td class="col-name">updated_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: number</span>
+            <span class="index-item regular">📌 IDX: (status, to_store_id)</span>
+            <span class="index-item regular">📌 IDX: (to_store_id, created_at)</span>
+            <span class="index-item regular">📌 IDX: (from_store_id, created_at)</span>
+          </div>
+        </div>
+
+        <!-- delivery_items -->
+        <div class="table-section">
+          <h3>📦 delivery_items <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">delivery_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → deliveries.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → variants.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">quantity</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">received_quantity</td>
+                <td class="col-type">int</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (delivery_id)</span>
+            <span class="index-item regular">📌 IDX: (variant_id)</span>
+          </div>
+        </div>
+
+        <!-- delivery_item_adjustments -->
+        <div class="table-section">
+          <h3>📝 delivery_item_adjustments <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">delivery_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → deliveries.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">delivery_item_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → delivery_items.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">expected_qty</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">actual_qty</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">reason</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">adjusted_by_user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">adjusted_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (delivery_id)</span>
+            <span class="index-item regular">📌 IDX: (adjusted_by_user_id, adjusted_at)</span>
+          </div>
+        </div>
+
+        <!-- delivery_edit_requests -->
+        <div class="table-section">
+          <h3>✏️ delivery_edit_requests <span class="tbl-badge">4 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">delivery_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → deliveries.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">requester_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">reason</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">status</td>
+                <td class="col-type">delivery_edit_request_status</td>
+                <td></td>
+                <td>pending</td>
+              </tr>
+              <tr>
+                <td class="col-name">reviewed_by</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → users.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">reviewed_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">rejection_reason</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (delivery_id, status)</span>
+            <span class="index-item regular">📌 IDX: (requester_id, created_at)</span>
+            <span class="index-item regular">📌 IDX: (status, created_at)</span>
+          </div>
+        </div>
+
+        <!-- return_requests -->
+        <div class="table-section">
+          <h3>🔄 return_requests <span class="tbl-badge">5 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">requester_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → users.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">status</td>
+                <td class="col-type">return_request_status</td>
+                <td></td>
+                <td>pending</td>
+              </tr>
+              <tr>
+                <td class="col-name">returned_variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → variants.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">returned_quantity</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>1</td>
+              </tr>
+              <tr>
+                <td class="col-name">sale_date</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">exchange_variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → variants.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">reason</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">reviewed_by</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → users.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">reviewed_at</td>
+                <td class="col-type">timestamptz</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">rejection_reason</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">applied_return_movement_id</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">applied_sale_movement_id</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">original_sale_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → sales.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">original_sale_item_id</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">original_closure_date</td>
+                <td class="col-type">date</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">original_payment_method</td>
+                <td class="col-type">payment_method</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">original_subtotal_cents</td>
+                <td class="col-type">int</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">new_payment_method</td>
+                <td class="col-type">payment_method</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">new_subtotal_cents</td>
+                <td class="col-type">int</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (store_id, status)</span>
+            <span class="index-item regular">📌 IDX: (requester_id, created_at)</span>
+            <span class="index-item regular">📌 IDX: (status, created_at)</span>
+            <span class="index-item regular">📌 IDX: (original_sale_id)</span>
+          </div>
+        </div>
+
+        <!-- daily_reports -->
+        <div class="table-section">
+          <h3>📅 daily_reports <span class="tbl-badge">1 índice</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">date</td>
+                <td class="col-type">date</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">total_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">qr_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">card_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">cash_cents</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">item_count</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">transactions_count</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">closed_by_user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → users.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">closed_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">auto_closed</td>
+                <td class="col-type">boolean</td>
+                <td></td>
+                <td>false</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: (store_id, date)</span>
+          </div>
+        </div>
+
+        <!-- daily_report_attendance -->
+        <div class="table-section">
+          <h3>👥 daily_report_attendance <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">daily_report_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → daily_reports.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">full_name</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint">
+                  <span class="fk">FK → users.id</span> <span class="nullable">nullable</span>
+                </td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (daily_report_id)</span>
+            <span class="index-item regular">📌 IDX: (user_id)</span>
+          </div>
+        </div>
+
+        <!-- inventory_snapshots -->
+        <div class="table-section">
+          <h3>📸 inventory_snapshots <span class="tbl-badge">3 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → stores.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">variant_id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="fk">FK → variants.id</span></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">quantity</td>
+                <td class="col-type">int</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">captured_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">created_at</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item unique">🔑 UK: (store_id, variant_id, captured_at)</span>
+            <span class="index-item regular">📌 IDX: (store_id, captured_at DESC)</span>
+            <span class="index-item regular">📌 IDX: (captured_at)</span>
+          </div>
+        </div>
+
+        <!-- audit_logs -->
+        <div class="table-section">
+          <h3>📋 audit_logs <span class="tbl-badge">4 índices</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Columna</th>
+                <th>Tipo</th>
+                <th>Constraints</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">id</td>
+                <td class="col-type">text</td>
+                <td class="col-constraint"><span class="pk">PK</span></td>
+                <td>cuid()</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_id</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">action</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">entity</td>
+                <td class="col-type">text</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">entity_id</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">payload</td>
+                <td class="col-type">jsonb</td>
+                <td></td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">ip</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">user_agent</td>
+                <td class="col-type">text</td>
+                <td class="nullable">nullable</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">timestamp</td>
+                <td class="col-type">timestamptz</td>
+                <td></td>
+                <td>now()</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="index-list">
+            <span class="index-item unique">🔑 PK: id</span>
+            <span class="index-item regular">📌 IDX: (user_id, timestamp)</span>
+            <span class="index-item regular">📌 IDX: (entity, entity_id)</span>
+            <span class="index-item regular">📌 IDX: (action, timestamp)</span>
+            <span class="index-item regular">📌 GIN: payload (jsonb_path_ops)</span>
+          </div>
+        </div>
+
+        <!-- ENUMS section -->
+        <div class="table-section">
+          <h3>🏷️ Enums <span class="tbl-badge">8 enums</span></h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Enum</th>
+                <th>Valores</th>
+                <th>Tabla física</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="col-name">user_role</td>
+                <td class="col-type">encargada, vendedora</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">store_kind</td>
+                <td class="col-type">warehouse, branch</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">variant_size</td>
+                <td class="col-type">s, m, l, xl, xxl, 28, 30, 32, 34, standard</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">stock_movement_type</td>
+                <td class="col-type">
+                  adjusted, edit_permission_toggled, delivery_in, delivery_out,
+                  delivery_received_adjusted, sale_out, sale_return
+                </td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">delivery_kind</td>
+                <td class="col-type">reception, distribution</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">delivery_status</td>
+                <td class="col-type">draft, sent, received, partial</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">payment_method</td>
+                <td class="col-type">cash, card, qr</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="col-name">return_request_status</td>
+                <td class="col-type">pending, approved, rejected</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      Surmoda Inventory · 18 tablas + 8 enums · PostgreSQL · <span id="gen-time2"></span>
+    </footer>
+
+    <script>
+      document.getElementById('gen-time2').textContent = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        er: { useMaxWidth: true },
+        flowchart: { useMaxWidth: true, htmlLabels: true },
+      });
+
+      function switchPanel(name) {
+        document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+        document.getElementById('panel-' + name).classList.add('active');
+        document.querySelectorAll('nav.tabs button').forEach((b) => b.classList.remove('active'));
+        event.target.classList.add('active');
+      }
+    </script>
+  </body>
+</html>

@@ -9,12 +9,8 @@ import { httpClient } from '@/shared/services/httpClient';
 import { enqueueSale } from '@/shared/services/offlineQueue';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
-import type { BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
-
-// Lazy-loaded — the barcode-detector WASM polyfill is ~200KB+.
-const BarcodeScanner = lazy(() =>
-  import('@/shared/components/BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })),
-);
+import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
+import { generateUUID } from '@/shared/utils/uuid';
 
 interface CashierModalProps {
   storeId: string;
@@ -111,10 +107,10 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                   ...i,
                   quantity: newQty,
                   // When user manually edited the discount, scale it proportionally to
-          // the new quantity so we don't accidentally charge half the intended amount.
-          subtotalCents: wasUntouched
-            ? row.priceCents * newQty
-            : Math.round((existing.subtotalCents / existing.quantity) * newQty),
+                  // the new quantity so we don't accidentally charge half the intended amount.
+                  subtotalCents: wasUntouched
+                    ? row.priceCents * newQty
+                    : Math.round((existing.subtotalCents / existing.quantity) * newQty),
                 }
               : i,
           );
@@ -187,7 +183,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     // The same key is reused if the request gets queued and replayed by
     // useOfflineSaleSync — the BE returns the originally-cached sale on
     // the eventual successful drain.
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = generateUUID();
     const payload = {
       idempotencyKey,
       items: toSend.map((i) => ({

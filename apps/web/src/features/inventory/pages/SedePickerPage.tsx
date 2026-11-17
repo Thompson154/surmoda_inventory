@@ -50,15 +50,20 @@ export function SedePickerPage() {
 
   return (
     <AppShell>
-      <div className="min-h-full bg-gradient-to-br from-brand-primary-soft via-surface-base to-surface-raised">
-        <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 text-text-primary">
-          <header className="flex flex-col gap-1">
-            <h1 className="text-xl font-semibold animate-fade-in">Elegí una sede</h1>
-            <p
-              className="text-sm text-text-muted animate-slide-up"
-              style={{ animationDelay: '80ms' }}
-            >
-              Tocá la sucursal o el almacén con el que vas a operar.
+      <div className="relative min-h-[calc(100dvh-57px)] bg-surface-base overflow-hidden">
+        {/* Subtle decorative ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[250px] bg-brand-primary/10 blur-[120px] pointer-events-none rounded-full" />
+
+        <main className="relative mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 text-text-primary">
+          <header className="flex flex-col gap-1.5 pt-2">
+            <span className="text-xs font-semibold tracking-wider uppercase text-brand-primary">
+              Sistema de Gestión
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight animate-fade-in">
+              Elegí una sede
+            </h1>
+            <p className="text-sm text-text-muted animate-slide-up">
+              Seleccioná la sucursal o el almacén con el que vas a operar hoy.
             </p>
           </header>
 
@@ -73,32 +78,39 @@ export function SedePickerPage() {
               </CardContent>
             </Card>
           ) : (
-            <ul className="flex flex-col gap-6">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {items.map((s, idx) => {
-                const Icon = s.kind === 'warehouse' ? Warehouse : StoreIcon;
+                const isWarehouse = s.kind === 'warehouse';
+                const Icon = isWarehouse ? Warehouse : StoreIcon;
                 return (
                   <li
                     key={s.id}
                     className="animate-slide-up"
-                    style={{ animationDelay: `${idx * 60}ms` }}
+                    style={{ animationDelay: `${idx * 40}ms` }}
                   >
-                    <Link to={landingPathFor(role, s.id)} className="block">
-                      <Card className="hover:bg-surface-sunken transition-colors duration-150 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-brand-primary focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">
-                        <CardContent className="flex items-center gap-3 py-4">
-                          <div className="h-10 w-10 rounded-full bg-surface-sunken flex items-center justify-center shrink-0">
-                            <Icon className="h-5 w-5 text-text-muted" />
+                    <Link to={landingPathFor(role, s.id)} className="block group">
+                      <Card className="p-4 border-surface-border/80 bg-surface-raised/70 backdrop-blur-xs hover:border-brand-primary/60 hover:shadow-md transition-all duration-200 active:scale-[0.98]">
+                        <div className="flex items-center gap-3.5">
+                          <div className="h-11 w-11 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center shrink-0 group-hover:bg-brand-primary group-hover:text-white transition-all duration-200">
+                            <Icon className="h-5 w-5 text-brand-primary group-hover:text-white transition-colors" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-text-primary truncate">
-                              {s.name}
-                            </p>
-                            <p className="text-xs text-text-muted mt-0.5 font-mono">{s.code}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-text-primary truncate">
+                                {s.name}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-surface-sunken text-text-muted font-tabular">
+                                {s.code}
+                              </span>
+                              <Badge variant={isWarehouse ? 'info' : 'default'}>
+                                {isWarehouse ? 'Almacén' : 'Sucursal'}
+                              </Badge>
+                            </div>
                           </div>
-                          <Badge variant={s.kind === 'warehouse' ? 'info' : 'default'}>
-                            {s.kind === 'warehouse' ? 'Almacén' : 'Sucursal'}
-                          </Badge>
-                          <ChevronRight className="h-5 w-5 text-text-subtle shrink-0" />
-                        </CardContent>
+                          <ChevronRight className="h-5 w-5 text-text-subtle group-hover:text-brand-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                        </div>
                       </Card>
                     </Link>
                   </li>

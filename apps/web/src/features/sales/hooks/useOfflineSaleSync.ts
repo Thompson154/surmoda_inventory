@@ -26,9 +26,11 @@ async function drainOne(entry: OfflineSaleEntry): Promise<'success' | 'transient
     await httpClient.post<SaleWithItems>(`/stores/${entry.storeId}/sales`, entry.body);
     return 'success';
   } catch (err) {
-    // 4xx (validation, FORBIDDEN, etc.) won't change on retry → drop.
-    // 5xx + network errors are transient → keep + bump attempts.
+    // 401 (token expired), 403 (forbidden/re-auth needed), 429 (rate-limited)
+    // are transient states — keep the sale in queue until the cashier is re-authenticated.
+    // Real client validation errors (400, 422) drop.
     const e = err as { status?: number };
+    if (e.status === 401 || e.status === 403 || e.status === 429) return 'transient';
     if (e.status && e.status >= 400 && e.status < 500) return 'permanent';
     return 'transient';
   }

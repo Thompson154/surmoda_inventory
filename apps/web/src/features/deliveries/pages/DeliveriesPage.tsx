@@ -225,27 +225,31 @@ export function DeliveriesPage() {
         )}
 
         {list.data && list.data.items.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {list.data.items.map((d) => {
+          <ul className="flex flex-col gap-2.5">
+            {list.data.items.map((d, idx) => {
               const palette = STATUS_PALETTE[d.status];
               return (
-                <li key={d.id}>
+                <li
+                  key={d.id}
+                  className="animate-slide-up"
+                  style={{ animationDelay: `${Math.min(idx * 30, 200)}ms` }}
+                >
                   <button
                     type="button"
                     onClick={() => setOpenDeliveryId(d.id)}
-                    className="w-full flex items-center gap-3 rounded-lg border border-surface-border bg-surface-raised px-3 py-3 hover:bg-surface-sunken transition-colors text-left"
+                    className="group w-full flex items-center gap-3.5 rounded-2xl border border-surface-border/80 bg-surface-raised/90 backdrop-blur-sm px-4 py-3.5 shadow-2xs hover:shadow-md hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-200 text-left"
                   >
-                    <div className="h-11 w-11 shrink-0 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center">
+                    <div className="h-11 w-11 shrink-0 rounded-xl bg-violet-100 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 flex items-center justify-center border border-surface-border/50 group-hover:scale-105 transition-transform">
                       <Truck className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-text-muted font-mono">
+                      <p className="text-xs text-text-muted font-mono font-tabular">
                         {shortDate(d.createdAt)} · {formatNumber(d.number)}
                       </p>
-                      <p className="text-sm font-semibold text-text-primary truncate">
+                      <p className="text-sm font-semibold text-text-primary truncate mt-0.5">
                         {d.title ?? 'Entrega sin título'}
                       </p>
-                      <p className="text-xs text-text-muted truncate">
+                      <p className="text-xs text-text-muted truncate mt-0.5">
                         {d.fromStoreName ?? 'Almacén'} · {d.totalUnits}{' '}
                         {d.totalUnits === 1 ? 'prenda' : 'prendas'}
                       </p>
@@ -255,7 +259,7 @@ export function DeliveriesPage() {
                     >
                       {STATUS_LABEL[d.status]}
                     </span>
-                    <ChevronRight className="h-4 w-4 text-text-subtle shrink-0" />
+                    <ChevronRight className="h-4 w-4 text-text-subtle group-hover:text-text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </button>
                 </li>
               );
@@ -284,21 +288,19 @@ export function DeliveriesPage() {
         )}
       </main>
 
-      {/* FAB Nueva entrega — círculo "+" en la esquina inferior derecha.
-          Mismo patrón que la Scanner FAB de SalesRegisterPage (bottom: 80px,
-          right: 16px) para que el ojo del usuario aprenda UNA sola posición
-          de acción primaria a través de toda la app. Visible solo a
-          admin/encargada. La acción "Transferir" pasó al header como icon
-          secundario para no competir con esta primaria. */}
+      {/* FAB Nueva entrega */}
       {canCreate && (
-        <button
-          type="button"
-          onClick={() => setNewOpen(true)}
-          className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl active:scale-95 transition flex items-center justify-center"
-          aria-label="Nueva entrega"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
+        <div className="fixed bottom-20 right-4 z-30 group">
+          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 via-brand-primary to-violet-600 opacity-40 blur-md group-hover:opacity-75 transition-opacity" />
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            className="relative h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 via-brand-primary to-violet-600 text-white shadow-xl active:scale-95 transition-all flex items-center justify-center hover:scale-105"
+            aria-label="Nueva entrega"
+          >
+            <Plus className="h-6 w-6" />
+          </button>
+        </div>
       )}
     </AppShell>
   );

@@ -1,6 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { Role } from '@prisma/client';
-import { ForbiddenRoleError, ForbiddenStoreError, TokenInvalidError } from '../shared/errors/authErrors';
+import {
+  ForbiddenRoleError,
+  ForbiddenStoreError,
+  TokenInvalidError,
+} from '../shared/errors/authErrors';
 import { getPrisma } from '../infrastructure/database';
 import { ADMIN_FLAG } from '../shared/constants/roles';
 
@@ -49,7 +53,7 @@ export function roleGuard(allowed: AllowedRole[], options: RoleGuardOptions = {}
     try {
       const prisma = getPrisma();
       const assignment = await prisma.userStore.findFirst({
-        where: { userId: req.auth.userId, storeId },
+        where: { userId: req.auth.userId, storeId, deletedAt: null },
         select: { role: true },
       });
       if (!assignment) {
@@ -68,7 +72,8 @@ export function roleGuard(allowed: AllowedRole[], options: RoleGuardOptions = {}
 }
 
 function readStoreId(req: Request, opts: Required<RoleGuardOptions>): string | null {
-  const source = opts.resolveStoreFrom === 'params' ? req.params : (req.body as Record<string, unknown>);
+  const source =
+    opts.resolveStoreFrom === 'params' ? req.params : (req.body as Record<string, unknown>);
   const value = (source ?? {})[opts.storeKey];
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
