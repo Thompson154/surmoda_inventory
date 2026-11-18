@@ -168,7 +168,8 @@ const INCLUDE_FULL = {
       barcode: true,
       size: true,
       color: true,
-      product: { select: { name: true, imagePath: true } },
+      imagePath: true,
+      product: { select: { name: true } },
     },
   },
   exchangeVariant: {
@@ -177,7 +178,8 @@ const INCLUDE_FULL = {
       barcode: true,
       size: true,
       color: true,
-      product: { select: { name: true, imagePath: true } },
+      imagePath: true,
+      product: { select: { name: true } },
     },
   },
 } as const;
@@ -218,14 +220,16 @@ function toRow(r: {
     barcode: string;
     size: string;
     color: string;
-    product?: { name: string; imagePath?: string | null } | null;
+    imagePath?: string | null;
+    product?: { name: string } | null;
   } | null;
   exchangeVariant?: {
     id: string;
     barcode: string;
     size: string;
     color: string;
-    product?: { name: string; imagePath?: string | null } | null;
+    imagePath?: string | null;
+    product?: { name: string } | null;
   } | null;
   requestedByFullName?: string;
   storeName?: string;
@@ -275,8 +279,7 @@ function toRow(r: {
     storeName: r.store?.name ?? r.storeName ?? '',
     returnedVariantBarcode: r.returnedVariant?.barcode ?? r.returnedVariantBarcode ?? '',
     returnedVariantDescription: returnedDesc ?? r.returnedVariantDescription,
-    returnedVariantImagePath:
-      r.returnedVariant?.product?.imagePath ?? r.returnedVariantImagePath ?? null,
+    returnedVariantImagePath: r.returnedVariant?.imagePath ?? r.returnedVariantImagePath ?? null,
     exchangeVariantBarcode: r.exchangeVariant?.barcode ?? r.exchangeVariantBarcode ?? null,
     exchangeVariantDescription: exchangeDesc ?? r.exchangeVariantDescription,
     reviewedById: r.reviewer?.id ?? r.reviewedBy ?? null,
