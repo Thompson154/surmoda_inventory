@@ -6,11 +6,10 @@
  *  - Admin/encargada can access the page
  *  - "Edición por vendedoras" toggle card is NOT rendered for any role (removed in Wave 5)
  */
-import { screen } from '@testing-library/react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { Routes, Route } from 'react-router-dom';
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { AuthUser } from '@surmoda/contracts';
@@ -134,5 +133,87 @@ describe('SedeInventoryPage — Wave 5 RBAC', () => {
   it('does NOT render "Edición por vendedoras" toggle card for encargada (removed in Wave 5)', () => {
     renderInventoryRoute(encargadaUser);
     expect(screen.queryByText('Edición por vendedoras')).not.toBeInTheDocument();
+  });
+
+  it('shows exact variant for hashed barcode and product with variants for product code search', async () => {
+    renderInventoryRoute(adminUser);
+    server.use(
+      http.get(`${BASE}/stores/:storeId/inventory`, ({ request }) => {
+        const url = new URL(request.url);
+        const q = (url.searchParams.get('q') ?? '').toUpperCase();
+        if (q === 'AABBCCDDEEFF') {
+          return HttpResponse.json({
+            items: [
+              {
+                variantId: 'v-1',
+                productId: 'p-1',
+                productCode: 'BLUSA-SEDA',
+                productName: 'Blusa Seda',
+                size: 's',
+                color: 'blanco',
+                barcode: 'AABBCCDDEEFF',
+                priceCents: 15000,
+                imagePath: null,
+                quantity: 4,
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+          });
+        }
+        return HttpResponse.json({
+          items: [
+            {
+              variantId: 'v-1',
+              productId: 'p-1',
+              productCode: 'BLUSA-SEDA',
+              productName: 'Blusa Seda',
+              size: 's',
+              color: 'blanco',
+              barcode: 'AABBCCDDEEFF',
+              priceCents: 15000,
+              imagePath: null,
+              quantity: 4,
+            },
+            {
+              variantId: 'v-2',
+              productId: 'p-1',
+              productCode: 'BLUSA-SEDA',
+              productName: 'Blusa Seda',
+              size: 'm',
+              color: 'negro',
+              barcode: '112233445566',
+              priceCents: 15000,
+              imagePath: null,
+              quantity: 2,
+            },
+          ],
+          total: 2,
+          page: 1,
+          pageSize: 50,
+        });
+      }),
+    );
+
+    const searchInput = await screen.findByLabelText(/buscar inventario/i);
+    fireEvent.change(searchInput, { target: { value: 'AABBCCDDEEFF' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Coincidencia por código de barras/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Blusa Seda/i)).toBeInTheDocument();
+    expect(screen.getByText(/BLUSA-SEDA/i)).toBeInTheDocument();
+    expect(screen.queryByText(/AABBCCDDEEFF/i)).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'BLUSA-SEDA' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/2 variantes/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/blanco/i)).toBeInTheDocument();
+    expect(screen.getByText(/negro/i)).toBeInTheDocument();
+    expect(screen.queryByText(/AABBCCDDEEFF/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/112233445566/i)).not.toBeInTheDocument();
   });
 });

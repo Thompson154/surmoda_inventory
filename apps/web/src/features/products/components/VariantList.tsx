@@ -52,7 +52,6 @@ function VariantRow({ variant }: { variant: Variant }) {
               <span className="text-sm text-text-secondary capitalize">{variant.color}</span>
               {!variant.isActive && <Badge variant="default">Inactiva</Badge>}
             </div>
-            <p className="text-xs text-text-muted mt-0.5 font-mono">{variant.barcode}</p>
             <p className="text-sm text-text-secondary mt-1">{formatPrice(variant.priceCents)}</p>
           </div>
           <div className="shrink-0">

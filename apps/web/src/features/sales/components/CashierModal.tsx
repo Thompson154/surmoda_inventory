@@ -1,16 +1,17 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Banknote, CreditCard, QrCode, Trash2, X } from 'lucide-react';
+import { Banknote, CreditCard, Image as ImageIcon, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
 import { useCreateSale } from '../hooks/useSales';
 import { Alert, Button, IconButton, Input, Modal, Skeleton, useToast } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import { httpClient } from '@/shared/services/httpClient';
 import { enqueueSale } from '@/shared/services/offlineQueue';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
 import { generateUUID } from '@/shared/utils/uuid';
+import { inventoryService } from '@/features/inventory/services/inventoryService';
+import { getImageUrl } from '@/features/products/services/productsService';
 
 interface CashierModalProps {
   storeId: string;
@@ -41,6 +42,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   const [code, setCode] = useState('');
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupPending, setLookupPending] = useState(false);
+  const [variantCandidates, setVariantCandidates] = useState<InventoryRow[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +56,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
       setCode('');
       setLookupError(null);
       setLookupPending(false);
+      setVariantCandidates([]);
       setCart([]);
       setPaymentMethod('cash');
       create.reset();
@@ -81,67 +84,75 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
 
   const hasInvalidSubtotal = useMemo(() => cart.some((i) => !isSubtotalValid(i)), [cart]);
 
+  const addRowToCart = (row: InventoryRow) => {
+    if (row.quantity <= 0) {
+      setLookupError('Sin stock disponible para este código.');
+      return;
+    }
+    setCart((prev) => {
+      const existing = prev.find((i) => i.variantId === row.variantId);
+      if (existing) {
+        const newQty = Math.min(row.quantity, existing.quantity + 1);
+        // Re-scale subtotal by the new quantity unless the user has manually edited it.
+        const wasUntouched = existing.subtotalCents === existing.unitPriceCents * existing.quantity;
+        return prev.map((i) =>
+          i.variantId === row.variantId
+            ? {
+                ...i,
+                quantity: newQty,
+                // When user manually edited the discount, scale it proportionally to
+                // the new quantity so we don't accidentally charge half the intended amount.
+                subtotalCents: wasUntouched
+                  ? row.priceCents * newQty
+                  : Math.round((existing.subtotalCents / existing.quantity) * newQty),
+              }
+            : i,
+        );
+      }
+      return [
+        ...prev,
+        {
+          variantId: row.variantId,
+          productCode: row.productCode,
+          size: row.size,
+          color: row.color,
+          unitPriceCents: row.priceCents,
+          quantity: 1,
+          subtotalCents: row.priceCents,
+          available: row.quantity,
+        },
+      ];
+    });
+    setCode('');
+    setVariantCandidates([]);
+    setLookupError(null);
+    inputRef.current?.focus();
+  };
+
   const addByBarcode = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
     setLookupPending(true);
     setLookupError(null);
+    setVariantCandidates([]);
     try {
-      const row = await httpClient.get<InventoryRow>(
-        `/stores/${storeId}/inventory/by-barcode/${encodeURIComponent(trimmed)}`,
-      );
-      if (row.quantity <= 0) {
-        setLookupError('Sin stock disponible para este código.');
+      const result = await inventoryService.resolveCodeOrSearch(storeId, trimmed);
+      if (result.kind === 'exact_barcode') {
+        addRowToCart(result.row);
         return;
       }
-      setCart((prev) => {
-        const existing = prev.find((i) => i.variantId === row.variantId);
-        if (existing) {
-          const newQty = Math.min(row.quantity, existing.quantity + 1);
-          // Re-scale subtotal by the new quantity unless the user has manually edited it.
-          const wasUntouched =
-            existing.subtotalCents === existing.unitPriceCents * existing.quantity;
-          return prev.map((i) =>
-            i.variantId === row.variantId
-              ? {
-                  ...i,
-                  quantity: newQty,
-                  // When user manually edited the discount, scale it proportionally to
-                  // the new quantity so we don't accidentally charge half the intended amount.
-                  subtotalCents: wasUntouched
-                    ? row.priceCents * newQty
-                    : Math.round((existing.subtotalCents / existing.quantity) * newQty),
-                }
-              : i,
-          );
-        }
-        return [
-          ...prev,
-          {
-            variantId: row.variantId,
-            productCode: row.productCode,
-            size: row.size,
-            color: row.color,
-            unitPriceCents: row.priceCents,
-            quantity: 1,
-            subtotalCents: row.priceCents,
-            available: row.quantity,
-          },
-        ];
-      });
-      setCode('');
-      inputRef.current?.focus();
-    } catch (err) {
-      const e = err as { code?: string; message?: string };
-      const isNotFound = e.code === 'STOCK_BARCODE_NOT_FOUND';
-      setLookupError(
-        isNotFound
-          ? 'Código no encontrado en esta sede.'
-          : (e.message ?? 'No pudimos verificar el código.'),
-      );
+      if (result.kind === 'variants') {
+        setVariantCandidates(result.rows);
+        return;
+      }
+      setLookupError('Código no encontrado en esta sede.');
       // Block the scanner from re-firing the same not-found code on every poll
       // (~120ms) — gives the cashier time to react and move the camera away.
-      scannerRef.current?.markHandled(trimmed, isNotFound ? 10_000 : 5_000);
+      scannerRef.current?.markHandled(trimmed, 10_000);
+    } catch (err) {
+      const e = err as { code?: string; message?: string };
+      setLookupError(e.message ?? 'No pudimos verificar el código.');
+      scannerRef.current?.markHandled(trimmed, 5_000);
     } finally {
       setLookupPending(false);
     }
@@ -241,7 +252,10 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
 
         <div>
           <label htmlFor="cashier-code" className="text-sm font-medium text-text-secondary">
-            Agregá el código de barra
+            Código de barras o producto
+            <span aria-hidden="true" className="text-status-danger ml-0.5">
+              *
+            </span>
           </label>
           <div className="mt-1 flex gap-2">
             <Input
@@ -249,11 +263,15 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
               ref={inputRef}
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setCode(e.target.value.toUpperCase());
+                if (variantCandidates.length > 0) setVariantCandidates([]);
+                if (lookupError) setLookupError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void addByBarcode(code);
               }}
-              placeholder="Pegá o escribí el código..."
+              placeholder="Pegá o escribí el código de barras o prenda..."
               className="font-mono uppercase"
               autoComplete="off"
               autoCapitalize="characters"
@@ -271,6 +289,68 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
             </Button>
           </div>
         </div>
+
+        {variantCandidates.length > 0 && (
+          <div className="rounded-lg border border-surface-border bg-surface-sunken/70 p-2.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-text-primary">
+                Elegí la prenda a vender ({variantCandidates.length})
+              </p>
+              <button
+                type="button"
+                onClick={() => setVariantCandidates([])}
+                className="text-xs text-text-muted hover:text-text-primary"
+              >
+                Cerrar
+              </button>
+            </div>
+            <ul className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+              {variantCandidates.map((v) => {
+                const img = getImageUrl(v.imagePath);
+                const outOfStock = v.quantity <= 0;
+                return (
+                  <li
+                    key={v.variantId}
+                    className="flex items-center gap-2.5 rounded-md border border-surface-border bg-surface-raised px-2.5 py-2"
+                  >
+                    <div className="h-9 w-9 shrink-0 rounded bg-surface-sunken border border-surface-border flex items-center justify-center overflow-hidden">
+                      {img ? (
+                        <img src={img} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-text-subtle" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-text-primary truncate">
+                        <span className="font-mono">{v.productCode}</span> · {v.productName}
+                      </p>
+                      <p className="text-[11px] text-text-muted truncate">
+                        {sizeLabel(v.size)} · <span className="capitalize">{v.color}</span> ·{' '}
+                        {formatBs(v.priceCents)}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[11px] font-mono shrink-0 ${
+                        outOfStock ? 'text-status-danger' : 'text-text-muted'
+                      }`}
+                    >
+                      Stock: {v.quantity}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="primary"
+                      disabled={outOfStock}
+                      onClick={() => addRowToCart(v)}
+                    >
+                      {outOfStock ? 'Sin stock' : 'Elegir'}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {lookupError && <Alert variant="error">{lookupError}</Alert>}
 

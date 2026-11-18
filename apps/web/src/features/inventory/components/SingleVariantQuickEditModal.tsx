@@ -4,7 +4,16 @@ import { Camera, Image as ImageIcon, Minus, Plus, Save } from 'lucide-react';
 import { SIZE_VALUES, type InventoryRow, type Size } from '@surmoda/contracts';
 import { useAdjustQuantity } from '../hooks/useInventory';
 import { inventoryQueryKeys } from '../services/inventoryService';
-import { Alert, Badge, Button, ConfirmDialog, IconButton, Input, Modal } from '@/shared/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  ConfirmDialog,
+  IconButton,
+  Input,
+  Modal,
+  RequiredNote,
+} from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import {
@@ -201,7 +210,7 @@ export function SingleVariantQuickEditModal({
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={`${row.productCode} · ${row.barcode}`}>
+    <Modal isOpen onClose={onClose} title={`${row.productCode} · ${row.productName}`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 rounded-lg border border-surface-border p-3">
           <button
@@ -234,7 +243,7 @@ export function SingleVariantQuickEditModal({
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{row.productName}</p>
-            <p className="text-xs font-mono text-text-subtle mt-0.5">{row.barcode}</p>
+            <p className="text-xs font-mono text-text-muted mt-0.5">{row.productCode}</p>
             <p className="text-xs text-text-secondary mt-1">{formatPrice(row.priceCents)}</p>
           </div>
           {!canEdit && <Badge variant="default">Solo lectura</Badge>}
@@ -276,6 +285,7 @@ export function SingleVariantQuickEditModal({
         {imageError && <Alert variant="error">{imageError}</Alert>}
 
         {/* Editable details (código / talla / color / precio) */}
+        {canEdit && <RequiredNote />}
         <div className="grid grid-cols-2 gap-2">
           <div className="col-span-2">
             <label
@@ -283,6 +293,11 @@ export function SingleVariantQuickEditModal({
               className="block text-xs font-medium text-text-secondary mb-1"
             >
               Código
+              {canEdit && (
+                <span aria-hidden="true" className="text-status-danger ml-0.5">
+                  *
+                </span>
+              )}
             </label>
             <Input
               id="svqe-code"
@@ -312,6 +327,11 @@ export function SingleVariantQuickEditModal({
               className="block text-xs font-medium text-text-secondary mb-1"
             >
               Talla
+              {canEdit && (
+                <span aria-hidden="true" className="text-status-danger ml-0.5">
+                  *
+                </span>
+              )}
             </label>
             <select
               id="svqe-size"
@@ -334,6 +354,11 @@ export function SingleVariantQuickEditModal({
               className="block text-xs font-medium text-text-secondary mb-1"
             >
               Color
+              {canEdit && (
+                <span aria-hidden="true" className="text-status-danger ml-0.5">
+                  *
+                </span>
+              )}
             </label>
             <Input
               id="svqe-color"
@@ -353,6 +378,11 @@ export function SingleVariantQuickEditModal({
               className="block text-xs font-medium text-text-secondary mb-1"
             >
               Precio (Bs)
+              {canEdit && (
+                <span aria-hidden="true" className="text-status-danger ml-0.5">
+                  *
+                </span>
+              )}
             </label>
             <Input
               id="svqe-price"
@@ -415,6 +445,12 @@ export function SingleVariantQuickEditModal({
 
         {(submitError || adjustError) && (
           <Alert variant="error">{submitError ?? adjustError}</Alert>
+        )}
+
+        {canEdit && !allValid && (
+          <p className="text-xs text-text-muted text-right" role="status">
+            Completa código, color y un precio mayor a 0 Bs para guardar.
+          </p>
         )}
 
         {canEdit && (

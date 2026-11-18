@@ -129,4 +129,72 @@ describe('CashierModal subtotal validation', () => {
     const chargeBtn = screen.getByRole('button', { name: /cobrar/i });
     expect(chargeBtn).not.toBeDisabled();
   });
+
+  it('lists matching variants when searching by product code instead of hashed barcode', async () => {
+    server.use(
+      http.get(`${BASE}/stores/store-prado-seed/inventory/by-barcode/BLUSA-SEDA`, () =>
+        HttpResponse.json(
+          { code: 'STOCK_BARCODE_NOT_FOUND', message: 'No encontrado' },
+          { status: 404 },
+        ),
+      ),
+      http.get(`${BASE}/stores/store-prado-seed/inventory`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              variantId: 'v-s-blanco',
+              productId: 'p-1',
+              productCode: 'BLUSA-SEDA',
+              productName: 'Blusa Seda',
+              size: 's',
+              color: 'blanco',
+              barcode: 'AABBCCDDEEFF',
+              priceCents: 15000,
+              imagePath: null,
+              quantity: 4,
+            },
+            {
+              variantId: 'v-m-negro',
+              productId: 'p-1',
+              productCode: 'BLUSA-SEDA',
+              productName: 'Blusa Seda',
+              size: 'm',
+              color: 'negro',
+              barcode: '112233445566',
+              priceCents: 15000,
+              imagePath: null,
+              quantity: 2,
+            },
+          ],
+          total: 2,
+          page: 1,
+          pageSize: 30,
+        }),
+      ),
+    );
+
+    render(
+      <Wrapper>
+        <CashierModal {...defaultProps} />
+      </Wrapper>,
+    );
+
+    const input = screen.getByPlaceholderText(/pegá o escribí el código/i);
+    fireEvent.change(input, { target: { value: 'BLUSA-SEDA' } });
+    fireEvent.click(screen.getByRole('button', { name: /agregar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Elegí la prenda a vender \(2\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/blanco/i)).toBeInTheDocument();
+    expect(screen.getByText(/negro/i)).toBeInTheDocument();
+
+    const pickButtons = screen.getAllByRole('button', { name: /elegir/i });
+    fireEvent.click(pickButtons[1]!);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/subtotal/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/negro/i)).toBeInTheDocument();
+  });
 });

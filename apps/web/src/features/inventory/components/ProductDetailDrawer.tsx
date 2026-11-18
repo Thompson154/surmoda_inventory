@@ -142,8 +142,7 @@ function VariantEditableRow({ storeId, row, canEdit }: VariantEditableRowProps) 
             <span className="capitalize">{row.color}</span>
           </p>
           <p className="text-xs text-text-muted mt-0.5">
-            <span className="font-semibold">{row.quantity}</span> disponibles ·{' '}
-            <span className="font-mono text-[10px] text-text-subtle">{row.barcode}</span>
+            <span className="font-semibold">{row.quantity}</span> disponibles
           </p>
         </div>
         <button

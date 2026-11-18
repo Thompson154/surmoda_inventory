@@ -55,6 +55,7 @@ export function buildProductRepository(db: Database): ProductRepository {
         where.OR = [
           { code: { contains: q.toUpperCase() } },
           { name: { contains: q, mode: 'insensitive' } },
+          { variants: { some: { barcode: { contains: q.toUpperCase() }, deletedAt: null } } },
         ];
       }
       if (query.isActive !== undefined) where.isActive = query.isActive;
