@@ -197,4 +197,58 @@ describe('CashierModal subtotal validation', () => {
     });
     expect(screen.getByText(/negro/i)).toBeInTheDocument();
   });
+
+  it('auto-suggests similar product codes and variants while typing (e.g. TES -> TEST001)', async () => {
+    server.use(
+      http.get(`${BASE}/stores/store-prado-seed/inventory`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              variantId: 'v-test-s',
+              productId: 'p-test',
+              productCode: 'TEST001',
+              productName: 'Test Ropa',
+              size: 's',
+              color: 'azul',
+              barcode: 'E3D534509E2C',
+              priceCents: 12000,
+              imagePath: null,
+              quantity: 3,
+            },
+            {
+              variantId: 'v-test-m',
+              productId: 'p-test',
+              productCode: 'TEST001',
+              productName: 'Test Ropa',
+              size: 'm',
+              color: 'rojo',
+              barcode: 'E3D534509E2D',
+              priceCents: 12000,
+              imagePath: null,
+              quantity: 5,
+            },
+          ],
+          total: 2,
+          page: 1,
+          pageSize: 50,
+        }),
+      ),
+    );
+
+    render(
+      <Wrapper>
+        <CashierModal {...defaultProps} />
+      </Wrapper>,
+    );
+
+    const input = screen.getByPlaceholderText(/pegá o escribí el código/i);
+    fireEvent.change(input, { target: { value: 'TES' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Elegí la prenda a vender \(2\)/i)).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('TEST001').length).toBe(2);
+    expect(screen.getByText(/azul/i)).toBeInTheDocument();
+    expect(screen.getByText(/rojo/i)).toBeInTheDocument();
+  });
 });

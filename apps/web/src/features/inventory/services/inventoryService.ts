@@ -31,6 +31,19 @@ export type InventorySearchResolution =
   | { kind: 'variants'; rows: InventoryRow[] }
   | { kind: 'not_found' };
 
+function rankSearchMatches(items: InventoryRow[], rawQuery: string): InventoryRow[] {
+  const upper = rawQuery.trim().toUpperCase();
+  if (!upper) return items;
+  const rank = (r: InventoryRow): number => {
+    const code = r.productCode.toUpperCase();
+    if (code === upper) return 0;
+    if (code.startsWith(upper)) return 1;
+    if (code.includes(upper)) return 2;
+    return 3;
+  };
+  return [...items].sort((a, b) => rank(a) - rank(b));
+}
+
 export const inventoryService = {
   list: (storeId: string, filters: ListInventoryFilters = {}) =>
     httpClient.get<PaginatedInventory>(`/stores/${storeId}/inventory${buildInventoryQS(filters)}`),
@@ -42,6 +55,13 @@ export const inventoryService = {
     httpClient.get<InventoryRow>(
       `/stores/${storeId}/inventory/by-barcode/${encodeURIComponent(barcode)}`,
     ),
+
+  searchCandidates: async (storeId: string, rawQuery: string): Promise<InventoryRow[]> => {
+    const trimmed = rawQuery.trim();
+    if (!trimmed) return [];
+    const res = await inventoryService.list(storeId, { q: trimmed, page: 1, pageSize: 50 });
+    return rankSearchMatches(res.items, trimmed);
+  },
 
   resolveCodeOrSearch: async (
     storeId: string,
@@ -57,11 +77,9 @@ export const inventoryService = {
       if (e.code !== 'STOCK_BARCODE_NOT_FOUND' && e.status !== 404) {
         throw err;
       }
-      const res = await inventoryService.list(storeId, { q: trimmed, page: 1, pageSize: 30 });
-      if (res.items.length === 0) return { kind: 'not_found' };
-      const upper = trimmed.toUpperCase();
-      const exactProduct = res.items.filter((r) => r.productCode.toUpperCase() === upper);
-      return { kind: 'variants', rows: exactProduct.length > 0 ? exactProduct : res.items };
+      const rows = await inventoryService.searchCandidates(storeId, trimmed);
+      if (rows.length === 0) return { kind: 'not_found' };
+      return { kind: 'variants', rows };
     }
   },
 

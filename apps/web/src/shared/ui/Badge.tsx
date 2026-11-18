@@ -53,3 +53,23 @@ export function Badge({
     </span>
   );
 }
+
+/** High-contrast badge highlighting the original model code entered at intake. */
+export function ProductCodeBadge({
+  code,
+  className,
+}: {
+  code: string;
+  className?: string;
+}): JSX.Element {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-mono font-bold tracking-wide bg-indigo-500/12 text-indigo-700 border border-indigo-500/30 dark:bg-[#e3ff6a]/15 dark:text-[#e3ff6a] dark:border-[#e3ff6a]/35',
+        className,
+      )}
+    >
+      {code}
+    </span>
+  );
+}

@@ -6,7 +6,7 @@ export type { ConfirmDialogProps } from './ConfirmDialog';
 export { Alert } from './Alert';
 export type { AlertProps } from './Alert';
 
-export { Badge } from './Badge';
+export { Badge, ProductCodeBadge } from './Badge';
 export type { BadgeProps } from './Badge';
 
 export { Button } from './Button';

@@ -30,6 +30,7 @@ import {
   EmptyState,
   IconButton,
   Input,
+  ProductCodeBadge,
   Skeleton,
 } from '@/shared/ui';
 import { AppShell } from '@/shared/layout/AppShell';
@@ -332,12 +333,14 @@ export function SedeInventoryPage() {
                       <p className="text-sm font-semibold text-text-primary truncate">
                         {exactBarcodeMatch.productName}
                       </p>
-                      <p className="text-xs text-text-muted mt-0.5 truncate">
-                        <span className="font-mono">{exactBarcodeMatch.productCode}</span> ·{' '}
-                        {sizeLabel(exactBarcodeMatch.size)} ·{' '}
-                        <span className="capitalize">{exactBarcodeMatch.color}</span> ·{' '}
-                        {formatBs(exactBarcodeMatch.priceCents)}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap text-xs text-text-muted">
+                        <ProductCodeBadge code={exactBarcodeMatch.productCode} />
+                        <span>
+                          {sizeLabel(exactBarcodeMatch.size)} ·{' '}
+                          <span className="capitalize">{exactBarcodeMatch.color}</span> ·{' '}
+                          {formatBs(exactBarcodeMatch.priceCents)}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0 pl-2">
                       <span className="text-base font-bold text-text-primary font-tabular px-2.5 py-1 rounded-lg bg-surface-sunken/80 border border-surface-border/50">
@@ -374,11 +377,13 @@ export function SedeInventoryPage() {
                             <p className="text-sm font-semibold text-text-primary truncate">
                               {group.productName}
                             </p>
-                            <p className="text-xs text-text-muted mt-0.5">
-                              <span className="font-mono font-medium">{group.productCode}</span> ·{' '}
-                              {group.variants.length}{' '}
-                              {group.variants.length === 1 ? 'variante' : 'variantes'}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-text-muted">
+                              <ProductCodeBadge code={group.productCode} />
+                              <span>
+                                {group.variants.length}{' '}
+                                {group.variants.length === 1 ? 'variante' : 'variantes'}
+                              </span>
+                            </div>
                           </div>
                           <ChevronRight className="h-4 w-4 text-text-subtle shrink-0" />
                         </button>
@@ -477,10 +482,8 @@ export function SedeInventoryPage() {
                               <p className="text-sm font-semibold text-text-primary truncate group-hover:text-brand-primary transition-colors">
                                 {row.productName}
                               </p>
-                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-surface-sunken text-text-secondary border border-surface-border/60 font-tabular font-medium">
-                                  {row.productCode}
-                                </span>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <ProductCodeBadge code={row.productCode} />
                               </div>
                               <p className="text-xs text-text-muted mt-1">
                                 {row.variantsCount === 1

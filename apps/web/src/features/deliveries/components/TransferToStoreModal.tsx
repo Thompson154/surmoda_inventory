@@ -2,11 +2,21 @@ import { useMemo, useState } from 'react';
 import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
 import { useCreateDelivery } from '../hooks/useDeliveries';
-import { Alert, Button, IconButton, Input, Modal, RequiredNote, Select } from '@/shared/ui';
+import {
+  Alert,
+  Button,
+  IconButton,
+  Input,
+  Modal,
+  ProductCodeBadge,
+  RequiredNote,
+  Select,
+} from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useStores, useTransferDestinations } from '@/features/stores/hooks/useStores';
-import { useInventory } from '@/features/inventory/hooks/useInventory';
+import { useInfiniteInventory } from '@/features/inventory/hooks/useInventory';
 import { getImageUrl } from '@/features/products/services/productsService';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 
@@ -52,11 +62,16 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
   const [title, setTitle] = useState<string>('');
 
   const [q, setQ] = useState('');
-  const inventory = useInventory(open ? fromStoreId : undefined, {
-    q: q || undefined,
-    page: 1,
-    pageSize: 30,
+  const debouncedQ = useDebounce(q, 250);
+  const inventory = useInfiniteInventory(open ? fromStoreId : undefined, {
+    q: debouncedQ.trim() || undefined,
+    pageSize: 10,
   });
+  const loadedItems = useMemo(
+    () => inventory.data?.pages.flatMap((p) => p.items) ?? [],
+    [inventory.data?.pages],
+  );
+  const totalAvailable = inventory.data?.pages[0]?.total ?? 0;
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const create = useCreateDelivery(toStoreId || fromStoreId);
@@ -201,41 +216,80 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
 
         {inventory.isLoading && <p className="text-xs text-text-muted">Cargando…</p>}
         {inventory.data && (
-          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto rounded border border-surface-border">
-            {inventory.data.items.length === 0 ? (
+          <div
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              if (
+                el.scrollHeight - el.scrollTop - el.clientHeight < 40 &&
+                inventory.hasNextPage &&
+                !inventory.isFetchingNextPage
+              ) {
+                void inventory.fetchNextPage();
+              }
+            }}
+            className="flex flex-col gap-1 max-h-56 overflow-y-auto rounded border border-surface-border"
+          >
+            {loadedItems.length === 0 ? (
               <p className="text-xs text-text-muted px-3 py-2">Sin coincidencias.</p>
             ) : (
-              inventory.data.items.map((row) => {
-                const src = getImageUrl(row.imagePath);
-                const disabled = row.quantity <= 0;
-                return (
-                  <button
-                    key={row.variantId}
-                    type="button"
-                    onClick={() => addToCart(row)}
-                    disabled={disabled}
-                    className={`flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed ${
-                      cart.find((c) => c.variantId === row.variantId) ? 'bg-surface-sunken' : ''
-                    }`}
-                  >
-                    <div className="h-9 w-9 shrink-0 rounded-md bg-surface-sunken flex items-center justify-center overflow-hidden">
-                      {src ? (
-                        <img src={src} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <ImageIcon className="h-4 w-4 text-text-subtle" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-mono text-text-muted">{row.productCode}</p>
-                      <p className="text-sm truncate">
-                        {sizeLabel(row.size)} · <span className="capitalize">{row.color}</span>
-                      </p>
-                    </div>
-                    <span className="text-xs text-text-muted shrink-0">{row.quantity} dispon.</span>
-                    <Plus className="h-4 w-4 text-text-subtle shrink-0" />
-                  </button>
-                );
-              })
+              <>
+                {loadedItems.map((row) => {
+                  const src = getImageUrl(row.imagePath);
+                  const disabled = row.quantity <= 0;
+                  return (
+                    <button
+                      key={row.variantId}
+                      type="button"
+                      onClick={() => addToCart(row)}
+                      disabled={disabled}
+                      className={`flex items-center gap-2 px-3 py-2 text-left hover:bg-surface-sunken disabled:opacity-50 disabled:cursor-not-allowed ${
+                        cart.find((c) => c.variantId === row.variantId) ? 'bg-surface-sunken' : ''
+                      }`}
+                    >
+                      <div className="h-9 w-9 shrink-0 rounded-md bg-surface-sunken flex items-center justify-center overflow-hidden">
+                        {src ? (
+                          <img src={src} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4 text-text-subtle" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <ProductCodeBadge
+                            code={row.productCode}
+                            className="text-[11px] px-1.5 py-0"
+                          />
+                          <span className="text-xs text-text-muted truncate">
+                            {row.productName}
+                          </span>
+                        </div>
+                        <p className="text-sm truncate mt-0.5">
+                          {sizeLabel(row.size)} · <span className="capitalize">{row.color}</span>
+                        </p>
+                      </div>
+                      <span className="text-xs text-text-muted shrink-0">
+                        {row.quantity} dispon.
+                      </span>
+                      <Plus className="h-4 w-4 text-text-subtle shrink-0" />
+                    </button>
+                  );
+                })}
+                <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-surface-border bg-surface-sunken/50 text-xs text-text-muted">
+                  <span>
+                    Mostrando {loadedItems.length} de {totalAvailable}
+                  </span>
+                  {inventory.hasNextPage && (
+                    <button
+                      type="button"
+                      onClick={() => void inventory.fetchNextPage()}
+                      disabled={inventory.isFetchingNextPage}
+                      className="font-semibold text-brand-primary hover:underline disabled:opacity-50"
+                    >
+                      {inventory.isFetchingNextPage ? 'Cargando más...' : 'Cargar más'}
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}

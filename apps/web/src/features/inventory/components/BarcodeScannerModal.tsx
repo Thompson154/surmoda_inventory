@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
 import { inventoryService } from '../services/inventoryService';
-import { Alert, Button, Input, Modal } from '@/shared/ui';
+import { Alert, Button, Input, Modal, ProductCodeBadge } from '@/shared/ui';
 import { BarcodeScanner, type BarcodeScannerHandle } from '@/shared/components/BarcodeScanner';
 import { formatBs } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { getImageUrl } from '@/features/products/services/productsService';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 
 interface BarcodeScannerModalProps {
   storeId: string;
@@ -35,8 +36,10 @@ export function BarcodeScannerModal({
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [candidates, setCandidates] = useState<InventoryRow[]>([]);
+  const debouncedCode = useDebounce(code, 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const scannerRef = useRef<BarcodeScannerHandle | null>(null);
+  const requestSeqRef = useRef(0);
 
   // Reset everything when the modal closes.
   useEffect(() => {
@@ -44,6 +47,7 @@ export function BarcodeScannerModal({
       const t = setTimeout(() => inputRef.current?.focus(), 60);
       return () => clearTimeout(t);
     }
+    requestSeqRef.current += 1;
     setCode('');
     setError(null);
     setInfo(null);
@@ -51,9 +55,32 @@ export function BarcodeScannerModal({
     setCandidates([]);
   }, [open]);
 
+  // Live variant suggestions as operator types partial/original product code.
+  useEffect(() => {
+    if (!open) return;
+    const trimmed = debouncedCode.trim();
+    if (trimmed.length < 2) return;
+    const seq = requestSeqRef.current;
+    let cancelled = false;
+    void inventoryService
+      .searchCandidates(storeId, trimmed)
+      .then((rows) => {
+        if (!cancelled && seq === requestSeqRef.current && rows.length > 0) {
+          setCandidates(rows);
+        }
+      })
+      .catch(() => {
+        // Silent during live typing; explicit Buscar/Enter reports real errors.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, storeId, debouncedCode]);
+
   const submit = async (rawCode: string, fromCamera: boolean) => {
     const trimmed = rawCode.trim();
     if (!trimmed) return;
+    requestSeqRef.current += 1;
     setPending(true);
     setError(null);
     setCandidates([]);
@@ -138,10 +165,16 @@ export function BarcodeScannerModal({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-text-primary truncate">
-                          <span className="font-mono">{v.productCode}</span> · {v.productName}
-                        </p>
-                        <p className="text-[11px] text-text-muted truncate">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <ProductCodeBadge
+                            code={v.productCode}
+                            className="text-[11px] px-1.5 py-0"
+                          />
+                          <span className="text-xs font-semibold text-text-primary truncate">
+                            {v.productName}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-text-muted truncate mt-0.5">
                           {sizeLabel(v.size)} · <span className="capitalize">{v.color}</span> ·{' '}
                           {formatBs(v.priceCents)}
                         </p>

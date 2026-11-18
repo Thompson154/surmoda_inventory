@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AdjustQuantityPayload,
   ListInventoryFilters,
@@ -20,6 +20,24 @@ export function useInventory(storeId: string | undefined, filters: ListInventory
     placeholderData: (prev) => prev,
     refetchInterval: INVENTORY_REFETCH_MS,
     refetchIntervalInBackground: false,
+  });
+}
+
+export function useInfiniteInventory(
+  storeId: string | undefined,
+  filters: Omit<ListInventoryFilters, 'page'> = {},
+) {
+  const pageSize = filters.pageSize ?? 10;
+  return useInfiniteQuery({
+    queryKey: storeId
+      ? ['inventory', 'infinite', storeId, { ...filters, pageSize }]
+      : ['inventory', 'infinite', 'noop'],
+    queryFn: ({ pageParam }) =>
+      inventoryService.list(storeId as string, { ...filters, page: pageParam, pageSize }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.pageSize < lastPage.total ? lastPage.page + 1 : undefined,
+    enabled: Boolean(storeId),
   });
 }
 

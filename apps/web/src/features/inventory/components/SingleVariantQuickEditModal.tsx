@@ -12,6 +12,7 @@ import {
   IconButton,
   Input,
   Modal,
+  ProductCodeBadge,
   RequiredNote,
 } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -243,7 +244,9 @@ export function SingleVariantQuickEditModal({
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{row.productName}</p>
-            <p className="text-xs font-mono text-text-muted mt-0.5">{row.productCode}</p>
+            <div className="mt-1">
+              <ProductCodeBadge code={row.productCode} />
+            </div>
             <p className="text-xs text-text-secondary mt-1">{formatPrice(row.priceCents)}</p>
           </div>
           {!canEdit && <Badge variant="default">Solo lectura</Badge>}

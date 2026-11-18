@@ -4,7 +4,16 @@ import type { InventoryRow } from '@surmoda/contracts';
 import { BarcodePrintModal } from './BarcodePrintModal';
 import { useAdjustQuantity } from '../hooks/useInventory';
 import { useInventoryProductVariants } from '../hooks/useInventoryGrouped';
-import { Alert, Badge, Button, IconButton, Input, Modal, Skeleton } from '@/shared/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  IconButton,
+  Input,
+  Modal,
+  ProductCodeBadge,
+  Skeleton,
+} from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { getImageUrl } from '@/features/products/services/productsService';
@@ -71,8 +80,8 @@ export function ProductDetailDrawer({
               )}
             </button>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-mono text-text-muted">{head.productCode}</p>
-              <p className="text-base font-semibold text-text-primary truncate">
+              <ProductCodeBadge code={head.productCode} />
+              <p className="text-base font-semibold text-text-primary truncate mt-1">
                 {formatPrice(head.priceCents)}
               </p>
               <p className="text-sm text-text-secondary truncate">{head.productName}</p>

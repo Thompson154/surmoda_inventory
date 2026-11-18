@@ -2,8 +2,18 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Banknote, CreditCard, Image as ImageIcon, QrCode, Trash2, X } from 'lucide-react';
 import type { InventoryRow, PaymentMethod, SaleWithItems } from '@surmoda/contracts';
 import { useCreateSale } from '../hooks/useSales';
-import { Alert, Button, IconButton, Input, Modal, Skeleton, useToast } from '@/shared/ui';
+import {
+  Alert,
+  Button,
+  IconButton,
+  Input,
+  Modal,
+  ProductCodeBadge,
+  Skeleton,
+  useToast,
+} from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import type { HttpError } from '@/shared/services/httpClient';
 import { enqueueSale } from '@/shared/services/offlineQueue';
 import { formatBs } from '@/shared/format/currency';
@@ -43,16 +53,19 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupPending, setLookupPending] = useState(false);
   const [variantCandidates, setVariantCandidates] = useState<InventoryRow[]>([]);
+  const debouncedCode = useDebounce(code, 300);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const inputRef = useRef<HTMLInputElement>(null);
   const scannerRef = useRef<BarcodeScannerHandle | null>(null);
+  const requestSeqRef = useRef(0);
   const create = useCreateSale(storeId);
   const toast = useToast();
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
 
   useEffect(() => {
     if (!open) {
+      requestSeqRef.current += 1;
       setCode('');
       setLookupError(null);
       setLookupPending(false);
@@ -69,6 +82,28 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
     // barcode input when the cashier clicks any cart cell.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Live variant suggestions as the seller types a partial or original product code.
+  useEffect(() => {
+    if (!open) return;
+    const trimmed = debouncedCode.trim();
+    if (trimmed.length < 2) return;
+    const seq = requestSeqRef.current;
+    let cancelled = false;
+    void inventoryService
+      .searchCandidates(storeId, trimmed)
+      .then((rows) => {
+        if (!cancelled && seq === requestSeqRef.current && rows.length > 0) {
+          setVariantCandidates(rows);
+        }
+      })
+      .catch(() => {
+        // Silent while typing; clicking Agregar or pressing Enter surfaces real errors.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, storeId, debouncedCode]);
 
   const subTotalCents = useMemo(() => cart.reduce((s, i) => s + i.subtotalCents, 0), [cart]);
   const grossTotalCents = useMemo(
@@ -89,6 +124,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
       setLookupError('Sin stock disponible para este código.');
       return;
     }
+    requestSeqRef.current += 1;
     setCart((prev) => {
       const existing = prev.find((i) => i.variantId === row.variantId);
       if (existing) {
@@ -132,6 +168,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
   const addByBarcode = async (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) return;
+    requestSeqRef.current += 1;
     setLookupPending(true);
     setLookupError(null);
     setVariantCandidates([]);
@@ -321,10 +358,16 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-text-primary truncate">
-                        <span className="font-mono">{v.productCode}</span> · {v.productName}
-                      </p>
-                      <p className="text-[11px] text-text-muted truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <ProductCodeBadge
+                          code={v.productCode}
+                          className="text-[11px] px-1.5 py-0"
+                        />
+                        <span className="text-xs font-semibold text-text-primary truncate">
+                          {v.productName}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-muted truncate mt-0.5">
                         {sizeLabel(v.size)} · <span className="capitalize">{v.color}</span> ·{' '}
                         {formatBs(v.priceCents)}
                       </p>
