@@ -7,7 +7,7 @@ interface EmailFieldProps {
 
 export function EmailField({ value, onChange }: EmailFieldProps) {
   return (
-    <Field label="Email" htmlFor="user-email">
+    <Field label="Email" required htmlFor="user-email">
       <Input
         id="user-email"
         type="email"

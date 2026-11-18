@@ -8,7 +8,7 @@ import { PasswordField } from './PasswordField';
 import { AdminToggle } from './AdminToggle';
 import { AssignmentsDraftList, type AssignmentDraft } from './AssignmentsDraftList';
 import type { HttpError } from '@/shared/services/httpClient';
-import { Alert, Button } from '@/shared/ui';
+import { Alert, Button, RequiredNote } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useStores } from '@/features/stores/hooks/useStores';
 
@@ -66,6 +66,7 @@ export function UserForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+      <RequiredNote />
       <EmailField value={email} onChange={setEmail} />
       <FullNameField value={fullName} onChange={setFullName} />
       <PasswordField value={password} onChange={setPassword} />

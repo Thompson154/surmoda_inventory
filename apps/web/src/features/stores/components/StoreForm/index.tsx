@@ -3,7 +3,7 @@ import type { CreateStorePayload, Store, StoreKind } from '@surmoda/contracts';
 import { CodeField } from './CodeField';
 import { NameField } from './NameField';
 import { KindSelect } from './KindSelect';
-import { Alert, Button } from '@/shared/ui';
+import { Alert, Button, RequiredNote } from '@/shared/ui';
 
 interface StoreFormProps {
   initialValues?: Partial<Pick<Store, 'code' | 'name' | 'kind'>>;
@@ -43,6 +43,7 @@ export function StoreForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+      <RequiredNote />
       <CodeField value={code} onChange={setCode} />
       <NameField value={name} onChange={setName} />
       <KindSelect value={kind} onChange={setKind} disabled={mode === 'edit'} />

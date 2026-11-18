@@ -255,3 +255,42 @@ describe('WarehouseIntakeModal — Síntoma B: blank variant slot debe aparecer 
     expect((firstColorInput as HTMLInputElement).value).toBe('');
   });
 });
+
+describe('WarehouseIntakeModal — Campos obligatorios y motivo de bloqueo', () => {
+  it('muestra la leyenda de campos obligatorios y explica qué falta cuando falta el precio en variante nueva', async () => {
+    useLookupOverride();
+    const user = userEvent.setup();
+    renderModal();
+
+    expect(screen.getByText(/Campos obligatorios/i)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/Ingresa un código de modelo válido/i);
+
+    const codeInput = screen.getByLabelText(/código de modelo/i);
+    await user.type(codeInput, 'NEW99');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nombre del modelo/i)).toBeInTheDocument();
+    });
+
+    const qtyInput = document.querySelector('input[type="number"][min="0"]') as HTMLInputElement;
+    await user.clear(qtyInput);
+    await user.type(qtyInput, '3');
+
+    const colorInput = document.querySelector('input[placeholder="Azul"]') as HTMLInputElement;
+    await user.type(colorInput, 'Negro');
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /Ingresa un precio mayor a 0 Bs en las variantes nuevas/i,
+    );
+    expect(screen.getByRole('button', { name: /entregar/i })).toBeDisabled();
+
+    const priceInput = document.querySelectorAll(
+      'input[type="number"][min="0"]',
+    )[1] as HTMLInputElement;
+    await user.clear(priceInput);
+    await user.type(priceInput, '120');
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /entregar/i })).toBeEnabled();
+  });
+});

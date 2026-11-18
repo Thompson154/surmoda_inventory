@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import type { DailyReportDTO } from '@surmoda/contracts';
 import { useCloseToday, useDailyReportByDate } from '../hooks/useDailyReports';
-import { Alert, Button, Input, Modal, Skeleton } from '@/shared/ui';
+import { Alert, Button, Input, Modal, RequiredNote, Skeleton } from '@/shared/ui';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { formatBs } from '@/shared/format/currency';
@@ -183,9 +183,13 @@ export function CloseDayModal({
           </div>
         )}
 
+        <RequiredNote />
         <div>
           <label htmlFor="close-day-primary" className="text-sm font-semibold block">
             Encargada / cuenta asociada
+            <span aria-hidden="true" className="text-status-danger ml-0.5">
+              *
+            </span>
           </label>
           <p className="text-xs text-text-muted mb-1">
             Nombre principal responsable del cierre del día.
@@ -203,7 +207,8 @@ export function CloseDayModal({
 
         <div>
           <label htmlFor="close-day-extras" className="text-sm font-semibold block">
-            Otros nombres que atendieron hoy
+            Otros nombres que atendieron hoy{' '}
+            <span className="text-xs font-normal text-text-muted">(opcional)</span>
           </label>
           <p className="text-xs text-text-muted mb-1">
             Escribí cada nombre y presioná Enter (o coma) para agregarlo.
@@ -246,6 +251,11 @@ export function CloseDayModal({
         </div>
 
         {errorMsg && <Alert variant="error">{errorMsg}</Alert>}
+        {!primary.trim() && (
+          <p className="text-xs text-text-muted text-right" role="status">
+            Ingresa el nombre principal responsable para confirmar el cierre.
+          </p>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" size="md" onClick={onClose}>

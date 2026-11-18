@@ -3,6 +3,7 @@ import { cn } from './cn';
 
 export interface FieldProps {
   label: string;
+  required?: boolean;
   error?: string;
   hint?: string;
   htmlFor?: string;
@@ -10,11 +11,16 @@ export interface FieldProps {
   className?: string;
 }
 
-export function Field({ label, error, hint, htmlFor, children, className }: FieldProps) {
+export function Field({ label, required, error, hint, htmlFor, children, className }: FieldProps) {
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <label htmlFor={htmlFor} className="text-sm font-medium text-text-secondary">
         {label}
+        {required && (
+          <span aria-hidden="true" className="text-status-danger ml-0.5 font-semibold">
+            *
+          </span>
+        )}
       </label>
       {children}
       {hint && !error && <p className="text-xs text-text-muted mt-1">{hint}</p>}
@@ -24,5 +30,16 @@ export function Field({ label, error, hint, htmlFor, children, className }: Fiel
         </p>
       )}
     </div>
+  );
+}
+
+export function RequiredNote({ className }: { className?: string }) {
+  return (
+    <p className={cn('text-xs text-text-muted', className)}>
+      <span aria-hidden="true" className="text-status-danger font-semibold">
+        *
+      </span>{' '}
+      Campos obligatorios
+    </p>
   );
 }

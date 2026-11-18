@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useLogin } from '../hooks/useLogin';
-import { Alert, Button, Field, Input } from '@/shared/ui';
+import { Alert, Button, Field, Input, RequiredNote } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 
@@ -77,7 +77,8 @@ export function LoginForm({ immersive = false }: LoginFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4.5 w-full">
-      <Field label="Email" htmlFor="login-email">
+      <RequiredNote />
+      <Field label="Email" required htmlFor="login-email">
         <Input
           id="login-email"
           type="email"
@@ -89,7 +90,7 @@ export function LoginForm({ immersive = false }: LoginFormProps) {
           onChange={(e) => setEmail(e.target.value)}
         />
       </Field>
-      <Field label="Contraseña" htmlFor="login-password">
+      <Field label="Contraseña" required htmlFor="login-password">
         <Input
           id="login-password"
           type="password"

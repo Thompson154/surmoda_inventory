@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Role } from '../../types';
-import { Button, Field, Select } from '@/shared/ui';
+import { Button, Field, RequiredNote, Select } from '@/shared/ui';
 import { useStores } from '@/features/stores/hooks/useStores';
 
 interface AddAssignmentFormProps {
@@ -30,10 +30,11 @@ export function AddAssignmentForm({ isPending, onAdd }: AddAssignmentFormProps) 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2 rounded border border-dashed border-surface-border-strong p-3"
+      className="flex flex-wrap items-end gap-2 rounded border border-dashed border-surface-border-strong p-3"
     >
+      <RequiredNote className="w-full" />
       <div className="flex flex-1 flex-col gap-1">
-        <Field label="Tienda" htmlFor="add-assignment-store">
+        <Field label="Tienda" required htmlFor="add-assignment-store">
           <Select
             id="add-assignment-store"
             value={storeId}
@@ -49,7 +50,7 @@ export function AddAssignmentForm({ isPending, onAdd }: AddAssignmentFormProps) 
         </Field>
       </div>
       <div className="flex flex-col gap-1">
-        <Field label="Rol" htmlFor="add-assignment-role">
+        <Field label="Rol" required htmlFor="add-assignment-role">
           <Select
             id="add-assignment-role"
             value={role}

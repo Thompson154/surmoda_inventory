@@ -7,7 +7,7 @@ interface NameFieldProps {
 
 export function NameField({ value, onChange }: NameFieldProps) {
   return (
-    <Field label="Nombre" htmlFor="product-name">
+    <Field label="Nombre" required htmlFor="product-name">
       <Input
         id="product-name"
         type="text"

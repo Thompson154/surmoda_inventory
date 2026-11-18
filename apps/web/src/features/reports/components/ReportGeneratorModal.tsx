@@ -6,7 +6,7 @@ import { DateRangePresets, type PresetKey } from './DateRangePresets';
 import { useGenerateReportPreview } from '../hooks/useGenerateReport';
 import { toIsoStartOfDay, toIsoEndOfDay } from '../utils/dateRange';
 import type { GenerateReportArgs, SalesReportPreview } from '../types';
-import { Alert, Button, Modal } from '@/shared/ui';
+import { Alert, Button, Modal, RequiredNote } from '@/shared/ui';
 import type { HttpError } from '@/shared/services/httpClient';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -149,6 +149,7 @@ export function ReportGeneratorModal({
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Generar Reporte de Ventas">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <RequiredNote />
         {/* Store subtitle */}
         <p className="text-sm text-text-muted -mt-2">
           Sucursal: <span className="font-semibold text-text-primary">{storeName}</span>
@@ -163,6 +164,9 @@ export function ReportGeneratorModal({
             <div className="flex flex-col gap-1">
               <label htmlFor="report-from" className="text-xs text-text-muted">
                 Desde
+                <span aria-hidden="true" className="text-status-danger ml-0.5">
+                  *
+                </span>
               </label>
               <input
                 id="report-from"
@@ -178,6 +182,9 @@ export function ReportGeneratorModal({
             <div className="flex flex-col gap-1">
               <label htmlFor="report-to" className="text-xs text-text-muted">
                 Hasta
+                <span aria-hidden="true" className="text-status-danger ml-0.5">
+                  *
+                </span>
               </label>
               <input
                 id="report-to"

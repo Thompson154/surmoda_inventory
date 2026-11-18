@@ -20,7 +20,7 @@ export function PriceInput({ valueCents, onChange }: PriceInputProps) {
   };
 
   return (
-    <Field label="Precio (Bs.)" htmlFor="variant-price" hint="Hasta 2 decimales.">
+    <Field label="Precio (Bs.)" required htmlFor="variant-price" hint="Hasta 2 decimales.">
       <Input
         id="variant-price"
         type="number"

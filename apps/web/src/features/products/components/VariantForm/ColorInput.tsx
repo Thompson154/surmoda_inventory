@@ -10,6 +10,7 @@ export function ColorInput({ value, onChange, disabled = false }: ColorInputProp
   return (
     <Field
       label="Color"
+      required
       htmlFor="variant-color"
       hint={disabled ? 'El color no se puede cambiar después de crear la variante.' : undefined}
     >

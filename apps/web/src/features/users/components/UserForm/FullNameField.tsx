@@ -7,7 +7,7 @@ interface FullNameFieldProps {
 
 export function FullNameField({ value, onChange }: FullNameFieldProps) {
   return (
-    <Field label="Nombre completo" htmlFor="user-fullname">
+    <Field label="Nombre completo" required htmlFor="user-fullname">
       <Input
         id="user-fullname"
         type="text"

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useResetPassword } from '../hooks/useUsers';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
-import { Alert, Button, Field, Input, Modal } from '@/shared/ui';
+import { Alert, Button, Field, Input, Modal, RequiredNote } from '@/shared/ui';
 import type { HttpError } from '@/shared/services/httpClient';
 
 interface ResetPasswordModalProps {
@@ -33,12 +33,17 @@ export function ResetPasswordModal({ userId, userEmail, onClose }: ResetPassword
     <Modal isOpen onClose={onClose} title={done ? 'Contraseña reseteada' : 'Resetear contraseña'}>
       {!done ? (
         <>
+          <RequiredNote className="mb-2" />
           <p className="mb-4 text-sm text-text-secondary">
             Vas a generar una nueva contraseña para <strong>{userEmail}</strong>. Todas las sesiones
             activas del usuario se van a cerrar.
           </p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-            <Field label="Nueva contraseña (mín. 8 caracteres)" htmlFor="reset-new-password">
+            <Field
+              label="Nueva contraseña (mín. 8 caracteres)"
+              required
+              htmlFor="reset-new-password"
+            >
               <Input
                 id="reset-new-password"
                 type="text"
@@ -50,7 +55,7 @@ export function ResetPasswordModal({ userId, userEmail, onClose }: ResetPassword
                 onChange={(e) => setNewPassword(e.target.value)}
               />
             </Field>
-            <Field label="Confirmar contraseña" htmlFor="reset-confirm-password">
+            <Field label="Confirmar contraseña" required htmlFor="reset-confirm-password">
               <Input
                 id="reset-confirm-password"
                 type="text"

@@ -15,6 +15,7 @@ export function KindSelect({ value, onChange, disabled = false }: KindSelectProp
   return (
     <Field
       label="Tipo"
+      required
       htmlFor="store-kind"
       hint={disabled ? 'El tipo no se puede cambiar después de crear la tienda.' : undefined}
     >

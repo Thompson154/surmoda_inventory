@@ -17,7 +17,7 @@ export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 
-export { Field } from './Field';
+export { Field, RequiredNote } from './Field';
 export type { FieldProps } from './Field';
 
 export { IconButton } from './IconButton';

@@ -4,7 +4,7 @@ import { SizeSelect } from './SizeSelect';
 import { ColorInput } from './ColorInput';
 import { PriceInput } from './PriceInput';
 import { ImageUploader } from './ImageUploader';
-import { Alert, Button } from '@/shared/ui';
+import { Alert, Button, RequiredNote } from '@/shared/ui';
 
 interface VariantFormProps {
   mode: 'create' | 'edit';
@@ -44,6 +44,7 @@ export function VariantForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 w-full">
+      <RequiredNote />
       <div className="flex gap-3">
         <div className="flex-1">
           <SizeSelect value={size} onChange={setSize} disabled={mode === 'edit'} />

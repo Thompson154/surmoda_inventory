@@ -197,13 +197,34 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
 
   const exists = lookup.data?.exists ?? false;
 
+  const submitBlockerReason =
+    upperCode.length < 2 || !PRODUCT_CODE_PATTERN.test(upperCode)
+      ? 'Ingresa un código de modelo válido (mínimo 2 caracteres).'
+      : totalUnits === 0
+        ? 'Ingresa al menos 1 unidad en una variante.'
+        : variants.some((v) => v.quantity > 0 && v.color.trim().length === 0)
+          ? 'Completa el color obligatorio en las variantes con cantidad.'
+          : variants.some((v) => v.quantity > 0 && !v.matchesExisting && v.priceCents <= 0)
+            ? 'Ingresa un precio mayor a 0 Bs en las variantes nuevas.'
+            : null;
+
   return (
     <Modal isOpen={open} onClose={onClose} title="Entrega de mercadería">
       <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
+        <p className="text-xs text-text-muted">
+          <span aria-hidden="true" className="text-status-danger font-semibold">
+            *
+          </span>{' '}
+          Campos obligatorios
+        </p>
+
         {/* Code */}
         <div>
           <label htmlFor="intake-code" className="text-sm font-semibold block">
             Código de modelo
+            <span aria-hidden="true" className="text-status-danger ml-0.5">
+              *
+            </span>
           </label>
           <Input
             id="intake-code"
@@ -252,7 +273,8 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
         {!exists && upperCode.length >= 2 && (
           <div>
             <label htmlFor="intake-name" className="text-sm font-semibold block">
-              Nombre del modelo
+              Nombre del modelo{' '}
+              <span className="text-xs font-normal text-text-muted">(opcional)</span>
             </label>
             <Input
               id="intake-name"
@@ -268,7 +290,8 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
 
         <div>
           <label htmlFor="intake-title" className="text-sm font-semibold block">
-            Título de la entrega
+            Título de la entrega{' '}
+            <span className="text-xs font-normal text-text-muted">(opcional)</span>
           </label>
           <Input
             id="intake-title"
@@ -309,6 +332,9 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-text-muted">
                         {v.matchesExisting ? 'Sumar' : 'Cantidad'}
+                        <span aria-hidden="true" className="text-status-danger ml-0.5">
+                          *
+                        </span>
                       </p>
                       <Input
                         type="number"
@@ -322,7 +348,14 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       />
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-text-muted">Talla</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">
+                        Talla
+                        {!v.matchesExisting && (
+                          <span aria-hidden="true" className="text-status-danger ml-0.5">
+                            *
+                          </span>
+                        )}
+                      </p>
                       <select
                         value={v.size}
                         onChange={(e) => updateVariant(idx, { size: e.target.value as SizeKey })}
@@ -337,7 +370,14 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                       </select>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-text-muted">Color</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">
+                        Color
+                        {!v.matchesExisting && (
+                          <span aria-hidden="true" className="text-status-danger ml-0.5">
+                            *
+                          </span>
+                        )}
+                      </p>
                       <Input
                         type="text"
                         value={v.color}
@@ -351,6 +391,11 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-text-muted">
                         Precio {v.matchesExisting ? '(actual)' : 'Bs'}
+                        {!v.matchesExisting && (
+                          <span aria-hidden="true" className="text-status-danger ml-0.5">
+                            *
+                          </span>
+                        )}
                       </p>
                       <Input
                         type="number"
@@ -430,6 +475,11 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
         </div>
 
         {errorMsg && <Alert variant="error">{errorMsg}</Alert>}
+        {submitBlockerReason && (
+          <p className="text-xs text-text-muted text-right" role="status">
+            {submitBlockerReason}
+          </p>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" size="md" onClick={onClose}>
@@ -441,17 +491,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             size="md"
             onClick={submit}
             isLoading={intake.isPending}
-            disabled={
-              intake.isPending ||
-              upperCode.length < 2 ||
-              !PRODUCT_CODE_PATTERN.test(upperCode) ||
-              totalUnits === 0 ||
-              variants.some(
-                (v) =>
-                  v.quantity > 0 &&
-                  (v.color.trim().length === 0 || (!v.matchesExisting && v.priceCents <= 0)),
-              )
-            }
+            disabled={intake.isPending || submitBlockerReason !== null}
           >
             Entregar {totalUnits > 0 && `· ${totalUnits} u.`}
           </Button>

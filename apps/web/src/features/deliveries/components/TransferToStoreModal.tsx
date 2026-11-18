@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
 import { useCreateDelivery } from '../hooks/useDeliveries';
-import { Alert, Button, IconButton, Input, Modal, Select } from '@/shared/ui';
+import { Alert, Button, IconButton, Input, Modal, RequiredNote, Select } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useStores, useTransferDestinations } from '@/features/stores/hooks/useStores';
@@ -63,7 +63,12 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
   const errorMessage = useErrorMessage(create.error as HttpError | null | undefined);
 
   const totalUnits = cart.reduce((sum, c) => sum + c.quantity, 0);
-  const canSubmit = Boolean(toStoreId) && cart.length > 0 && totalUnits > 0 && !create.isPending;
+  const transferBlockerReason = !toStoreId
+    ? 'Selecciona una sede destino.'
+    : cart.length === 0 || totalUnits === 0
+      ? 'Agrega al menos 1 unidad para enviar.'
+      : null;
+  const canSubmit = transferBlockerReason === null && !create.isPending;
 
   function addToCart(row: InventoryRow) {
     if (row.quantity <= 0) return;
@@ -142,9 +147,13 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
       title="Transferir a otra sede"
     >
       <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
+        <RequiredNote />
         <div>
           <label htmlFor="transfer-to" className="text-sm font-medium text-text-secondary">
             Sede destino
+            <span aria-hidden="true" className="text-status-danger ml-0.5 font-semibold">
+              *
+            </span>
           </label>
           <Select
             id="transfer-to"
@@ -299,6 +308,11 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
             Enviar transferencia
           </Button>
         </div>
+        {transferBlockerReason && (
+          <p className="text-xs text-text-muted text-right" role="status">
+            {transferBlockerReason}
+          </p>
+        )}
       </div>
     </Modal>
   );

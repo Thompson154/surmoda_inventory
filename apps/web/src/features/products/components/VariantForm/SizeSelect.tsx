@@ -25,6 +25,7 @@ export function SizeSelect({ value, onChange, disabled = false }: SizeSelectProp
   return (
     <Field
       label="Talla"
+      required
       htmlFor="variant-size"
       hint={disabled ? 'La talla no se puede cambiar después de crear la variante.' : undefined}
     >

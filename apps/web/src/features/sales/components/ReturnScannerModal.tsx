@@ -70,6 +70,9 @@ export function ReturnScannerModal({ storeId, open, onClose }: ReturnScannerModa
         <div>
           <label htmlFor="return-barcode-input" className="text-sm font-medium text-text-secondary">
             Código de barras
+            <span aria-hidden="true" className="text-status-danger ml-0.5 font-semibold">
+              *
+            </span>
           </label>
           <Input
             id="return-barcode-input"

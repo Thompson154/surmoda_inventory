@@ -3,7 +3,7 @@ import type { Product } from '@surmoda/contracts';
 import { CodeField } from './CodeField';
 import { NameField } from './NameField';
 import { DescriptionField } from './DescriptionField';
-import { Alert, Button } from '@/shared/ui';
+import { Alert, Button, RequiredNote } from '@/shared/ui';
 
 interface ProductFormProps {
   initialValues?: Partial<Pick<Product, 'code' | 'name' | 'description'>>;
@@ -44,6 +44,7 @@ export function ProductForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+      <RequiredNote />
       <CodeField value={code} onChange={setCode} disabled={mode === 'edit'} />
       <NameField value={name} onChange={setName} />
       <DescriptionField value={description} onChange={setDescription} />

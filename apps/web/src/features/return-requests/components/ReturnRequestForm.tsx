@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useClosuresWithSales } from '../hooks/useReturnRequests';
 import type { ClosureSaleItem, CreateReturnRequestPayload, PaymentMethod } from '../types';
-import { Button, Input } from '@/shared/ui';
-import { Modal } from '@/shared/ui';
+import { Button, Input, Modal, RequiredNote } from '@/shared/ui';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -104,6 +103,7 @@ export function ReturnRequestForm({
 
   return (
     <div className="flex flex-col gap-5">
+      <RequiredNote />
       {/* Sección 1 — Producto nuevo (escaneado) */}
       <section className="flex flex-col gap-3 rounded-lg border border-surface-border p-3">
         <h2 className="text-sm font-semibold text-text-primary">1. Producto nuevo del cliente</h2>

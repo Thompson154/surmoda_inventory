@@ -15,7 +15,7 @@ const CODE_PATTERN = '[A-Z0-9_]{2,20}';
  */
 export function CodeField({ value, onChange, disabled = false }: CodeFieldProps) {
   return (
-    <Field label="Código" htmlFor="store-code" hint={CODE_HINT}>
+    <Field label="Código" required htmlFor="store-code" hint={CODE_HINT}>
       <Input
         id="store-code"
         type="text"

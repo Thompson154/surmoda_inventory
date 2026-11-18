@@ -10,7 +10,7 @@ const CODE_HINT = 'Mayúsculas, números o guion bajo (ej: JN001)';
 
 export function CodeField({ value, onChange, disabled = false }: CodeFieldProps) {
   return (
-    <Field label="Código" htmlFor="product-code" hint={CODE_HINT}>
+    <Field label="Código" required htmlFor="product-code" hint={CODE_HINT}>
       <Input
         id="product-code"
         type="text"

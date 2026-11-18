@@ -7,7 +7,7 @@ interface PasswordFieldProps {
 
 export function PasswordField({ value, onChange }: PasswordFieldProps) {
   return (
-    <Field label="Contraseña inicial (mín. 8 caracteres)" htmlFor="user-password">
+    <Field label="Contraseña inicial (mín. 8 caracteres)" required htmlFor="user-password">
       <Input
         id="user-password"
         type="password"

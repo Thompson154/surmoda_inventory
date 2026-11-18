@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import type { InventoryRow } from '@surmoda/contracts';
 import { useCreateDelivery } from '../hooks/useDeliveries';
-import { Alert, Button, IconButton, Input, Modal } from '@/shared/ui';
+import { Alert, Button, IconButton, Input, Modal, RequiredNote } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
 import { useStores } from '@/features/stores/hooks/useStores';
@@ -158,6 +158,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
               ? 'Agregá las variantes que llegaron al almacén.'
               : `Estás entregando desde el almacén a ${targetStore?.name ?? 'esta sede'}.`}
           </p>
+          <RequiredNote />
 
           <Input
             type="search"
@@ -217,6 +218,9 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
           <div className="border-t border-surface-border pt-3">
             <p className="text-sm font-medium text-text-primary mb-2">
               Carrito ({totalUnits} unid.)
+              <span aria-hidden="true" className="text-status-danger ml-0.5">
+                *
+              </span>
             </p>
             {cart.length === 0 ? (
               <p className="text-xs text-text-muted">
@@ -268,7 +272,7 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
           {!isReception && (
             <Input
               type="text"
-              placeholder='Título — ej: "Reposición urgente", "Colección invierno"'
+              placeholder='Título (opcional) — ej: "Reposición urgente", "Colección invierno"'
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={80}
@@ -299,6 +303,11 @@ export function NewDeliveryModal({ storeId, open, onClose }: NewDeliveryModalPro
 
           {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
 
+          {submittableUnits === 0 && (
+            <p className="text-xs text-text-muted text-right" role="status">
+              Agrega al menos 1 unidad al carrito para continuar.
+            </p>
+          )}
           <Button
             type="button"
             variant="primary"
