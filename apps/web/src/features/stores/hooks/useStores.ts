@@ -13,6 +13,15 @@ export function useStores(filters: ListStoresFilters = {}) {
   });
 }
 
+export function useTransferDestinations(enabled = true) {
+  return useQuery({
+    queryKey: storesQueryKeys.transferDestinations,
+    queryFn: () => storesService.listTransferDestinations(),
+    enabled,
+    staleTime: STORES_STALE_TIME_MS,
+  });
+}
+
 export function useStore(id: string | undefined) {
   return useQuery({
     queryKey: id ? storesQueryKeys.detail(id) : ['stores', 'detail', 'noop'],

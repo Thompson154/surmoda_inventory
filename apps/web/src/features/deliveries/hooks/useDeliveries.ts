@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ConfirmDraftPayload,
+  ConfirmPartialDeliveryPayload,
   CreateDeliveryPayload,
   ListDeliveriesFilters,
   ReceiveDeliveryPayload,
@@ -26,7 +27,9 @@ export function useDeliveriesGrouped(
 
 export function useDelivery(deliveryId: string | undefined) {
   return useQuery({
-    queryKey: deliveryId ? deliveriesQueryKeys.detail(deliveryId) : ['deliveries', 'detail', 'noop'],
+    queryKey: deliveryId
+      ? deliveriesQueryKeys.detail(deliveryId)
+      : ['deliveries', 'detail', 'noop'],
     queryFn: () => deliveriesService.getById(deliveryId as string),
     enabled: Boolean(deliveryId),
   });
@@ -39,9 +42,7 @@ export function useDeliveriesList(
   filters: ListDeliveriesFilters = {},
 ) {
   return useQuery({
-    queryKey: storeId
-      ? deliveriesQueryKeys.list(storeId, filters)
-      : ['deliveries', 'list', 'noop'],
+    queryKey: storeId ? deliveriesQueryKeys.list(storeId, filters) : ['deliveries', 'list', 'noop'],
     queryFn: () => deliveriesService.list(storeId as string, filters),
     enabled: Boolean(storeId),
     placeholderData: (prev) => prev,
@@ -63,8 +64,13 @@ export function useCreateDelivery(storeId: string) {
 export function useUpdateDraftDelivery() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ deliveryId, payload }: { deliveryId: string; payload: UpdateDraftDeliveryPayload }) =>
-      deliveriesService.updateDraft(deliveryId, payload),
+    mutationFn: ({
+      deliveryId,
+      payload,
+    }: {
+      deliveryId: string;
+      payload: UpdateDraftDeliveryPayload;
+    }) => deliveriesService.updateDraft(deliveryId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
     },
@@ -94,8 +100,7 @@ export function useWarehouseIntakeLookup(warehouseId: string | undefined, code: 
 export function useWarehouseIntake(warehouseId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: WarehouseIntakePayload) =>
-      deliveriesService.intake(warehouseId, payload),
+    mutationFn: (payload: WarehouseIntakePayload) => deliveriesService.intake(warehouseId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
       void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
@@ -107,8 +112,30 @@ export function useWarehouseIntake(warehouseId: string) {
 export function useReceiveDelivery() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ deliveryId, payload }: { deliveryId: string; payload: ReceiveDeliveryPayload }) =>
-      deliveriesService.receive(deliveryId, payload),
+    mutationFn: ({
+      deliveryId,
+      payload,
+    }: {
+      deliveryId: string;
+      payload: ReceiveDeliveryPayload;
+    }) => deliveriesService.receive(deliveryId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
+    },
+  });
+}
+
+export function useConfirmPartialDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      deliveryId,
+      payload,
+    }: {
+      deliveryId: string;
+      payload?: ConfirmPartialDeliveryPayload;
+    }) => deliveriesService.confirmPartial(deliveryId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
       void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });

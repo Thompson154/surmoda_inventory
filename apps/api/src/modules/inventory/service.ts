@@ -63,9 +63,11 @@ export function buildInventoryService({ inventory }: InventoryServiceDeps): Inve
   ): Promise<{ role: 'admin' | 'encargada' | 'vendedora' }> {
     if (auth.isAdmin) return { role: 'admin' };
 
-    // Encargada (con cualquier asignación role=encargada) opera global —
-    // ve y edita cualquier sede sin necesidad de tener assignment directo.
-    const isGlobalEncargada = await inventory.hasAnyEncargadaRole(auth.userId, tx);
+    // Encargada de Almacén Central (o admin) opera global — puede ver y editar
+    // cualquier sede. Una encargada de sucursal sólo opera en sus sedes asignadas.
+    const isGlobalEncargada = inventory.hasWarehouseEncargadaRole
+      ? await inventory.hasWarehouseEncargadaRole(auth.userId, tx)
+      : await inventory.hasAnyEncargadaRole(auth.userId, tx);
     if (isGlobalEncargada) return { role: 'encargada' };
 
     const assignment = await inventory.findUserAssignment(auth.userId, storeId, tx);
@@ -140,11 +142,7 @@ export function buildInventoryService({ inventory }: InventoryServiceDeps): Inve
           // Verify the variant exists so we never create orphan stock rows.
           const variant = await inventory.findVariantById(variantId, tx);
           if (!variant) {
-            throw new AppError(
-              404,
-              ERROR_CODES.VARIANT_NOT_FOUND,
-              'Variante no encontrada.',
-            );
+            throw new AppError(404, ERROR_CODES.VARIANT_NOT_FOUND, 'Variante no encontrada.');
           }
         }
 

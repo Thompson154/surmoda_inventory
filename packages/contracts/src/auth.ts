@@ -3,6 +3,7 @@ import type { Role } from './roles';
 export interface AuthAssignment {
   storeId: string;
   role: Role;
+  storeKind?: 'warehouse' | 'branch';
 }
 
 export interface AuthUser {

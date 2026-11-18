@@ -11,6 +11,9 @@ export function buildStoresRouter(controller: StoreController): Router {
 
   // Read endpoints: any authenticated user (service applies RBAC scope filter)
   router.get('/', (req, res, next) => controller.list(req, res, next));
+  router.get('/transfer-destinations', (req, res, next) =>
+    controller.listTransferDestinations(req, res, next),
+  );
   router.get('/:id', (req, res, next) => controller.getById(req, res, next));
 
   // Write endpoints: admin only

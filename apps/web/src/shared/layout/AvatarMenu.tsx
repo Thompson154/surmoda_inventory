@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { authService } from '@/features/auth/services/authService';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
+import { canSwitchStores } from '@/shared/auth/usePermissions';
 import { useTheme } from '@/shared/theme/useTheme';
 import { usePerformanceMode } from '@/shared/theme/usePerformanceMode';
 import { cn } from '@/shared/ui/cn';
@@ -119,15 +120,17 @@ export function AvatarMenu() {
           </div>
 
           <div className="flex flex-col gap-0.5">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={goSedes}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-sunken/80 active:scale-[0.98] transition-all"
-            >
-              <Boxes className="h-4 w-4 text-text-subtle" />
-              Volver a sucursales
-            </button>
+            {canSwitchStores(user) && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={goSedes}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-sunken/80 active:scale-[0.98] transition-all"
+              >
+                <Boxes className="h-4 w-4 text-text-subtle" />
+                Volver a sucursales
+              </button>
+            )}
 
             {user?.isAdmin && (
               <button

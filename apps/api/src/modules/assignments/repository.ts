@@ -19,6 +19,7 @@ export interface CreateAssignmentInput {
 
 export interface UserStoreRepository {
   listActiveByUser(userId: string): Promise<AssignmentDTO[]>;
+  hasWarehouseEncargadaRole(userId: string): Promise<boolean>;
   countActiveByUser(userId: string): Promise<number>;
   findById(id: string): Promise<AssignmentRow | null>;
   findActiveByUserStore(userId: string, storeId: string): Promise<AssignmentRow | null>;
@@ -35,6 +36,18 @@ export function buildUserStoreRepository(db: Database): UserStoreRepository {
         orderBy: { createdAt: 'asc' },
       });
       return rows.map(toDTO);
+    },
+
+    async hasWarehouseEncargadaRole(userId) {
+      const count = await db.userStore.count({
+        where: {
+          userId,
+          role: 'encargada',
+          deletedAt: null,
+          store: { kind: 'warehouse', isActive: true, deletedAt: null },
+        },
+      });
+      return count > 0;
     },
 
     async countActiveByUser(userId) {

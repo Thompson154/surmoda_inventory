@@ -1,9 +1,5 @@
 import { Prisma } from '@prisma/client';
-import {
-  buildStoreService,
-  type AssignmentScopeRepository,
-  type StoreService,
-} from '../service';
+import { buildStoreService, type AssignmentScopeRepository, type StoreService } from '../service';
 import type { StoreRepository, StoreTx } from '../repository';
 import type { StoreDTO, StoreKind } from '../types';
 
@@ -21,6 +17,7 @@ interface MockStoresRepo {
 
 interface MockAssignmentScope {
   listActiveByUser: jest.Mock;
+  hasWarehouseEncargadaRole: jest.Mock;
 }
 
 const FAKE_TX = {} as StoreTx;
@@ -54,6 +51,7 @@ beforeEach(() => {
   };
   assignments = {
     listActiveByUser: jest.fn(),
+    hasWarehouseEncargadaRole: jest.fn().mockResolvedValue(false),
   };
   service = buildStoreService({
     stores: stores as unknown as StoreRepository,
@@ -122,10 +120,7 @@ describe('StoreService.list', () => {
   it('admin without isActive defaults to active-only when includeInactive is false', async () => {
     stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
 
-    await service.list(
-      { page: 1, pageSize: 20 },
-      { userId: 'admin1', isAdmin: true },
-    );
+    await service.list({ page: 1, pageSize: 20 }, { userId: 'admin1', isAdmin: true });
 
     expect(stores.list).toHaveBeenCalledWith({ page: 1, pageSize: 20, isActive: true });
   });
@@ -138,9 +133,7 @@ describe('StoreService.list', () => {
       { userId: 'admin1', isAdmin: true },
     );
 
-    expect(stores.list).toHaveBeenCalledWith(
-      expect.objectContaining({ includeInactive: true }),
-    );
+    expect(stores.list).toHaveBeenCalledWith(expect.objectContaining({ includeInactive: true }));
     const call = stores.list.mock.calls[0]?.[0] as { isActive?: boolean };
     expect(call.isActive).toBeUndefined();
   });
@@ -153,10 +146,7 @@ describe('StoreService.list', () => {
     ]);
     stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
 
-    await service.list(
-      { page: 1, pageSize: 20 },
-      { userId: 'staff1', isAdmin: false },
-    );
+    await service.list({ page: 1, pageSize: 20 }, { userId: 'staff1', isAdmin: false });
 
     const allowedIds = stores.list.mock.calls[0]?.[1] as string[];
     expect(new Set(allowedIds)).toEqual(new Set(['store-prado-seed', 'store-zsur-seed']));
@@ -177,20 +167,44 @@ describe('StoreService.list', () => {
     expect(result.items).toEqual([]);
   });
 
-  it('encargada (any role=encargada) sees ALL stores regardless of assignments', async () => {
+  it('warehouse encargada sees ALL stores regardless of assignments', async () => {
+    assignments.hasWarehouseEncargadaRole.mockResolvedValue(true);
+    stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+
+    await service.list({ page: 1, pageSize: 20 }, { userId: 'gloria-1', isAdmin: false });
+
+    // Warehouse encargada acts as global operator: receives ONE list-arg (no allowedIds filter).
+    expect(stores.list).toHaveBeenCalledTimes(1);
+    expect(stores.list.mock.calls[0]).toHaveLength(1);
+  });
+
+  it('branch-only encargada is scoped strictly to her assigned stores', async () => {
+    assignments.hasWarehouseEncargadaRole.mockResolvedValue(false);
     assignments.listActiveByUser.mockResolvedValue([
-      { storeId: 'store-prado-seed', role: 'encargada' },
+      { storeId: 'store-online-seed', role: 'encargada' },
+      { storeId: 'store-online-seed', role: 'vendedora' },
     ]);
     stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
 
-    await service.list(
-      { page: 1, pageSize: 20 },
-      { userId: 'encargada-1', isAdmin: false },
-    );
+    await service.list({ page: 1, pageSize: 20 }, { userId: 'liz-1', isAdmin: false });
 
-    // Encargada acts as global operator: receives ONE list-arg (no allowedIds filter).
-    expect(stores.list).toHaveBeenCalledTimes(1);
-    expect(stores.list.mock.calls[0]).toHaveLength(1);
+    const allowedIds = stores.list.mock.calls[0]?.[1] as string[];
+    expect(allowedIds).toEqual(['store-online-seed']);
+  });
+});
+
+describe('StoreService.listTransferDestinations', () => {
+  it('returns active branch stores only', async () => {
+    stores.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 100 });
+
+    await service.listTransferDestinations();
+
+    expect(stores.list).toHaveBeenCalledWith({
+      kind: 'branch',
+      isActive: true,
+      page: 1,
+      pageSize: 100,
+    });
   });
 });
 
@@ -215,15 +229,25 @@ describe('StoreService.getById', () => {
     expect(result.id).toBe('store-prado-seed');
   });
 
-  it('encargada accesses any store, even without direct assignment', async () => {
+  it('warehouse encargada accesses any store without direct assignment', async () => {
     stores.findById.mockResolvedValue(buildStore({ id: 'store-zsur-seed' }));
-    assignments.listActiveByUser.mockResolvedValue([
-      { storeId: 'store-prado-seed', role: 'encargada' },
-    ]);
+    assignments.hasWarehouseEncargadaRole.mockResolvedValue(true);
 
     const result = await service.getById('store-zsur-seed', { userId: 'u1', isAdmin: false });
 
     expect(result.id).toBe('store-zsur-seed');
+  });
+
+  it('throws STORE_NOT_FOUND when branch encargada tries to access an unassigned store', async () => {
+    stores.findById.mockResolvedValue(buildStore({ id: 'store-zsur-seed' }));
+    assignments.hasWarehouseEncargadaRole.mockResolvedValue(false);
+    assignments.listActiveByUser.mockResolvedValue([
+      { storeId: 'store-online-seed', role: 'encargada' },
+    ]);
+
+    await expect(
+      service.getById('store-zsur-seed', { userId: 'liz-1', isAdmin: false }),
+    ).rejects.toMatchObject({ code: 'STORE_NOT_FOUND', statusCode: 404 });
   });
 
   it('throws STORE_NOT_FOUND when store is missing', async () => {
@@ -274,9 +298,10 @@ describe('StoreService.update', () => {
     });
     stores.update.mockRejectedValue(p2002);
 
-    await expect(
-      service.update('store-prado-seed', { code: 'DUP' }),
-    ).rejects.toMatchObject({ code: 'STORE_DUPLICATE_CODE', statusCode: 409 });
+    await expect(service.update('store-prado-seed', { code: 'DUP' })).rejects.toMatchObject({
+      code: 'STORE_DUPLICATE_CODE',
+      statusCode: 409,
+    });
   });
 
   it('throws STORE_NOT_FOUND when store is missing', async () => {
@@ -355,7 +380,10 @@ describe('StoreService.reactivate', () => {
       code: 'STORE_WAREHOUSE_ALREADY_EXISTS',
       statusCode: 409,
     });
-    expect(stores.countActiveWarehouses).toHaveBeenCalledWith({ excludeId: 'store-old-wh' }, FAKE_TX);
+    expect(stores.countActiveWarehouses).toHaveBeenCalledWith(
+      { excludeId: 'store-old-wh' },
+      FAKE_TX,
+    );
     expect(stores.setActive).not.toHaveBeenCalled();
   });
 

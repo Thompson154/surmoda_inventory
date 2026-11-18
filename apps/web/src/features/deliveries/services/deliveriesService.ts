@@ -1,5 +1,6 @@
 import type {
   ConfirmDraftPayload,
+  ConfirmPartialDeliveryPayload,
   CreateDeliveryPayload,
   DeliveryWithItems,
   ListDeliveriesFilters,
@@ -42,6 +43,8 @@ export const deliveriesService = {
     httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/confirm`, payload),
   receive: (deliveryId: string, payload: ReceiveDeliveryPayload) =>
     httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/receive`, payload),
+  confirmPartial: (deliveryId: string, payload: ConfirmPartialDeliveryPayload = {}) =>
+    httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/confirm-partial`, payload),
   intakeLookup: (warehouseId: string, code: string) =>
     httpClient.get<WarehouseIntakeLookupResponse>(
       `/stores/${warehouseId}/deliveries/intake/lookup?code=${encodeURIComponent(code)}`,

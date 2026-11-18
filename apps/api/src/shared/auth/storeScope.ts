@@ -27,6 +27,7 @@ export interface AuthContext {
 export interface StoreScopeRepo {
   findActiveAssignment(userId: string, storeId: string): Promise<StoreAssignment | null>;
   hasAnyEncargadaRole(userId: string): Promise<boolean>;
+  hasWarehouseEncargadaRole?(userId: string): Promise<boolean>;
 }
 
 /** Allow admin or any encargada (global). Vendedora always denied. */
@@ -62,8 +63,8 @@ export async function assertVendedoraOrAdmin(
 }
 
 /**
- * Allow admin, any encargada (global), OR vendedora explicitly assigned to the store.
- * The store-scoped services (sales, deliveries, inventory) use this on every read/write.
+ * Allow admin, warehouse encargada (global across stores), OR staff explicitly
+ * assigned to the store. Branch-only encargadas stay scoped to their own store.
  */
 export async function assertCanActOnStore(
   scope: StoreScopeRepo,
@@ -73,7 +74,11 @@ export async function assertCanActOnStore(
   message: string,
 ): Promise<void> {
   if (auth.isAdmin) return;
-  if (await scope.hasAnyEncargadaRole(auth.userId)) return;
+  if (scope.hasWarehouseEncargadaRole) {
+    if (await scope.hasWarehouseEncargadaRole(auth.userId)) return;
+  } else if (await scope.hasAnyEncargadaRole(auth.userId)) {
+    return;
+  }
   const a = await scope.findActiveAssignment(auth.userId, storeId);
   if (a) return;
   throw new AppError(403, ERROR_CODES[forbiddenCode], message);

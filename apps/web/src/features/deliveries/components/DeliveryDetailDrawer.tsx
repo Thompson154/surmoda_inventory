@@ -5,12 +5,15 @@ import type {
   DeliveryWithItems,
   ReceiveDeliveryItemAdjustment,
 } from '@surmoda/contracts';
-import { useConfirmDraftDelivery, useDelivery, useReceiveDelivery } from '../hooks/useDeliveries';
-import { useRequestDeliveryEdit } from '../hooks/useRequestDeliveryEdit';
+import {
+  useConfirmDraftDelivery,
+  useConfirmPartialDelivery,
+  useDelivery,
+  useReceiveDelivery,
+} from '../hooks/useDeliveries';
 import { Alert, Button, ConfirmDialog, Modal, Skeleton } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
-import { useToast } from '@/shared/ui';
 import type { HttpError } from '@/shared/services/httpClient';
 
 interface DeliveryDetailDrawerProps {
@@ -22,7 +25,8 @@ const STATUS_LABEL: Record<DeliveryStatus, string> = {
   draft: 'Borrador',
   sent: 'Enviada',
   received: 'Recibida',
-  partial: 'Parcial',
+  partial: 'Parcial · Por confirmar',
+  partial_confirmed: 'Recibido parcialmente - Confirmado',
 };
 
 const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
@@ -30,6 +34,7 @@ const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
   sent: { bg: 'bg-status-warning-soft', text: 'text-status-warning' },
   received: { bg: 'bg-status-success-soft', text: 'text-status-success' },
   partial: { bg: 'bg-orange-100', text: 'text-orange-700' },
+  partial_confirmed: { bg: 'bg-status-success-soft', text: 'text-status-success' },
 };
 
 const MONTH_ABBR = [
@@ -67,11 +72,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   const [showHistory, setShowHistory] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [confirmReceive, setConfirmReceive] = useState(false);
-
-  const [editRequestOpen, setEditRequestOpen] = useState(false);
-  const editRequestMutation = useRequestDeliveryEdit();
-  const editRequestError = useErrorMessage(editRequestMutation.error as HttpError | null);
-  const toast = useToast();
+  const [confirmPartialOpen, setConfirmPartialOpen] = useState(false);
 
   // Reset form when a new delivery loads.
   useEffect(() => {
@@ -83,16 +84,21 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
     setReceivedQty(init);
     setReasonByItem({});
     setShowHistory(false);
-  }, [data?.id]);
+  }, [data?.id, data?.status]);
 
   const scope = useStoreScope(data?.toStoreId ?? null);
+  const originScope = useStoreScope(data?.fromStoreId ?? null);
   const canConfirmDraft = scope.canManage;
   const canManage = scope.canManage;
+  const canConfirmPartial =
+    scope.isAdmin || scope.hasEncargadaRole || originScope.directRole === 'encargada';
 
   const confirmMutation = useConfirmDraftDelivery();
   const receiveMutation = useReceiveDelivery();
+  const confirmPartialMutation = useConfirmPartialDelivery();
   const confirmError = useErrorMessage(confirmMutation.error as HttpError | null);
   const receiveError = useErrorMessage(receiveMutation.error as HttpError | null);
+  const confirmPartialError = useErrorMessage(confirmPartialMutation.error as HttpError | null);
 
   const adjustmentsByItemId = useMemo(() => {
     const m = new Map<string, DeliveryWithItems['adjustments']>();
@@ -118,6 +124,16 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
       reason: reasonByItem[i.id]?.trim() || undefined,
     }));
     receiveMutation.mutate({ deliveryId: data.id, payload: { items: payload } });
+  };
+
+  const handleConfirmPartial = () => {
+    if (!data) return;
+    const items = data.items.map((i) => ({
+      deliveryItemId: i.id,
+      confirmedQuantity: receivedQty[i.id] ?? i.receivedQuantity ?? i.quantity,
+      reason: reasonByItem[i.id]?.trim() || undefined,
+    }));
+    confirmPartialMutation.mutate({ deliveryId: data.id, payload: { items } });
   };
 
   return (
@@ -164,10 +180,14 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
               <ul className="flex flex-col gap-2">
                 {data.items.map((it) => {
                   const adjustments = adjustmentsByItemId.get(it.id) ?? [];
-                  // WHY: only encargada/admin can adjust quantities per Wave 5
-                  const editable = data.status === 'sent' && canManage;
-                  const value = receivedQty[it.id] ?? it.quantity;
-                  const adjusted = value !== it.quantity;
+                  const editable =
+                    (data.status === 'sent' && canManage) ||
+                    (data.status === 'partial' && canConfirmPartial);
+                  const value = receivedQty[it.id] ?? it.receivedQuantity ?? it.quantity;
+                  const adjusted =
+                    data.status === 'sent'
+                      ? value !== it.quantity
+                      : value !== (it.receivedQuantity ?? it.quantity);
                   return (
                     <li
                       key={it.id}
@@ -268,52 +288,13 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
 
             {data.status === 'sent' && (
               <div className="flex flex-col gap-2">
-                {/* Solicitar edición — visible to all roles */}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="md"
-                  onClick={() => setEditRequestOpen(true)}
-                >
-                  Solicitar edición
-                </Button>
-                <ConfirmDialog
-                  open={editRequestOpen}
-                  onClose={() => setEditRequestOpen(false)}
-                  onConfirm={(reason) => {
-                    if (!reason) return;
-                    editRequestMutation.mutate(
-                      { deliveryId: data.id, payload: { reason } },
-                      {
-                        onSuccess: () => {
-                          setEditRequestOpen(false);
-                          toast.success('Solicitud enviada al admin');
-                        },
-                        onError: () => {
-                          setEditRequestOpen(false);
-                          toast.error(editRequestError ?? 'No pudimos enviar la solicitud.');
-                        },
-                      },
-                    );
-                  }}
-                  title="Solicitar edición de entrega"
-                  description="Mandá al admin la justificación. Mín 50 caracteres."
-                  confirmLabel="Confirmar"
-                  variant="default"
-                  isPending={editRequestMutation.isPending}
-                  requiresReason
-                  reasonLabel="Motivo"
-                  reasonPlaceholder="Explicá el motivo de la edición (mín 50 caracteres)"
-                  reasonMinLength={50}
-                />
-
                 {/* Confirmar recepción — encargada/admin only */}
                 {canManage && (
                   <>
                     {isPartialPreview && (
                       <Alert variant="info">
-                        Vas a confirmar como <strong>parcial</strong>: las cantidades ajustadas
-                        quedan en auditoría con tu nombre.
+                        Vas a reportar una <strong>recepción parcial</strong>: quedará pendiente de
+                        confirmación desde Almacén Central antes de sumar stock.
                       </Alert>
                     )}
                     <ConfirmDialog
@@ -323,8 +304,14 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                         handleReceive();
                         setConfirmReceive(false);
                       }}
-                      title="Confirmar recepción"
-                      description="Una vez confirmado no se puede revertir."
+                      title={
+                        isPartialPreview ? 'Reportar recepción parcial' : 'Confirmar recepción'
+                      }
+                      description={
+                        isPartialPreview
+                          ? 'Se enviará la discrepancia para confirmación interna desde Almacén Central.'
+                          : 'Una vez confirmado no se puede revertir.'
+                      }
                       confirmLabel="Confirmar"
                       variant="default"
                       isPending={receiveMutation.isPending}
@@ -350,6 +337,54 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
               </div>
             )}
 
+            {data.status === 'partial' && (
+              <div className="flex flex-col gap-2">
+                {canConfirmPartial ? (
+                  <>
+                    <Alert variant="info">
+                      La sucursal reportó recepción parcial. Al confirmar, Almacén Central
+                      descontará solo lo confirmado (devolviendo la diferencia al almacén) y la
+                      sucursal recibirá únicamente esas unidades.
+                    </Alert>
+                    <ConfirmDialog
+                      open={confirmPartialOpen}
+                      onClose={() => setConfirmPartialOpen(false)}
+                      onConfirm={() => {
+                        handleConfirmPartial();
+                        setConfirmPartialOpen(false);
+                      }}
+                      title="Confirmar recepción parcial"
+                      description="Se actualizará el stock en origen y destino según las cantidades confirmadas."
+                      confirmLabel="Confirmar"
+                      variant="default"
+                      isPending={confirmPartialMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      onClick={() => setConfirmPartialOpen(true)}
+                      isLoading={confirmPartialMutation.isPending}
+                      disabled={confirmPartialMutation.isPending}
+                    >
+                      Confirmar recepción parcial
+                    </Button>
+                  </>
+                ) : (
+                  <Alert variant="info">
+                    Recepción parcial reportada. Esperando confirmación interna desde Almacén
+                    Central o Administración para acreditar el stock.
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            {data.status === 'partial_confirmed' && (
+              <p className="text-xs text-status-success text-center font-medium">
+                Recibido parcialmente - Confirmado — stock ajustado en origen y destino.
+              </p>
+            )}
+
             {data.status === 'received' && (
               <p className="text-xs text-text-muted text-center italic">
                 Entrega confirmada — no se puede modificar.
@@ -358,6 +393,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
 
             {confirmError && <Alert variant="error">{confirmError}</Alert>}
             {receiveError && <Alert variant="error">{receiveError}</Alert>}
+            {confirmPartialError && <Alert variant="error">{confirmPartialError}</Alert>}
 
             {/* Audit history button */}
             {data.adjustments.length > 0 && (

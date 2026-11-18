@@ -20,7 +20,7 @@ import {
   type StoreScopeRepo,
 } from '../../shared/auth/storeScope';
 import type { DeliveryRepository, DeliveryTx } from './repository';
-import { applyDestinationCredit, applyOriginDebit } from './stockOps';
+import { applyDestinationCredit, applyOriginDebit, applyOriginRefund } from './stockOps';
 import type { ProductRepository } from '../products/repository.product';
 import type { VariantRepository } from '../products/repository.variant';
 import { generateBarcode } from '../products/barcode';
@@ -34,6 +34,7 @@ import {
 import type {
   AuthContext,
   ConfirmDraftDTO,
+  ConfirmPartialDeliveryDTO,
   CreateDeliveryDTO,
   DeliveryStatus,
   DeliveryWithItems,
@@ -88,6 +89,11 @@ export interface DeliveryService {
   receive(
     deliveryId: string,
     input: ReceiveDeliveryDTO,
+    auth: AuthContext,
+  ): Promise<DeliveryWithItems>;
+  confirmPartial(
+    deliveryId: string,
+    input: ConfirmPartialDeliveryDTO,
     auth: AuthContext,
   ): Promise<DeliveryWithItems>;
   intakeLookup(
@@ -174,8 +180,9 @@ export function buildDeliveryService({
     const allowed: Record<DeliveryStatus, DeliveryStatus[]> = {
       draft: ['sent'],
       sent: ['received', 'partial'],
+      partial: ['partial_confirmed'],
+      partial_confirmed: [],
       received: [],
-      partial: [],
     };
     if (!allowed[current].includes(target)) {
       throw new AppError(
@@ -200,6 +207,14 @@ export function buildDeliveryService({
       }
 
       const isReception = toStore.kind === 'warehouse';
+      if (isReception && input.fromStoreId) {
+        throw new AppError(
+          400,
+          ERROR_CODES.VALIDATION_ERROR,
+          'No se pueden realizar transferencias hacia el almacén central.',
+        );
+      }
+
       const startAsDraft = !isReception && Boolean(input.asDraft);
       const targetStatus: DeliveryStatus = isReception
         ? 'received'
@@ -215,13 +230,21 @@ export function buildDeliveryService({
 
         // Resolve origin (`fromStoreId`):
         //   - reception (intake): no origin, stock is born at the warehouse.
-        //   - distribution from explicit origin (module 11 — lateral / return):
+        //   - distribution from explicit origin (lateral or warehouse → branch):
         //       caller passed `input.fromStoreId`. Validate it exists and the
         //       actor can write to it (encargada-of-origin or admin per Q1=A).
         //   - distribution legacy (warehouse → branch): caller omitted
-        //       `fromStoreId`; we resolve it from the active warehouse.
+        //       `fromStoreId`; resolve active warehouse and verify actor can act on it.
         let fromStoreId: string | null = null;
-        if (!isReception) {
+        if (isReception) {
+          await assertCanActOnStore(
+            assignments,
+            toStoreId,
+            auth,
+            'DELIVERY_FORBIDDEN',
+            'Sólo almacén central o admin puede ingresar entregas al almacén.',
+          );
+        } else {
           if (input.fromStoreId) {
             const fromStore = await stores.findById(input.fromStoreId);
             if (!fromStore) {
@@ -252,6 +275,13 @@ export function buildDeliveryService({
                 'No hay un almacén activo configurado.',
               );
             }
+            await assertCanActOnStore(
+              assignments,
+              wh.id,
+              auth,
+              'DELIVERY_FORBIDDEN',
+              'Sólo almacén central o admin puede enviar entregas desde el almacén.',
+            );
             fromStoreId = wh.id;
           }
         }
@@ -332,7 +362,15 @@ export function buildDeliveryService({
       const delivery = await deliveries.findDelivery(deliveryId);
       if (!delivery)
         throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
-      await ensureCanReadStore(delivery.toStoreId, auth);
+      try {
+        await ensureCanReadStore(delivery.toStoreId, auth);
+      } catch (err) {
+        if (delivery.fromStoreId) {
+          await ensureCanReadStore(delivery.fromStoreId, auth);
+        } else {
+          throw err;
+        }
+      }
       return delivery;
     },
 
@@ -436,12 +474,19 @@ export function buildDeliveryService({
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
         }
-        // WHY: Wave 5 — only encargada/admin can confirm reception (no vendedora).
+        // WHY: Wave 5 — only encargada/admin of destination store (or global warehouse encargada) can confirm reception.
         await assertEncargadaOrAdmin(
           assignments,
           auth,
           'DELIVERY_RECEIVE_FORBIDDEN_VENDEDORA',
           'Sólo encargada/admin puede confirmar la recepción de una entrega.',
+        );
+        await assertCanActOnStore(
+          assignments,
+          current.toStoreId,
+          auth,
+          'DELIVERY_FORBIDDEN',
+          'Sólo encargada de la sede destino o admin puede confirmar esta recepción.',
         );
         if (current.status !== 'sent') {
           throw new AppError(
@@ -534,24 +579,27 @@ export function buildDeliveryService({
 
         await deliveries.recordAdjustments(deliveryId, adjustments, tx);
 
-        // Q2-D — only destination credit here. Origin already debited at
-        // sent time (full sent quantity). Lines where receivedQuantity is
-        // less than sent are LOST IN TRANSIT and stay out of both stocks;
-        // the gap is captured by `delivery_received_adjusted` movements
-        // emitted above per partial line — admin can reconcile via stock
-        // adjustment if the missing units later turn up.
-        const aggregated = aggregateReceived(qtyMap);
-        await applyDestinationCredit(
-          deliveries,
-          {
-            kind: current.kind,
-            fromStoreId: current.fromStoreId,
-            toStoreId: current.toStoreId,
-            items: aggregated,
-            userId: auth.userId,
-          },
-          tx,
-        );
+        // When reception is full (`!isPartial`), credit destination immediately
+        // and finalize as `received`.
+        // When reception is partial (`isPartial`), keep destination stock
+        // untouched until Almacén Central / origin / admin confirms internally
+        // via `confirmPartial()` (`partial -> partial_confirmed`), which credits
+        // destination with the confirmed quantities and refunds any unshipped
+        // difference back to origin.
+        if (!isPartial) {
+          const aggregated = aggregateReceived(qtyMap);
+          await applyDestinationCredit(
+            deliveries,
+            {
+              kind: current.kind,
+              fromStoreId: current.fromStoreId,
+              toStoreId: current.toStoreId,
+              items: aggregated,
+              userId: auth.userId,
+            },
+            tx,
+          );
+        }
 
         const finalStatus: DeliveryStatus = isPartial ? 'partial' : 'received';
         await deliveries.setStatus(
@@ -562,6 +610,163 @@ export function buildDeliveryService({
           tx,
         );
 
+        return deliveries.findDelivery(deliveryId, tx);
+      });
+      if (!full)
+        throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
+      return full;
+    },
+
+    async confirmPartial(deliveryId, input, auth) {
+      const full = await deliveries.runSerializable(async (tx) => {
+        const current = await deliveries.loadForUpdate(deliveryId, tx);
+        if (!current) {
+          throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
+        }
+        if (current.status !== 'partial') {
+          throw new AppError(
+            409,
+            ERROR_CODES.DELIVERY_INVALID_STATE,
+            'Sólo se pueden confirmar entregas en estado parcial.',
+          );
+        }
+
+        let allowed = auth.isAdmin;
+        if (!allowed && assignments.hasWarehouseEncargadaRole) {
+          allowed = await assignments.hasWarehouseEncargadaRole(auth.userId);
+        }
+        if (!allowed && current.fromStoreId) {
+          const originAssignment = await assignments.findActiveAssignment(
+            auth.userId,
+            current.fromStoreId,
+          );
+          allowed = originAssignment?.role === 'encargada';
+        }
+        if (!allowed) {
+          throw new AppError(
+            403,
+            ERROR_CODES.DELIVERY_FORBIDDEN,
+            'Sólo administrador o encargada de almacén central/origen puede confirmar la recepción parcial.',
+          );
+        }
+
+        const overrideById = new Map(
+          (input.items ?? []).map((it) => [
+            it.deliveryItemId,
+            { confirmedQuantity: it.confirmedQuantity, reason: it.reason ?? null },
+          ]),
+        );
+        const expectedIds = new Set(current.items.map((i) => i.id));
+        for (const id of overrideById.keys()) {
+          if (!expectedIds.has(id)) {
+            throw new AppError(
+              400,
+              ERROR_CODES.VALIDATION_ERROR,
+              `Línea no pertenece a la entrega: ${id}`,
+            );
+          }
+        }
+
+        const creditByVariant = new Map<string, number>();
+        const refundByVariant = new Map<string, number>();
+        const extraAdjustments: Array<{
+          deliveryItemId: string;
+          expectedQty: number;
+          actualQty: number;
+          reason: string | null;
+          adjustedByUserId: string;
+        }> = [];
+
+        for (const item of current.items) {
+          const prevReported = item.receivedQuantity ?? item.quantity;
+          const override = overrideById.get(item.id);
+          const confirmed = override ? override.confirmedQuantity : prevReported;
+          if (confirmed > item.quantity || confirmed < 0) {
+            throw new AppError(
+              400,
+              ERROR_CODES.VALIDATION_ERROR,
+              'La cantidad confirmada debe estar entre 0 y la cantidad enviada.',
+              { deliveryItemId: item.id, sent: item.quantity, confirmed },
+            );
+          }
+
+          if (confirmed !== item.receivedQuantity) {
+            await deliveries.setReceivedQuantity(item.id, confirmed, tx);
+          }
+          if (confirmed !== prevReported) {
+            extraAdjustments.push({
+              deliveryItemId: item.id,
+              expectedQty: prevReported,
+              actualQty: confirmed,
+              reason: override?.reason ?? 'Confirmación desde almacén/origen',
+              adjustedByUserId: auth.userId,
+            });
+            await deliveries.createMovement(
+              {
+                storeId: current.toStoreId,
+                variantId: item.variantId,
+                userId: auth.userId,
+                type: 'delivery_received_adjusted',
+                payload: {
+                  deliveryId,
+                  deliveryItemId: item.id,
+                  expectedQty: prevReported,
+                  actualQty: confirmed,
+                  reason: override?.reason ?? 'Confirmación desde almacén/origen',
+                },
+              },
+              tx,
+            );
+          }
+
+          creditByVariant.set(
+            item.variantId,
+            (creditByVariant.get(item.variantId) ?? 0) + confirmed,
+          );
+          const diff = item.quantity - confirmed;
+          if (diff > 0) {
+            refundByVariant.set(item.variantId, (refundByVariant.get(item.variantId) ?? 0) + diff);
+          }
+        }
+
+        await deliveries.recordAdjustments(deliveryId, extraAdjustments, tx);
+
+        // Credit destination with ONLY what was confirmed.
+        const creditItems = Array.from(creditByVariant.entries()).map(([variantId, quantity]) => ({
+          variantId,
+          quantity,
+        }));
+        await applyDestinationCredit(
+          deliveries,
+          {
+            kind: current.kind,
+            fromStoreId: current.fromStoreId,
+            toStoreId: current.toStoreId,
+            items: creditItems,
+            userId: auth.userId,
+          },
+          tx,
+        );
+
+        // Refund origin for unshipped units so origin reduces net by ONLY what was confirmed.
+        if (current.fromStoreId) {
+          const refundItems = Array.from(refundByVariant.entries()).map(
+            ([variantId, quantity]) => ({ variantId, quantity }),
+          );
+          await applyOriginRefund(
+            deliveries,
+            {
+              fromStoreId: current.fromStoreId,
+              toStoreId: current.toStoreId,
+              deliveryId,
+              items: refundItems,
+              userId: auth.userId,
+            },
+            tx,
+          );
+        }
+
+        await deliveries.setStatus(deliveryId, 'partial_confirmed', {}, null, tx);
         return deliveries.findDelivery(deliveryId, tx);
       });
       if (!full)

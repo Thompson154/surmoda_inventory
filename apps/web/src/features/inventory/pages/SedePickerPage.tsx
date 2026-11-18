@@ -11,16 +11,9 @@ import {
 } from 'lucide-react';
 import { useStores } from '@/features/stores/hooks/useStores';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
-import { usePermissions } from '@/shared/auth/usePermissions';
+import { canSwitchStores, landingPathFor, usePermissions } from '@/shared/auth/usePermissions';
 import { Alert, Card, CardContent, EmptyState, Skeleton, cn } from '@/shared/ui';
 import { AppShell } from '@/shared/layout/AppShell';
-
-// WHY: vendedora no tiene inventory:read post-Wave 5, va al scanner;
-// encargada/admin pueden ir a inventario.
-function landingPathFor(role: string | null, storeId: string): string {
-  if (role === 'vendedora') return `/sedes/${storeId}/scanner`;
-  return `/sedes/${storeId}/inventario`;
-}
 
 interface StoreMeta {
   location: string;
@@ -104,8 +97,8 @@ export function SedePickerPage() {
 
   const items = query.data?.items ?? [];
 
-  // Auto-redirect when the user has exactly one accessible store (typical vendedora case).
-  if (items.length === 1 && !user?.isAdmin) {
+  // Auto-redirect when the user cannot switch stores and has an assigned store.
+  if (items.length === 1 && !canSwitchStores(user)) {
     return <Navigate to={landingPathFor(role, items[0]!.id)} replace />;
   }
 

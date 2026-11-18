@@ -5,6 +5,7 @@ import type { InventoryRowDTO } from '../types';
 interface MockRepo {
   findUserAssignment: jest.Mock;
   hasAnyEncargadaRole: jest.Mock;
+  hasWarehouseEncargadaRole: jest.Mock;
   list: jest.Mock;
   listGroupedByProduct: jest.Mock;
   listVariantsForProductInStore: jest.Mock;
@@ -40,6 +41,7 @@ beforeEach(() => {
   repo = {
     findUserAssignment: jest.fn(),
     hasAnyEncargadaRole: jest.fn().mockResolvedValue(false),
+    hasWarehouseEncargadaRole: jest.fn().mockResolvedValue(false),
     list: jest.fn(),
     listGroupedByProduct: jest.fn(),
     listVariantsForProductInStore: jest.fn(),
@@ -298,9 +300,9 @@ describe('InventoryService.getEditPermission', () => {
   });
 });
 
-describe('InventoryService — global encargada', () => {
-  it('encargada with role=encargada in any store can access any store', async () => {
-    repo.hasAnyEncargadaRole.mockResolvedValue(true);
+describe('InventoryService — global warehouse encargada', () => {
+  it('warehouse encargada can access any store', async () => {
+    repo.hasWarehouseEncargadaRole.mockResolvedValue(true);
     repo.list.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
 
     await service.list(
@@ -312,8 +314,21 @@ describe('InventoryService — global encargada', () => {
     expect(repo.findUserAssignment).not.toHaveBeenCalled();
   });
 
-  it('encargada can list movements of any store', async () => {
-    repo.hasAnyEncargadaRole.mockResolvedValue(true);
+  it('branch-only encargada cannot access an unassigned store', async () => {
+    repo.hasWarehouseEncargadaRole.mockResolvedValue(false);
+    repo.findUserAssignment.mockResolvedValue(null);
+
+    await expect(
+      service.list(
+        'store-zsur-seed',
+        { page: 1, pageSize: 20 },
+        { userId: 'liz-1', isAdmin: false },
+      ),
+    ).rejects.toMatchObject({ code: 'STOCK_NOT_FOUND', statusCode: 404 });
+  });
+
+  it('warehouse encargada can list movements of any store', async () => {
+    repo.hasWarehouseEncargadaRole.mockResolvedValue(true);
     repo.listMovements.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     await service.listMovements(
       'store-zsur-seed',
@@ -326,7 +341,7 @@ describe('InventoryService — global encargada', () => {
 
 describe('InventoryService.listGrouped', () => {
   it('returns the grouped result for an authorized user', async () => {
-    repo.hasAnyEncargadaRole.mockResolvedValue(true);
+    repo.hasWarehouseEncargadaRole.mockResolvedValue(true);
     const grouped = {
       items: [
         {
@@ -355,7 +370,7 @@ describe('InventoryService.listGrouped', () => {
 
 describe('InventoryService.listVariantsForProduct', () => {
   it('returns variants when present', async () => {
-    repo.hasAnyEncargadaRole.mockResolvedValue(true);
+    repo.hasWarehouseEncargadaRole.mockResolvedValue(true);
     repo.listVariantsForProductInStore.mockResolvedValue([
       buildRow({ size: 'm', color: 'azul', quantity: 5 }),
     ]);
@@ -367,7 +382,7 @@ describe('InventoryService.listVariantsForProduct', () => {
   });
 
   it('throws INVENTORY_PRODUCT_NOT_IN_STORE when no variants exist for the product in the store', async () => {
-    repo.hasAnyEncargadaRole.mockResolvedValue(true);
+    repo.hasWarehouseEncargadaRole.mockResolvedValue(true);
     repo.listVariantsForProductInStore.mockResolvedValue([]);
     await expect(
       service.listVariantsForProduct('store-prado-seed', 'p-missing', {

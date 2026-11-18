@@ -8,13 +8,13 @@ export type DeliveryKind = 'reception' | 'distribution';
  * Lifecycle of a distribution delivery:
  *   draft     → encargada is composing items; stock untouched
  *   sent      → encargada confirmed; awaiting reception; stock untouched
- *   received  → vendedora confirmed with original quantities; stock applied
- *   partial   → vendedora confirmed with adjusted quantities; stock applied
- *               with adjusted numbers + DeliveryItemAdjustment row(s) emitted.
+ *   received          → branch confirmed with original quantities; stock applied
+ *   partial           → branch reported discrepancy; awaiting origin/warehouse confirmation (dest stock untouched)
+ *   partial_confirmed → origin/warehouse/admin confirmed partial quantities; dest credited confirmed qty & origin refunded difference
  * Reception deliveries (warehouse intake) skip draft/sent and are born
  * `received`.
  */
-export type DeliveryStatus = 'draft' | 'sent' | 'received' | 'partial';
+export type DeliveryStatus = 'draft' | 'sent' | 'received' | 'partial' | 'partial_confirmed';
 
 export interface DeliveryItemPayload {
   variantId: string;
@@ -63,6 +63,17 @@ export interface ReceiveDeliveryPayload {
    *  (no adjustment row), but they must be present so the BE can verify the
    *  vendedora confirmed every line. */
   items: ReceiveDeliveryItemAdjustment[];
+}
+
+export interface ConfirmPartialItemPayload {
+  deliveryItemId: string;
+  confirmedQuantity: number;
+  reason?: string;
+}
+
+export interface ConfirmPartialDeliveryPayload {
+  /** Optional item overrides during warehouse/admin confirmation. Defaults to reported receivedQuantity. */
+  items?: ConfirmPartialItemPayload[];
 }
 
 export interface DeliveryItemDTO {
@@ -157,17 +168,7 @@ export interface PaginatedDeliveryGroups {
  */
 export interface WarehouseIntakeVariantPayload {
   /** Tamaño contractual — mismo enum que Variant.size. */
-  size:
-    | 's'
-    | 'm'
-    | 'l'
-    | 'xl'
-    | 'xxl'
-    | '28'
-    | '30'
-    | '32'
-    | '34'
-    | 'standard';
+  size: 's' | 'm' | 'l' | 'xl' | 'xxl' | '28' | '30' | '32' | '34' | 'standard';
   color: string;
   quantity: number;
   /** Precio en centavos. Sólo se aplica al CREAR la variante; reposición lo ignora. */
@@ -196,17 +197,7 @@ export interface WarehouseIntakePayload {
  */
 export interface WarehouseIntakeLookupItem {
   variantId: string;
-  size:
-    | 's'
-    | 'm'
-    | 'l'
-    | 'xl'
-    | 'xxl'
-    | '28'
-    | '30'
-    | '32'
-    | '34'
-    | 'standard';
+  size: 's' | 'm' | 'l' | 'xl' | 'xxl' | '28' | '30' | '32' | '34' | 'standard';
   color: string;
   priceCents: number;
   /** Stock actual de esa variante en el almacén. */

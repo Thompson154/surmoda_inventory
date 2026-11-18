@@ -25,12 +25,17 @@ export function useStoreScope(storeId: string | null): StoreScope {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.isAdmin ?? false;
   const assignments = user?.assignments ?? [];
-  const hasEncargadaRole = assignments.some((a) => a.role === 'encargada');
-  const directRole =
-    storeId == null
-      ? null
-      : (assignments.find((a) => a.storeId === storeId)?.role ?? null);
-  const canManage = isAdmin || hasEncargadaRole;
+  const hasEncargadaRole = assignments.some(
+    (a) => a.role === 'encargada' && a.storeKind === 'warehouse',
+  );
+  const storeRoles =
+    storeId == null ? [] : assignments.filter((a) => a.storeId === storeId).map((a) => a.role);
+  const directRole = storeRoles.includes('encargada')
+    ? 'encargada'
+    : storeRoles.includes('vendedora')
+      ? 'vendedora'
+      : null;
+  const canManage = isAdmin || hasEncargadaRole || directRole === 'encargada';
   const isVendedoraHere = !canManage && directRole === 'vendedora';
   return { isAdmin, hasEncargadaRole, directRole, canManage, isVendedoraHere };
 }

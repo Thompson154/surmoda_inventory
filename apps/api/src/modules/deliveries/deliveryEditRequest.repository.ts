@@ -14,7 +14,7 @@ export interface DeliveryEditRequestRow {
 
 export interface DeliveryHeader {
   id: string;
-  status: 'draft' | 'sent' | 'received' | 'partial';
+  status: 'draft' | 'sent' | 'received' | 'partial' | 'partial_confirmed';
   toStoreId: string;
   fromStoreId: string | null;
 }
@@ -63,8 +63,18 @@ function mapStatus(s: string): 'pending' | 'approved' | 'rejected' {
   return 'pending';
 }
 
-function mapDeliveryStatus(s: string): 'draft' | 'sent' | 'received' | 'partial' {
-  if (s === 'draft' || s === 'sent' || s === 'received' || s === 'partial') return s;
+function mapDeliveryStatus(
+  s: string,
+): 'draft' | 'sent' | 'received' | 'partial' | 'partial_confirmed' {
+  if (
+    s === 'draft' ||
+    s === 'sent' ||
+    s === 'received' ||
+    s === 'partial' ||
+    s === 'partial_confirmed'
+  ) {
+    return s;
+  }
   return 'draft';
 }
 

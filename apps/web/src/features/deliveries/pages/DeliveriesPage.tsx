@@ -3,7 +3,6 @@ import { ChevronRight, Plus, Search, Truck } from 'lucide-react';
 import type { DeliveryStatus } from '@surmoda/contracts';
 import { useDeliveriesList } from '../hooks/useDeliveries';
 import { DeliveryDetailDrawer } from '../components/DeliveryDetailDrawer';
-import { NewDeliveryModal } from '../components/NewDeliveryModal';
 import { TransferToStoreModal } from '../components/TransferToStoreModal';
 import { WarehouseIntakeModal } from '../components/WarehouseIntakeModal';
 import { Alert, Badge, Card, CardContent, EmptyState, Input, Skeleton } from '@/shared/ui';
@@ -16,12 +15,13 @@ import type { BottomNavTab } from '@/shared/layout/BottomNav';
 
 const PAGE_SIZE = 30;
 
-type Filter = 'all' | 'pending' | 'partial' | 'received';
+type Filter = 'all' | 'sent' | 'pending' | 'partial' | 'received';
 
 const FILTER_TO_STATUS: Record<Filter, DeliveryStatus[] | undefined> = {
   all: undefined,
+  sent: undefined,
   pending: ['draft', 'sent'],
-  partial: ['partial'],
+  partial: ['partial', 'partial_confirmed'],
   received: ['received'],
 };
 
@@ -29,7 +29,8 @@ const STATUS_LABEL: Record<DeliveryStatus, string> = {
   draft: 'Borrador',
   sent: 'Enviada',
   received: 'Recibida',
-  partial: 'Parcial',
+  partial: 'Parcial · Por confirmar',
+  partial_confirmed: 'Recibido parcialmente - Confirmado',
 };
 
 const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
@@ -37,6 +38,7 @@ const STATUS_PALETTE: Record<DeliveryStatus, { bg: string; text: string }> = {
   sent: { bg: 'bg-status-warning-soft', text: 'text-status-warning' },
   received: { bg: 'bg-status-success-soft', text: 'text-status-success' },
   partial: { bg: 'bg-orange-100', text: 'text-orange-700' },
+  partial_confirmed: { bg: 'bg-status-success-soft', text: 'text-status-success' },
 };
 
 const MONTH_ABBR = [
@@ -79,10 +81,16 @@ export function DeliveriesPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
 
+  const effectiveDirection: 'incoming' | 'outgoing' | 'both' = isWarehouse
+    ? filter === 'sent' || filter === 'pending'
+      ? 'outgoing'
+      : 'both'
+    : direction;
+
   const list = useDeliveriesList(storeId, {
     q: debouncedQ || undefined,
     status: FILTER_TO_STATUS[filter],
-    direction,
+    direction: effectiveDirection,
     page: 1,
     pageSize: PAGE_SIZE,
   });
@@ -102,12 +110,20 @@ export function DeliveriesPage() {
     return tabs;
   }, [storeId, isWarehouse, isVendedoraHere]);
 
-  const filterTabs: Array<{ value: Filter; label: string }> = [
-    { value: 'all', label: 'Todas' },
-    { value: 'pending', label: 'Pendientes' },
-    { value: 'partial', label: 'Parciales' },
-    { value: 'received', label: 'Recibidas' },
-  ];
+  const filterTabs: Array<{ value: Filter; label: string }> = isWarehouse
+    ? [
+        { value: 'all', label: 'Todas' },
+        { value: 'sent', label: 'Enviados' },
+        { value: 'pending', label: 'Pendientes' },
+        { value: 'partial', label: 'Parciales' },
+        { value: 'received', label: 'Recibidas' },
+      ]
+    : [
+        { value: 'all', label: 'Todas' },
+        { value: 'pending', label: 'Pendientes' },
+        { value: 'partial', label: 'Parciales' },
+        { value: 'received', label: 'Recibidas' },
+      ];
 
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
@@ -125,14 +141,16 @@ export function DeliveriesPage() {
           </div>
           {canCreate && (
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setNewOpen(true)}
-                className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] px-3.5 py-1.5 text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition shadow-xs"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Nueva entrega</span>
-              </button>
+              {isWarehouse && (
+                <button
+                  type="button"
+                  onClick={() => setNewOpen(true)}
+                  className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] px-3.5 py-1.5 text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition shadow-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Nueva entrega</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setTransferOpen(true)}
@@ -224,9 +242,9 @@ export function DeliveriesPage() {
                 icon={<Truck className="h-6 w-6" />}
                 title="Sin entregas en este filtro"
                 description={
-                  canCreate
-                    ? 'Tocá "Nueva entrega" para registrar una.'
-                    : 'No hay entregas en este filtro para esta sede.'
+                  isWarehouse && canCreate
+                    ? 'Tocá "Nueva entrega" para ingresar stock o "Transferir" para enviar a una sucursal.'
+                    : 'Las entregas enviadas desde Almacén Central o entre sucursales aparecerán aquí.'
                 }
               />
             </CardContent>
@@ -259,8 +277,10 @@ export function DeliveriesPage() {
                         {d.title ?? 'Entrega sin título'}
                       </p>
                       <p className="text-xs text-text-muted truncate mt-0.5">
-                        {d.fromStoreName ?? 'Almacén'} · {d.totalUnits}{' '}
-                        {d.totalUnits === 1 ? 'prenda' : 'prendas'}
+                        {d.fromStoreId === storeId
+                          ? `Hacia: ${d.toStoreName}`
+                          : (d.fromStoreName ?? 'Almacén')}{' '}
+                        · {d.totalUnits} {d.totalUnits === 1 ? 'prenda' : 'prendas'}
                       </p>
                     </div>
                     <span
@@ -278,9 +298,6 @@ export function DeliveriesPage() {
 
         <DeliveryDetailDrawer deliveryId={openDeliveryId} onClose={() => setOpenDeliveryId(null)} />
 
-        {canCreate && !isWarehouse && (
-          <NewDeliveryModal storeId={storeId} open={newOpen} onClose={() => setNewOpen(false)} />
-        )}
         {canCreate && (
           <TransferToStoreModal
             fromStoreId={storeId}
@@ -297,8 +314,8 @@ export function DeliveriesPage() {
         )}
       </main>
 
-      {/* Mobile FAB Nueva entrega (desktop uses inline header button) */}
-      {canCreate && (
+      {/* Mobile FAB Nueva entrega — only on Almacén Central */}
+      {canCreate && isWarehouse && (
         <div className="md:hidden fixed bottom-24 right-4 z-30">
           <button
             type="button"

@@ -131,6 +131,48 @@ export async function applyDestinationCredit(
   }
 }
 
+export interface OriginRefundArgs {
+  fromStoreId: string;
+  toStoreId: string;
+  deliveryId: string;
+  items: ItemQty[];
+  userId: string;
+}
+
+/**
+ * Return unconfirmed/unshipped units back to origin when a partial reception
+ * is confirmed from the origin/warehouse (`partial -> partial_confirmed`), so
+ * origin net-decrements only what actually went to the destination.
+ */
+export async function applyOriginRefund(
+  repo: DeliveryRepository,
+  args: OriginRefundArgs,
+  tx: DeliveryTx,
+): Promise<void> {
+  if (args.items.length === 0) return;
+  const sortedItems = args.items.slice().sort((a, b) => a.variantId.localeCompare(b.variantId));
+  for (const { variantId, quantity } of sortedItems) {
+    if (quantity <= 0) continue;
+    const after = await repo.incrementStock(args.fromStoreId, variantId, quantity, tx);
+    await repo.createMovement(
+      {
+        storeId: args.fromStoreId,
+        variantId,
+        userId: args.userId,
+        type: 'adjusted',
+        payload: {
+          quantity,
+          balanceAfter: after,
+          deliveryId: args.deliveryId,
+          toStoreId: args.toStoreId,
+          reason: 'partial_confirm_refund',
+        },
+      },
+      tx,
+    );
+  }
+}
+
 /** Aggregates items by variantId. Caller-side helper used by service.ts. */
 export function aggregateItems(rows: Iterable<{ variantId: string; quantity: number }>): ItemQty[] {
   const map = new Map<string, number>();

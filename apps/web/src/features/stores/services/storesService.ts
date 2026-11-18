@@ -24,6 +24,7 @@ function buildQueryString(filters: ListStoresFilters): string {
 export const storesService = {
   list: (filters: ListStoresFilters = {}) =>
     httpClient.get<PaginatedStores>(`/stores${buildQueryString(filters)}`),
+  listTransferDestinations: () => httpClient.get<PaginatedStores>('/stores/transfer-destinations'),
   getById: (id: string) => httpClient.get<Store>(`/stores/${id}`),
   create: (payload: CreateStorePayload) => httpClient.post<Store>('/stores', payload),
   update: (id: string, payload: UpdateStorePayload) =>
@@ -35,5 +36,6 @@ export const storesService = {
 export const storesQueryKeys = {
   all: ['stores'] as const,
   list: (filters: ListStoresFilters) => ['stores', 'list', filters] as const,
+  transferDestinations: ['stores', 'transfer-destinations'] as const,
   detail: (id: string) => ['stores', 'detail', id] as const,
 };

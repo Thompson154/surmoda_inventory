@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { useAuthStore } from '@/features/auth/stores/useAuthStore';
-import { usePermissions } from '@/shared/auth/usePermissions';
+import { usePermissions, canSwitchStores } from '@/shared/auth/usePermissions';
 import { Skeleton } from '@/shared/ui';
 
 // Redirección por rol: vendedora va a scanner; encargada/admin a inventario
@@ -12,6 +12,21 @@ function SedeRoleRedirect() {
   if (!storeId) return <Navigate to="/sedes" replace />;
   const target = role === 'vendedora' ? 'scanner' : 'inventario';
   return <Navigate to={target} replace />;
+}
+
+/** Locks single-store staff to their assigned storeId in URL navigation. */
+function StoreScopeGuard({ children }: { children: ReactNode }) {
+  const { storeId } = useParams<{ storeId: string }>();
+  const user = useAuthStore((s) => s.user);
+  if (
+    user &&
+    storeId &&
+    !canSwitchStores(user) &&
+    !user.assignments.some((a) => a.storeId === storeId)
+  ) {
+    return <Navigate to="/sedes" replace />;
+  }
+  return <>{children}</>;
 }
 
 // Rutas de carga inmediata (flujo principal)
@@ -128,7 +143,9 @@ export function App() {
           path="/sedes/:storeId/inventario"
           element={
             <ProtectedRoute action="inventory:read" fallback="/sedes">
-              <SedeInventoryPage />
+              <StoreScopeGuard>
+                <SedeInventoryPage />
+              </StoreScopeGuard>
             </ProtectedRoute>
           }
         />
@@ -136,7 +153,9 @@ export function App() {
           path="/sedes/:storeId/entregas"
           element={
             <Authenticated>
-              <DeliveriesPage />
+              <StoreScopeGuard>
+                <DeliveriesPage />
+              </StoreScopeGuard>
             </Authenticated>
           }
         />
@@ -144,7 +163,9 @@ export function App() {
           path="/sedes/:storeId/ventas"
           element={
             <Authenticated>
-              <SalesDashboardPage />
+              <StoreScopeGuard>
+                <SalesDashboardPage />
+              </StoreScopeGuard>
             </Authenticated>
           }
         />
@@ -152,7 +173,9 @@ export function App() {
           path="/sedes/:storeId/scanner"
           element={
             <Authenticated>
-              <SalesRegisterPage />
+              <StoreScopeGuard>
+                <SalesRegisterPage />
+              </StoreScopeGuard>
             </Authenticated>
           }
         />

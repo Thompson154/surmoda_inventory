@@ -12,7 +12,10 @@ import type {
 } from './types';
 
 export interface AssignmentScopeRepository {
-  listActiveByUser(userId: string): Promise<Array<{ storeId: string; role: 'encargada' | 'vendedora' }>>;
+  listActiveByUser(
+    userId: string,
+  ): Promise<Array<{ storeId: string; role: 'encargada' | 'vendedora' }>>;
+  hasWarehouseEncargadaRole?(userId: string): Promise<boolean>;
 }
 
 export interface StoreServiceDeps {
@@ -23,6 +26,7 @@ export interface StoreServiceDeps {
 export interface StoreService {
   create(input: CreateStoreDTO): Promise<StoreDTO>;
   list(query: ListStoresQuery, auth: AuthContext): Promise<PaginatedStores>;
+  listTransferDestinations(): Promise<PaginatedStores>;
   getById(id: string, auth: AuthContext): Promise<StoreDTO>;
   update(id: string, input: UpdateStoreDTO): Promise<StoreDTO>;
   deactivate(id: string): Promise<StoreDTO>;
@@ -32,11 +36,7 @@ export interface StoreService {
 export function buildStoreService({ stores, assignments }: StoreServiceDeps): StoreService {
   function mapDuplicateCode(err: unknown): never {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      throw new AppError(
-        409,
-        ERROR_CODES.STORE_DUPLICATE_CODE,
-        'Ese código ya está en uso.',
-      );
+      throw new AppError(409, ERROR_CODES.STORE_DUPLICATE_CODE, 'Ese código ya está en uso.');
     }
     throw err;
   }
@@ -66,11 +66,13 @@ export function buildStoreService({ stores, assignments }: StoreServiceDeps): St
     },
 
     async list(query, auth) {
-      // WHY: encargada con cualquier asignación de role=encargada se trata como
-      // operadora global — ve todas las sedes (incluido el almacén). Vendedora
-      // mantiene scope estricto a sus assignments.
-      const userAssignments = auth.isAdmin ? [] : await assignments.listActiveByUser(auth.userId);
-      const isGlobalOperator = auth.isAdmin || userAssignments.some((a) => a.role === 'encargada');
+      // WHY: sólo admin y encargada de Almacén Central ven todas las sedes.
+      // Encargada de sucursal y vendedora mantienen scope estricto a sus assignments.
+      const isWarehouseEncargada =
+        !auth.isAdmin && assignments.hasWarehouseEncargadaRole
+          ? await assignments.hasWarehouseEncargadaRole(auth.userId)
+          : false;
+      const isGlobalOperator = auth.isAdmin || isWarehouseEncargada;
 
       if (isGlobalOperator) {
         const adminQuery: ListStoresQuery = { ...query };
@@ -80,9 +82,14 @@ export function buildStoreService({ stores, assignments }: StoreServiceDeps): St
         return stores.list(adminQuery);
       }
 
+      const userAssignments = await assignments.listActiveByUser(auth.userId);
       const staffQuery: ListStoresQuery = { ...query, isActive: true };
       const allowedIds = Array.from(new Set(userAssignments.map((a) => a.storeId)));
       return stores.list(staffQuery, allowedIds);
+    },
+
+    async listTransferDestinations() {
+      return stores.list({ kind: 'branch', isActive: true, page: 1, pageSize: 100 });
     },
 
     async getById(id, auth) {
@@ -92,12 +99,16 @@ export function buildStoreService({ stores, assignments }: StoreServiceDeps): St
       }
 
       if (!auth.isAdmin) {
-        const userAssignments = await assignments.listActiveByUser(auth.userId);
-        const isGlobalOperator = userAssignments.some((a) => a.role === 'encargada');
-        const hasDirectAccess = userAssignments.some((a) => a.storeId === id);
-        if (!isGlobalOperator && !hasDirectAccess) {
-          // WHY: same 404 as not-found avoids leaking existence (matches User.getById pattern).
-          throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Tienda no encontrada.');
+        const isWarehouseEncargada = assignments.hasWarehouseEncargadaRole
+          ? await assignments.hasWarehouseEncargadaRole(auth.userId)
+          : false;
+        if (!isWarehouseEncargada) {
+          const userAssignments = await assignments.listActiveByUser(auth.userId);
+          const hasDirectAccess = userAssignments.some((a) => a.storeId === id);
+          if (!hasDirectAccess) {
+            // WHY: same 404 as not-found avoids leaking existence (matches User.getById pattern).
+            throw new AppError(404, ERROR_CODES.STORE_NOT_FOUND, 'Tienda no encontrada.');
+          }
         }
       }
 

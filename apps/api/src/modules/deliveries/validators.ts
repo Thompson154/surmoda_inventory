@@ -3,7 +3,7 @@ import { z } from 'zod';
 const NOTE_MAX = 500;
 const TITLE_MAX = 80;
 const QUANTITY_MAX = 100_000;
-const STATUS_VALUES = ['draft', 'sent', 'received', 'partial'] as const;
+const STATUS_VALUES = ['draft', 'sent', 'received', 'partial', 'partial_confirmed'] as const;
 
 const ItemSchema = z.object({
   variantId: z.string().min(1),
@@ -61,6 +61,23 @@ export const ReceiveDeliverySchema = z
 
 export type ReceiveDeliveryInput = z.infer<typeof ReceiveDeliverySchema>;
 
+export const ConfirmPartialDeliverySchema = z
+  .object({
+    items: z
+      .array(
+        z.object({
+          deliveryItemId: z.string().min(1),
+          confirmedQuantity: z.coerce.number().int().min(0).max(QUANTITY_MAX),
+          reason: z.string().trim().max(NOTE_MAX).optional(),
+        }),
+      )
+      .min(1)
+      .optional(),
+  })
+  .strict();
+
+export type ConfirmPartialDeliveryInput = z.infer<typeof ConfirmPartialDeliverySchema>;
+
 const PRODUCT_CODE_REGEX = /^[A-Z0-9_]{2,15}$/;
 const SIZE_VALUES = ['s', 'm', 'l', 'xl', 'xxl', '28', '30', '32', '34', 'standard'] as const;
 const COLOR_MAX = 32;
@@ -102,10 +119,7 @@ export type WarehouseIntakeInput = z.infer<typeof WarehouseIntakeSchema>;
 export const ListDeliveriesQuerySchema = z.object({
   q: z.string().trim().min(1).optional(),
   status: z
-    .union([
-      z.enum(STATUS_VALUES),
-      z.array(z.enum(STATUS_VALUES)).min(1),
-    ])
+    .union([z.enum(STATUS_VALUES), z.array(z.enum(STATUS_VALUES)).min(1)])
     .optional()
     .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v])),
   /**

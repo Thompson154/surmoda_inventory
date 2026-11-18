@@ -183,6 +183,11 @@ export function buildComposition(): Composition {
     async hasAnyEncargadaRole(userId: string) {
       return inventoryRepo.hasAnyEncargadaRole(userId);
     },
+    async hasWarehouseEncargadaRole(userId: string) {
+      return inventoryRepo.hasWarehouseEncargadaRole
+        ? inventoryRepo.hasWarehouseEncargadaRole(userId)
+        : false;
+    },
   };
 
   const deliveryRepo = buildDeliveryRepository(db);

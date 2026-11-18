@@ -4,6 +4,7 @@ import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import { emitAudit } from '../../middleware/auditLogger';
 import {
   ConfirmDraftSchema,
+  ConfirmPartialDeliverySchema,
   CreateDeliverySchema,
   ListDeliveriesQuerySchema,
   ReceiveDeliverySchema,
@@ -21,6 +22,7 @@ export interface DeliveryController {
   updateDraft(req: Request, res: Response, next: NextFunction): Promise<void>;
   confirmDraft(req: Request, res: Response, next: NextFunction): Promise<void>;
   receive(req: Request, res: Response, next: NextFunction): Promise<void>;
+  confirmPartial(req: Request, res: Response, next: NextFunction): Promise<void>;
   intakeLookup(req: Request, res: Response, next: NextFunction): Promise<void>;
   intake(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
@@ -153,7 +155,9 @@ export function buildDeliveryController(service: DeliveryService): DeliveryContr
       try {
         const auth = requireAuth(req);
         const storeId = requireParam(req, 'storeId');
-        const code = String(req.query.code ?? '').trim().toUpperCase();
+        const code = String(req.query.code ?? '')
+          .trim()
+          .toUpperCase();
         if (!code) throw new AppError(400, ERROR_CODES.VALIDATION_ERROR, 'code es requerido');
         const result = await service.intakeLookup(storeId, code, auth);
         res.status(200).json(result);
@@ -207,6 +211,30 @@ export function buildDeliveryController(service: DeliveryService): DeliveryContr
           },
         });
         res.status(200).json(received);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async confirmPartial(req, res, next) {
+      try {
+        const auth = requireAuth(req);
+        const deliveryId = requireParam(req, 'deliveryId');
+        const input = ConfirmPartialDeliverySchema.parse(req.body ?? {});
+        const confirmed = await service.confirmPartial(deliveryId, input, auth);
+        emitAudit(req, {
+          userId: auth.userId,
+          action: 'DELIVERY_PARTIAL_CONFIRMED',
+          entity: 'Delivery',
+          entityId: confirmed.id,
+          payload: {
+            number: confirmed.number,
+            status: confirmed.status,
+            fromStoreId: confirmed.fromStoreId,
+            toStoreId: confirmed.toStoreId,
+          },
+        });
+        res.status(200).json(confirmed);
       } catch (err) {
         next(err);
       }

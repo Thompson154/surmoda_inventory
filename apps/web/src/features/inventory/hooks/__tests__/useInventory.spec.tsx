@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { useInventory, useStockMovements, useEditPermission } from '../useInventory';
+import { useInventoryGrouped } from '../useInventoryGrouped';
 import { makeQueryClient } from '@/test/utils';
 import { server } from '@/test/server';
 
@@ -92,5 +93,34 @@ describe('useInventory — q guard', () => {
     expect(capturedUrl).toHaveBeenCalledOnce();
     const url = new URL(capturedUrl.mock.calls[0]![0]);
     expect(url.searchParams.get('q')).toBe('jean');
+  });
+});
+
+describe('useInventoryGrouped — stockStatus filter serialization', () => {
+  it('forwards stockStatus, size, and color query params to backend', async () => {
+    const capturedUrl = vi.fn<(url: string) => void>();
+    server.use(
+      http.get(`${BASE}/stores/:storeId/inventory/grouped`, ({ request }) => {
+        capturedUrl(request.url);
+        return HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 });
+      }),
+    );
+
+    const { result } = renderHook(
+      () =>
+        useInventoryGrouped('store-almacen-seed', {
+          stockStatus: 'zero',
+          size: 'm',
+          color: 'negro',
+        }),
+      { wrapper: makeWrapper() },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(capturedUrl).toHaveBeenCalledOnce();
+    const url = new URL(capturedUrl.mock.calls[0]![0]);
+    expect(url.searchParams.get('stockStatus')).toBe('zero');
+    expect(url.searchParams.get('size')).toBe('m');
+    expect(url.searchParams.get('color')).toBe('negro');
   });
 });

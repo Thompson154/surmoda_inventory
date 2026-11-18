@@ -1,5 +1,6 @@
 import type {
   ConfirmDraftPayload,
+  ConfirmPartialDeliveryPayload,
   CreateDeliveryPayload,
   DeliveryDTO as DeliveryDTOContract,
   DeliveryGroupedItem as DeliveryGroupedItemContract,
@@ -25,6 +26,7 @@ export type PaginatedDeliveryGroups = PaginatedDeliveryGroupsContract;
 export type CreateDeliveryDTO = CreateDeliveryPayload;
 export type UpdateDraftDeliveryDTO = UpdateDraftDeliveryPayload;
 export type ConfirmDraftDTO = ConfirmDraftPayload;
+export type ConfirmPartialDeliveryDTO = ConfirmPartialDeliveryPayload;
 export type ReceiveDeliveryDTO = ReceiveDeliveryPayload;
 export type ListDeliveriesFiltersDTO = ListDeliveriesFilters;
 

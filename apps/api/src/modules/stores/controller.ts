@@ -9,6 +9,7 @@ import type { AuthContext } from './types';
 export interface StoreController {
   create(req: Request, res: Response, next: NextFunction): Promise<void>;
   list(req: Request, res: Response, next: NextFunction): Promise<void>;
+  listTransferDestinations(req: Request, res: Response, next: NextFunction): Promise<void>;
   getById(req: Request, res: Response, next: NextFunction): Promise<void>;
   update(req: Request, res: Response, next: NextFunction): Promise<void>;
   deactivate(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -55,6 +56,16 @@ export function buildStoreController(service: StoreService): StoreController {
         const query = ListStoresQuerySchema.parse(req.query);
         const auth = requireAuth(req);
         const result = await service.list(query, auth);
+        res.status(200).json(result);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async listTransferDestinations(req, res, next) {
+      try {
+        requireAuth(req);
+        const result = await service.listTransferDestinations();
         res.status(200).json(result);
       } catch (err) {
         next(err);

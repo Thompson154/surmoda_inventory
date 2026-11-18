@@ -5,7 +5,7 @@ import { useCreateDelivery } from '../hooks/useDeliveries';
 import { Alert, Button, IconButton, Input, Modal, Select } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import type { HttpError } from '@/shared/services/httpClient';
-import { useStores } from '@/features/stores/hooks/useStores';
+import { useStores, useTransferDestinations } from '@/features/stores/hooks/useStores';
 import { useInventory } from '@/features/inventory/hooks/useInventory';
 import { getImageUrl } from '@/features/products/services/productsService';
 import { sizeLabel } from '@/shared/format/sizeLabel';
@@ -40,10 +40,13 @@ interface CartItem {
  */
 export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToStoreModalProps) {
   const stores = useStores();
-  // Allowed destinations = every active store except the origin itself.
+  const transferDestinations = useTransferDestinations(open);
+  const availableStores = transferDestinations.data?.items ?? stores.data?.items ?? [];
+  // Allowed destinations = active branches other than origin (never Almacén Central).
   const destinations = useMemo(
-    () => stores.data?.items.filter((s) => s.id !== fromStoreId && s.isActive) ?? [],
-    [stores.data, fromStoreId],
+    () =>
+      availableStores.filter((s) => s.id !== fromStoreId && s.isActive && s.kind !== 'warehouse'),
+    [availableStores, fromStoreId],
   );
   const [toStoreId, setToStoreId] = useState<string>('');
   const [title, setTitle] = useState<string>('');
@@ -153,7 +156,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
             <option value="">— Elegir destino —</option>
             {destinations.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} ({s.code}){s.kind === 'warehouse' ? ' · almacén' : ''}
+                {s.name} ({s.code})
               </option>
             ))}
           </Select>
@@ -169,7 +172,7 @@ export function TransferToStoreModal({ fromStoreId, open, onClose }: TransferToS
             onChange={(e) => setTitle(e.target.value)}
             maxLength={80}
             className="mt-1"
-            placeholder="Devolución temporada / refuerzo Zona Sur..."
+            placeholder="Envío o reposición entre sucursales..."
           />
         </div>
 

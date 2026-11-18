@@ -40,7 +40,24 @@ const vendedoraUser: AuthUser = {
   email: 'v@test.com',
   fullName: 'Vendedora',
   isAdmin: false,
-  assignments: [{ storeId: 's1', role: 'vendedora' }],
+  assignments: [{ storeId: 's1', role: 'vendedora', storeKind: 'branch' }],
+};
+const branchEncargadaUser: AuthUser = {
+  id: 'e1',
+  email: 'liz@surmoda.com.bo',
+  fullName: 'Liz',
+  isAdmin: false,
+  assignments: [
+    { storeId: 'store-online', role: 'encargada', storeKind: 'branch' },
+    { storeId: 'store-online', role: 'vendedora', storeKind: 'branch' },
+  ],
+};
+const warehouseEncargadaUser: AuthUser = {
+  id: 'g1',
+  email: 'gloria@surmoda.com.bo',
+  fullName: 'Gloria',
+  isAdmin: false,
+  assignments: [{ storeId: 'store-almacen', role: 'encargada', storeKind: 'warehouse' }],
 };
 
 describe('AvatarMenu — role-based visibility', () => {
@@ -59,6 +76,34 @@ describe('AvatarMenu — role-based visibility', () => {
     setUser(vendedoraUser);
     renderAndOpen();
     expect(screen.queryByRole('menuitem', { name: /panel admin/i })).not.toBeInTheDocument();
+  });
+
+  it('shows "Volver a sucursales" for admin', () => {
+    setUser(adminUser);
+    renderAndOpen();
+    expect(screen.getByRole('menuitem', { name: /volver a sucursales/i })).toBeInTheDocument();
+  });
+
+  it('shows "Volver a sucursales" for warehouse encargada', () => {
+    setUser(warehouseEncargadaUser);
+    renderAndOpen();
+    expect(screen.getByRole('menuitem', { name: /volver a sucursales/i })).toBeInTheDocument();
+  });
+
+  it('hides "Volver a sucursales" for single-branch encargada and vendedora', () => {
+    setUser(branchEncargadaUser);
+    renderAndOpen();
+    expect(
+      screen.queryByRole('menuitem', { name: /volver a sucursales/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides "Volver a sucursales" for vendedora', () => {
+    setUser(vendedoraUser);
+    renderAndOpen();
+    expect(
+      screen.queryByRole('menuitem', { name: /volver a sucursales/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('always shows logout regardless of role', () => {

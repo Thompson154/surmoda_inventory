@@ -16,6 +16,9 @@ const variantsKey = (storeId: string, productId: string) =>
 function buildQS(filters: ListInventoryFilters): string {
   return buildQueryString({
     q: filters.q,
+    size: filters.size,
+    color: filters.color,
+    stockStatus: filters.stockStatus,
     page: filters.page,
     pageSize: filters.pageSize,
   });

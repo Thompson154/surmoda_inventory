@@ -79,6 +79,7 @@ enum DeliveryStatus {
   sent
   received
   partial
+  partial_confirmed
 
   @@map("delivery_status")
 }

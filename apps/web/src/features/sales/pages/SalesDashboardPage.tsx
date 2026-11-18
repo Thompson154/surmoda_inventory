@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DailyReportDTO } from '@surmoda/contracts';
 import { TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { DailyReportDetailModal } from '../components/DailyReportDetailModal';
@@ -55,9 +55,24 @@ interface SparklineProps {
 }
 
 function Sparkline({ data }: SparklineProps) {
-  const width = 320;
-  const height = 100;
-  const padding = 12;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(320);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const update = () => {
+      const next = Math.round(el.clientWidth);
+      if (next > 0) setWidth(next);
+    };
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const height = 96;
+  const padding = 14;
   const max = Math.max(1, ...data.map((d) => d.totalCents));
 
   const xStep = (width - padding * 2) / Math.max(1, data.length - 1);
@@ -73,10 +88,10 @@ function Sparkline({ data }: SparklineProps) {
   const [hover, setHover] = useState<number | null>(null);
 
   return (
-    <div className="w-full">
+    <div ref={containerRef} className="w-full">
       <svg
         viewBox={`0 0 ${width} ${height + 24}`}
-        className="w-full h-auto"
+        className="w-full h-[120px]"
         onMouseLeave={() => setHover(null)}
       >
         <defs>

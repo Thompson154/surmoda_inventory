@@ -58,7 +58,12 @@ export function buildAuthService({ db, refreshTokens }: AuthServiceDeps): AuthSe
     async login(input, meta) {
       const user = await db.user.findUnique({
         where: { email: input.email },
-        include: { assignments: { where: { deletedAt: null } } },
+        include: {
+          assignments: {
+            where: { deletedAt: null },
+            include: { store: { select: { kind: true } } },
+          },
+        },
       });
       // Timing-equalisation: ALWAYS run bcrypt.compare even when no user
       // matches, against a fixed decoy hash. Without this, a "user not found"
@@ -138,7 +143,12 @@ export function buildAuthService({ db, refreshTokens }: AuthServiceDeps): AuthSe
     async me(userId) {
       const user = await db.user.findUnique({
         where: { id: userId },
-        include: { assignments: { where: { deletedAt: null } } },
+        include: {
+          assignments: {
+            where: { deletedAt: null },
+            include: { store: { select: { kind: true } } },
+          },
+        },
       });
       if (!user) throw new RefreshTokenNotFoundError();
       if (!user.isActive) throw new UserInactiveError();
@@ -152,13 +162,21 @@ function toAuthUserDTO(user: {
   email: string;
   fullName: string;
   isAdmin: boolean;
-  assignments: Array<{ storeId: string; role: 'encargada' | 'vendedora' }>;
+  assignments: Array<{
+    storeId: string;
+    role: 'encargada' | 'vendedora';
+    store?: { kind: 'warehouse' | 'branch' } | null;
+  }>;
 }): AuthUserDTO {
   return {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
     isAdmin: user.isAdmin,
-    assignments: user.assignments.map((a) => ({ storeId: a.storeId, role: a.role })),
+    assignments: user.assignments.map((a) => ({
+      storeId: a.storeId,
+      role: a.role,
+      ...(a.store ? { storeKind: a.store.kind } : {}),
+    })),
   };
 }

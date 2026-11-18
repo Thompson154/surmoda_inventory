@@ -32,6 +32,7 @@ const STATUS_FROM_PRISMA: Record<PrismaDeliveryStatus, DeliveryStatus> = {
   sent: 'sent',
   received: 'received',
   partial: 'partial',
+  partial_confirmed: 'partial_confirmed',
 };
 
 const STATUS_TO_PRISMA: Record<DeliveryStatus, PrismaDeliveryStatus> = {
@@ -39,6 +40,7 @@ const STATUS_TO_PRISMA: Record<DeliveryStatus, PrismaDeliveryStatus> = {
   sent: 'sent',
   received: 'received',
   partial: 'partial',
+  partial_confirmed: 'partial_confirmed',
 };
 
 export interface CreateDeliveryHeaderInput {
@@ -81,20 +83,32 @@ export interface DeliveryRepository {
       storeId: string;
       variantId: string;
       userId: string;
-      type: 'delivery_in' | 'delivery_out' | 'delivery_received_adjusted';
+      type: 'delivery_in' | 'delivery_out' | 'delivery_received_adjusted' | 'adjusted';
       payload: Record<string, unknown>;
     },
     tx: DeliveryTx,
   ): Promise<void>;
-  createDelivery(header: CreateDeliveryHeaderInput, items: CreateDeliveryItemRow[], tx: DeliveryTx): Promise<{ id: string }>;
-  loadForUpdate(deliveryId: string, tx: DeliveryTx): Promise<{
+  createDelivery(
+    header: CreateDeliveryHeaderInput,
+    items: CreateDeliveryItemRow[],
+    tx: DeliveryTx,
+  ): Promise<{ id: string }>;
+  loadForUpdate(
+    deliveryId: string,
+    tx: DeliveryTx,
+  ): Promise<{
     id: string;
     status: DeliveryStatus;
     kind: DeliveryKind;
     title: string | null;
     fromStoreId: string | null;
     toStoreId: string;
-    items: Array<{ id: string; variantId: string; quantity: number; receivedQuantity: number | null }>;
+    items: Array<{
+      id: string;
+      variantId: string;
+      quantity: number;
+      receivedQuantity: number | null;
+    }>;
   } | null>;
   updateDraftHeader(
     deliveryId: string,
@@ -383,36 +397,42 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
       //   outgoing  → :storeId originated the delivery (lateral transfer / return).
       //   both      → either side matches.
       const direction = query.direction ?? 'incoming';
-      const where: Prisma.DeliveryWhereInput =
+      const directionFilter: Prisma.DeliveryWhereInput =
         direction === 'incoming'
           ? { toStoreId: storeId }
           : direction === 'outgoing'
             ? { fromStoreId: storeId }
             : { OR: [{ toStoreId: storeId }, { fromStoreId: storeId }] };
+
+      const andClauses: Prisma.DeliveryWhereInput[] = [directionFilter];
       if (query.status && query.status.length > 0) {
-        where.status = { in: query.status.map((s) => STATUS_TO_PRISMA[s]) };
+        andClauses.push({ status: { in: query.status.map((s) => STATUS_TO_PRISMA[s]) } });
       }
       if (query.q) {
         const upper = query.q.toUpperCase();
         const ci = query.q;
-        where.OR = [
-          { title: { contains: ci, mode: 'insensitive' } },
-          {
-            items: {
-              some: {
-                variant: {
-                  OR: [
-                    { product: { code: { contains: upper } } },
-                    { product: { name: { contains: ci, mode: 'insensitive' } } },
-                    { product: { description: { contains: ci, mode: 'insensitive' } } },
-                    { barcode: { contains: upper } },
-                  ],
+        andClauses.push({
+          OR: [
+            { title: { contains: ci, mode: 'insensitive' } },
+            {
+              items: {
+                some: {
+                  variant: {
+                    OR: [
+                      { product: { code: { contains: upper } } },
+                      { product: { name: { contains: ci, mode: 'insensitive' } } },
+                      { product: { description: { contains: ci, mode: 'insensitive' } } },
+                      { barcode: { contains: upper } },
+                    ],
+                  },
                 },
               },
             },
-          },
-        ];
+          ],
+        });
       }
+      const where: Prisma.DeliveryWhereInput =
+        andClauses.length === 1 ? andClauses[0]! : { AND: andClauses };
 
       const skip = (query.page - 1) * query.pageSize;
       const [rows, total] = await Promise.all([

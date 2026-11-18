@@ -14,10 +14,8 @@ export function buildDeliveriesPerStoreRouter(controller: DeliveryController): R
   router.post('/deliveries', (req, res, next) => controller.create(req, res, next));
   // Intake carries up to ~5 base64-encoded images per submission. Local body
   // parser (1mb global) is too small — apply a per-route 12mb limit.
-  router.post(
-    '/deliveries/intake',
-    express.json({ limit: '12mb' }),
-    (req, res, next) => controller.intake(req, res, next),
+  router.post('/deliveries/intake', express.json({ limit: '12mb' }), (req, res, next) =>
+    controller.intake(req, res, next),
   );
 
   return router;
@@ -30,5 +28,8 @@ export function buildDeliveriesByIdRouter(controller: DeliveryController): Route
   router.patch('/:deliveryId/draft', (req, res, next) => controller.updateDraft(req, res, next));
   router.post('/:deliveryId/confirm', (req, res, next) => controller.confirmDraft(req, res, next));
   router.post('/:deliveryId/receive', (req, res, next) => controller.receive(req, res, next));
+  router.post('/:deliveryId/confirm-partial', (req, res, next) =>
+    controller.confirmPartial(req, res, next),
+  );
   return router;
 }

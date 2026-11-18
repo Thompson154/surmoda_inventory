@@ -17,22 +17,43 @@ const mockDeliverySent = {
   status: 'sent',
   title: 'Entrega test',
   note: null,
-  fromStoreName: 'Almacén',
+  fromStoreName: 'Almacén Central',
   toStoreName: 'Prado',
   toStoreId: 'store-prado-seed',
   fromStoreId: 'store-almacen-seed',
-  totalUnits: 2,
+  totalUnits: 11,
   createdAt: '2026-04-28T10:00:00.000Z',
   items: [
     {
       id: 'di-1',
-      productName: 'Jean Azul',
-      productCode: 'JN001',
-      quantity: 2,
+      productName: 'Blusa Seda',
+      productCode: 'BLUSA-SEDA',
+      quantity: 11,
       receivedQuantity: null,
     },
   ],
   adjustments: [],
+};
+
+const mockDeliveryPartial = {
+  ...mockDeliverySent,
+  id: 'del-3',
+  status: 'partial',
+  items: [
+    {
+      id: 'di-1',
+      productName: 'Blusa Seda',
+      productCode: 'BLUSA-SEDA',
+      quantity: 11,
+      receivedQuantity: 10,
+    },
+  ],
+};
+
+const mockDeliveryPartialConfirmed = {
+  ...mockDeliveryPartial,
+  id: 'del-4',
+  status: 'partial_confirmed',
 };
 
 const mockDeliveryReceived = {
@@ -59,8 +80,6 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// ---------- sent status — encargada ----------
-
 describe('DeliveryDetailDrawer — status=sent, encargada', () => {
   beforeEach(() => {
     useAuthStore.setState({
@@ -70,25 +89,13 @@ describe('DeliveryDetailDrawer — status=sent, encargada', () => {
         email: 'enc@surmoda.test',
         fullName: 'Encargada Test',
         isAdmin: false,
-        assignments: [{ storeId: 'store-prado-seed', role: 'encargada' }],
+        assignments: [{ storeId: 'store-prado-seed', role: 'encargada', storeKind: 'branch' }],
       },
     });
     server.use(http.get(`${BASE}/deliveries/del-1`, () => HttpResponse.json(mockDeliverySent)));
   });
 
-  it('shows "Solicitar edición" button when status is sent', async () => {
-    const Wrapper = makeWrapper();
-    render(
-      <Wrapper>
-        <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
-      </Wrapper>,
-    );
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /solicitar edición/i })).toBeInTheDocument();
-    });
-  });
-
-  it('shows "Confirmar recepción" button for encargada on sent delivery', async () => {
+  it('does NOT show "Solicitar edición" button anymore', async () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
@@ -98,55 +105,24 @@ describe('DeliveryDetailDrawer — status=sent, encargada', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /confirmar recepción/i })).toBeInTheDocument();
     });
+    expect(screen.queryByRole('button', { name: /solicitar edición/i })).not.toBeInTheDocument();
   });
 
-  it('opens edit request modal when "Solicitar edición" is clicked', async () => {
+  it('switches CTA to "Confirmar recepción parcial" when quantity is lowered', async () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
         <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
       </Wrapper>,
     );
-    await waitFor(() => screen.getByRole('button', { name: /solicitar edición/i }));
-    fireEvent.click(screen.getByRole('button', { name: /solicitar edición/i }));
-    await waitFor(() => {
-      expect(screen.getByText(/solicitar edición de entrega/i)).toBeInTheDocument();
-    });
-  });
+    const input = await screen.findByLabelText(/recibidos de blusa-seda/i);
+    fireEvent.change(input, { target: { value: '10' } });
 
-  it('submits edit request and shows success toast', async () => {
-    server.use(
-      http.post(`${BASE}/deliveries/del-1/edit-requests`, () =>
-        HttpResponse.json(
-          { id: 'der-1', deliveryId: 'del-1', reason: 'x'.repeat(50), status: 'pending' },
-          { status: 201 },
-        ),
-      ),
-    );
-
-    const Wrapper = makeWrapper();
-    render(
-      <Wrapper>
-        <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
-      </Wrapper>,
-    );
-    await waitFor(() => screen.getByRole('button', { name: /solicitar edición/i }));
-    fireEvent.click(screen.getByRole('button', { name: /solicitar edición/i }));
-    await waitFor(() => screen.getByText(/solicitar edición de entrega/i));
-
-    // Type reason in confirm dialog textarea
-    const textarea = screen.getByRole('textbox', { name: /motivo/i });
-    fireEvent.change(textarea, { target: { value: 'a'.repeat(50) } });
-
-    fireEvent.click(screen.getByRole('button', { name: /^confirmar$/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText(/solicitud enviada al admin/i)).toBeInTheDocument();
-    });
+    expect(
+      screen.getByRole('button', { name: /confirmar recepción parcial/i }),
+    ).toBeInTheDocument();
   });
 });
-
-// ---------- sent status — vendedora ----------
 
 describe('DeliveryDetailDrawer — status=sent, vendedora', () => {
   beforeEach(() => {
@@ -157,36 +133,13 @@ describe('DeliveryDetailDrawer — status=sent, vendedora', () => {
         email: 'vend@surmoda.test',
         fullName: 'Vendedora Test',
         isAdmin: false,
-        assignments: [{ storeId: 'store-prado-seed', role: 'vendedora' }],
+        assignments: [{ storeId: 'store-prado-seed', role: 'vendedora', storeKind: 'branch' }],
       },
     });
     server.use(http.get(`${BASE}/deliveries/del-1`, () => HttpResponse.json(mockDeliverySent)));
   });
 
-  it('shows "Solicitar edición" button for vendedora on sent delivery', async () => {
-    const Wrapper = makeWrapper();
-    render(
-      <Wrapper>
-        <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
-      </Wrapper>,
-    );
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /solicitar edición/i })).toBeInTheDocument();
-    });
-  });
-
-  it('does NOT show "Confirmar recepción" button for vendedora', async () => {
-    const Wrapper = makeWrapper();
-    render(
-      <Wrapper>
-        <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
-      </Wrapper>,
-    );
-    await waitFor(() => screen.getByRole('button', { name: /solicitar edición/i }));
-    expect(screen.queryByRole('button', { name: /confirmar recepción/i })).not.toBeInTheDocument();
-  });
-
-  it('shows "Solo encargada/admin puede confirmar recepción" note for vendedora', async () => {
+  it('does NOT show Confirmar or Solicitar edición buttons for vendedora', async () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
@@ -198,13 +151,75 @@ describe('DeliveryDetailDrawer — status=sent, vendedora', () => {
         screen.getByText(/solo encargada\/admin puede confirmar recepción/i),
       ).toBeInTheDocument();
     });
+    expect(screen.queryByRole('button', { name: /confirmar recepción/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /solicitar edición/i })).not.toBeInTheDocument();
   });
 });
 
-// ---------- received status ----------
+describe('DeliveryDetailDrawer — status=partial', () => {
+  it('shows waiting message (no confirm button) to receiving branch encargada', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-prado',
+        email: 'prado@surmoda.test',
+        fullName: 'Prado',
+        isAdmin: false,
+        assignments: [{ storeId: 'store-prado-seed', role: 'encargada', storeKind: 'branch' }],
+      },
+    });
+    server.use(http.get(`${BASE}/deliveries/del-3`, () => HttpResponse.json(mockDeliveryPartial)));
 
-describe('DeliveryDetailDrawer — status=received', () => {
-  beforeEach(() => {
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <DeliveryDetailDrawer deliveryId="del-3" onClose={vi.fn()} />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/esperando confirmación interna/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole('button', { name: /confirmar recepción parcial/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('allows warehouse encargada to confirm partial reception', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-gloria',
+        email: 'gloria@surmoda.test',
+        fullName: 'Gloria',
+        isAdmin: false,
+        assignments: [{ storeId: 'store-almacen-seed', role: 'encargada', storeKind: 'warehouse' }],
+      },
+    });
+    let confirmedCalled = false;
+    server.use(
+      http.get(`${BASE}/deliveries/del-3`, () => HttpResponse.json(mockDeliveryPartial)),
+      http.post(`${BASE}/deliveries/del-3/confirm-partial`, () => {
+        confirmedCalled = true;
+        return HttpResponse.json(mockDeliveryPartialConfirmed);
+      }),
+    );
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <DeliveryDetailDrawer deliveryId="del-3" onClose={vi.fn()} />
+      </Wrapper>,
+    );
+    const btn = await screen.findByRole('button', { name: /confirmar recepción parcial/i });
+    fireEvent.click(btn);
+    fireEvent.click(await screen.findByRole('button', { name: /^confirmar$/i }));
+
+    await waitFor(() => expect(confirmedCalled).toBe(true));
+  });
+});
+
+describe('DeliveryDetailDrawer — status=received & partial_confirmed', () => {
+  it('shows confirmed label when status=received', async () => {
     useAuthStore.setState({
       accessToken: 'tok',
       user: {
@@ -212,13 +227,11 @@ describe('DeliveryDetailDrawer — status=received', () => {
         email: 'enc@surmoda.test',
         fullName: 'Encargada Test',
         isAdmin: false,
-        assignments: [{ storeId: 'store-prado-seed', role: 'encargada' }],
+        assignments: [{ storeId: 'store-prado-seed', role: 'encargada', storeKind: 'branch' }],
       },
     });
     server.use(http.get(`${BASE}/deliveries/del-2`, () => HttpResponse.json(mockDeliveryReceived)));
-  });
 
-  it('shows confirmed label when status=received', async () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
@@ -230,14 +243,29 @@ describe('DeliveryDetailDrawer — status=received', () => {
     });
   });
 
-  it('does NOT show "Solicitar edición" when status=received', async () => {
+  it('shows "Recibido parcialmente - Confirmado" when status=partial_confirmed', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-enc',
+        email: 'enc@surmoda.test',
+        fullName: 'Encargada Test',
+        isAdmin: false,
+        assignments: [{ storeId: 'store-prado-seed', role: 'encargada', storeKind: 'branch' }],
+      },
+    });
+    server.use(
+      http.get(`${BASE}/deliveries/del-4`, () => HttpResponse.json(mockDeliveryPartialConfirmed)),
+    );
+
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
-        <DeliveryDetailDrawer deliveryId="del-2" onClose={vi.fn()} />
+        <DeliveryDetailDrawer deliveryId="del-4" onClose={vi.fn()} />
       </Wrapper>,
     );
-    await waitFor(() => screen.getByText(/entrega confirmada — no se puede modificar/i));
-    expect(screen.queryByRole('button', { name: /solicitar edición/i })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText(/recibido parcialmente - confirmado/i).length).toBeGreaterThan(0);
+    });
   });
 });

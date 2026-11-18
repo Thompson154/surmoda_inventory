@@ -56,6 +56,7 @@ export interface InventoryRepository {
     tx?: InventoryTx,
   ): Promise<UserAssignmentRow | null>;
   hasAnyEncargadaRole(userId: string, tx?: InventoryTx): Promise<boolean>;
+  hasWarehouseEncargadaRole?(userId: string, tx?: InventoryTx): Promise<boolean>;
   list(storeId: string, query: ListInventoryQuery): Promise<PaginatedInventory>;
   listGroupedByProduct(
     storeId: string,
@@ -135,6 +136,18 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
     async hasAnyEncargadaRole(userId, tx) {
       const count = await client(tx).userStore.count({
         where: { userId, role: 'encargada', deletedAt: null },
+      });
+      return count > 0;
+    },
+
+    async hasWarehouseEncargadaRole(userId, tx) {
+      const count = await client(tx).userStore.count({
+        where: {
+          userId,
+          role: 'encargada',
+          deletedAt: null,
+          store: { kind: 'warehouse', isActive: true, deletedAt: null },
+        },
       });
       return count > 0;
     },
