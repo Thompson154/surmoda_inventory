@@ -81,16 +81,16 @@ function Sparkline({ data }: SparklineProps) {
       >
         <defs>
           <linearGradient id="sales-grad" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgb(99 102 241)" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="rgb(99 102 241)" stopOpacity="0" />
+            <stop offset="0%" stopColor="rgb(29 78 216)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="rgb(29 78 216)" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={area} fill="url(#sales-grad)" />
         <path
           d={path}
           fill="none"
-          stroke="rgb(99 102 241)"
-          strokeWidth="2"
+          stroke="rgb(29 78 216)"
+          strokeWidth="2.25"
           strokeLinejoin="round"
         />
 
@@ -117,8 +117,8 @@ function Sparkline({ data }: SparklineProps) {
             cx={p.x}
             cy={p.y}
             r={hover === i ? 5 : i === points.length - 1 ? 4 : 2.5}
-            fill={hover === i || i === points.length - 1 ? 'rgb(99 102 241)' : 'white'}
-            stroke="rgb(99 102 241)"
+            fill={hover === i || i === points.length - 1 ? 'rgb(29 78 216)' : 'white'}
+            stroke="rgb(29 78 216)"
             strokeWidth={hover === i || i === points.length - 1 ? 0 : 1.5}
             pointerEvents="none"
           />
@@ -278,19 +278,17 @@ export function SalesDashboardPage() {
 
             {dashboard.data && (
               <>
-                <Card className="relative overflow-hidden border border-surface-border/80 bg-surface-raised/90 backdrop-blur-md shadow-md rounded-2xl before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-brand-primary before:via-indigo-500 before:to-violet-500">
-                  <CardContent className="flex flex-col gap-3 py-4">
+                <Card className="rounded-[24px]">
+                  <CardContent className="flex flex-col gap-3 py-5">
                     <div className="flex items-center justify-between">
-                      <p className="text-[11px] uppercase tracking-wider text-text-muted font-bold">
-                        Ventas hoy
-                      </p>
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <p className="text-xs font-semibold text-text-muted">Ventas hoy</p>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F5EC] dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         En vivo
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl sm:text-4xl font-extrabold tracking-tight font-tabular text-text-primary">
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="font-display text-3xl sm:text-4xl font-bold tracking-tight font-tabular text-text-primary">
                         {formatBsShort(dashboard.data.todayCents)}
                       </span>
                       {dashboard.data.deltaPct !== null && (
@@ -318,46 +316,52 @@ export function SalesDashboardPage() {
                 </Card>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Card className="rounded-2xl border border-surface-border/80 bg-surface-raised/80 backdrop-blur-sm hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-200">
-                    <CardContent className="py-3.5">
-                      <p className="text-xs font-semibold text-text-muted">Total semana</p>
-                      <p className="text-xl font-bold font-tabular mt-1 text-text-primary">
+                  <Card className="rounded-[20px] bg-[#EEE8FB]/80 dark:bg-violet-950/30 border-[#DDD3F6] dark:border-violet-500/20">
+                    <CardContent className="py-4">
+                      <p className="text-xs font-semibold text-text-secondary">Total semana</p>
+                      <p className="font-display text-2xl font-bold font-tabular mt-1 text-text-primary">
                         {formatBsShort(dashboard.data.weekCents)}
                       </p>
-                      <p className="text-[10px] text-text-subtle mt-0.5 font-medium">
+                      <p className="text-[11px] text-text-muted mt-0.5 font-medium">
                         Últimos 7 días
                       </p>
                     </CardContent>
                   </Card>
-                  <Card className="rounded-2xl border border-surface-border/80 bg-surface-raised/80 backdrop-blur-sm hover:border-brand-primary/40 hover:-translate-y-0.5 transition-all duration-200">
-                    <CardContent className="py-3.5">
-                      <p className="text-xs font-semibold text-text-muted">Transacciones</p>
-                      <p className="text-xl font-bold font-tabular mt-1 text-text-primary">
+                  <Card className="rounded-[20px] bg-[#E3F5EC]/80 dark:bg-emerald-950/30 border-[#C7EAD7] dark:border-emerald-500/20">
+                    <CardContent className="py-4">
+                      <p className="text-xs font-semibold text-text-secondary">Transacciones</p>
+                      <p className="font-display text-2xl font-bold font-tabular mt-1 text-text-primary">
                         {dashboard.data.transactionsCount}
                       </p>
-                      <p className="text-[10px] text-text-subtle mt-0.5 font-medium">
+                      <p className="text-[11px] text-text-muted mt-0.5 font-medium">
                         completadas hoy
                       </p>
                     </CardContent>
                   </Card>
                 </div>
 
-                <Card className="rounded-2xl border border-surface-border/80 bg-surface-raised/90 backdrop-blur-sm shadow-2xs overflow-hidden">
+                <Card className="rounded-[24px] overflow-hidden">
                   <CardContent className="py-4">
                     <p className="text-sm font-semibold mb-3 text-text-primary">
                       Resumen semanal (últimas 5 semanas)
                     </p>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-surface-sunken text-text-secondary rounded-lg">
+                      <table className="w-full text-[11px] sm:text-xs">
+                        <thead className="bg-surface-sunken text-text-secondary rounded-xl">
                           <tr>
-                            <th className="text-left px-3 py-2 rounded-l-lg font-semibold">
+                            <th className="text-left px-2 sm:px-3 py-2 rounded-l-xl font-semibold whitespace-nowrap">
                               Semana
                             </th>
-                            <th className="text-right px-3 py-2 font-semibold">QR</th>
-                            <th className="text-right px-3 py-2 font-semibold">Tarjeta</th>
-                            <th className="text-right px-3 py-2 font-semibold">Efectivo</th>
-                            <th className="text-right px-3 py-2 rounded-r-lg font-semibold">
+                            <th className="text-right px-1.5 sm:px-3 py-2 font-semibold whitespace-nowrap">
+                              QR
+                            </th>
+                            <th className="text-right px-1.5 sm:px-3 py-2 font-semibold whitespace-nowrap">
+                              Tarjeta
+                            </th>
+                            <th className="text-right px-1.5 sm:px-3 py-2 font-semibold whitespace-nowrap">
+                              Efectivo
+                            </th>
+                            <th className="text-right px-2 sm:px-3 py-2 rounded-r-xl font-semibold whitespace-nowrap">
                               Total
                             </th>
                           </tr>
@@ -368,7 +372,7 @@ export function SalesDashboardPage() {
                               key={row.weekStart}
                               className="border-t border-surface-border/60 hover:bg-surface-sunken/50 transition-colors"
                             >
-                              <td className="px-3 py-2.5">
+                              <td className="px-2 sm:px-3 py-2.5 whitespace-nowrap">
                                 <button
                                   type="button"
                                   onClick={() => setWeekPopover(weekPopover === idx ? null : idx)}
@@ -383,16 +387,16 @@ export function SalesDashboardPage() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5 text-right font-mono font-tabular">
+                              <td className="px-1.5 sm:px-3 py-2.5 text-right font-tabular whitespace-nowrap">
                                 {formatBs(row.qrCents)}
                               </td>
-                              <td className="px-3 py-2.5 text-right font-mono font-tabular">
+                              <td className="px-1.5 sm:px-3 py-2.5 text-right font-tabular whitespace-nowrap">
                                 {formatBs(row.cardCents)}
                               </td>
-                              <td className="px-3 py-2.5 text-right font-mono font-tabular">
+                              <td className="px-1.5 sm:px-3 py-2.5 text-right font-tabular whitespace-nowrap">
                                 {formatBs(row.cashCents)}
                               </td>
-                              <td className="px-3 py-2.5 text-right font-mono font-bold font-tabular text-text-primary">
+                              <td className="px-2 sm:px-3 py-2.5 text-right font-bold font-tabular text-text-primary whitespace-nowrap">
                                 {formatBs(row.totalCents)}
                               </td>
                             </tr>

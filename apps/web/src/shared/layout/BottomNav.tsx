@@ -24,12 +24,14 @@ export function BottomNav({ tabs }: BottomNavProps) {
     <nav
       aria-label="Secciones de la sucursal"
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-20 bg-surface-raised/90 supports-[backdrop-filter]:bg-glass-nav backdrop-blur-md',
-        'border-t border-surface-border/80 shadow-lg',
-        'pb-[env(safe-area-inset-bottom)]',
+        'md:hidden fixed bottom-4 left-4 right-4 z-30 max-w-md mx-auto',
+        'soft-card bg-surface-raised/90 backdrop-blur-xl',
+        'border border-surface-border',
+        'rounded-full p-1.5',
+        'mb-[env(safe-area-inset-bottom)]',
       )}
     >
-      <ul className="mx-auto max-w-lg flex items-center justify-around px-2 py-1.5">
+      <ul className="flex items-center justify-around gap-1">
         {tabs.map((tab) => {
           const Icon = ICON_MAP[tab.icon];
           return (
@@ -39,16 +41,16 @@ export function BottomNav({ tabs }: BottomNavProps) {
                 end
                 className={({ isActive }) =>
                   cn(
-                    'flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-medium',
+                    'flex flex-col items-center justify-center gap-0.5 py-2 px-2 rounded-full text-xs font-medium',
                     'transition-all duration-150 active:scale-95',
                     isActive
-                      ? 'text-brand-primary bg-brand-primary/10 shadow-xs font-semibold'
-                      : 'text-text-muted hover:text-text-secondary hover:bg-surface-sunken/60',
+                      ? 'bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] font-semibold shadow-sm'
+                      : 'text-text-muted hover:text-text-primary hover:bg-surface-sunken/70',
                   )
                 }
               >
-                <Icon className="h-5 w-5" aria-hidden="true" />
-                <span className="text-[11px] tracking-tight">{tab.label}</span>
+                <Icon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
+                <span className="text-[10px] tracking-tight">{tab.label}</span>
               </NavLink>
             </li>
           );

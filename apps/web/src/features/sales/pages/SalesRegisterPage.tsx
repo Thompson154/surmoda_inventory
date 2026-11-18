@@ -68,40 +68,40 @@ function PaymentRow({ label, cents, totalCents }: PaymentRowProps) {
   const pct = totalCents === 0 ? 0 : Math.round((cents / totalCents) * 100);
   const palette = {
     QR: {
-      bg: 'bg-violet-100 dark:bg-violet-950/50',
-      text: 'text-violet-600 dark:text-violet-400',
-      bar: 'bg-gradient-to-r from-violet-500 to-purple-500',
+      card: 'bg-[#EEE8FB]/75 dark:bg-violet-950/30 border-[#DDD3F6] dark:border-violet-500/20',
+      iconWrap: 'bg-white dark:bg-black/30 text-violet-700 dark:text-violet-300',
+      bar: 'bg-violet-600 dark:bg-violet-400',
       Icon: QrCode,
     },
     Efectivo: {
-      bg: 'bg-emerald-100 dark:bg-emerald-950/50',
-      text: 'text-emerald-600 dark:text-emerald-400',
-      bar: 'bg-gradient-to-r from-emerald-500 to-teal-500',
+      card: 'bg-[#E3F5EC]/75 dark:bg-emerald-950/30 border-[#C7EAD7] dark:border-emerald-500/20',
+      iconWrap: 'bg-white dark:bg-black/30 text-emerald-700 dark:text-emerald-300',
+      bar: 'bg-emerald-600 dark:bg-emerald-400',
       Icon: Banknote,
     },
     Tarjeta: {
-      bg: 'bg-surface-sunken',
-      text: 'text-text-secondary',
-      bar: 'bg-gradient-to-r from-slate-600 to-slate-800 dark:from-slate-400 dark:to-slate-600',
+      card: 'bg-[#FAF1DC]/75 dark:bg-amber-950/30 border-[#EAD9B0] dark:border-amber-500/20',
+      iconWrap: 'bg-white dark:bg-black/30 text-amber-700 dark:text-amber-300',
+      bar: 'bg-amber-600 dark:bg-amber-400',
       Icon: CreditCard,
     },
   }[label];
   const { Icon } = palette;
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 p-3 rounded-2xl border ${palette.card}`}>
       <div
-        className={`h-9 w-9 rounded-xl ${palette.bg} ${palette.text} flex items-center justify-center shrink-0 border border-surface-border/50`}
+        className={`h-9 w-9 rounded-full ${palette.iconWrap} flex items-center justify-center shrink-0 shadow-2xs`}
       >
         <Icon className="h-4 w-4" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-text-secondary">{label}</span>
-          <span className="text-text-muted font-mono font-tabular">
+          <span className="font-semibold text-text-primary">{label}</span>
+          <span className="text-text-secondary font-semibold font-tabular">
             {formatBsShort(cents)} · {pct}%
           </span>
         </div>
-        <div className="mt-1.5 h-2 rounded-full bg-surface-sunken overflow-hidden">
+        <div className="mt-1.5 h-1.5 rounded-full bg-white/70 dark:bg-black/30 overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ${palette.bar}`}
             style={{ width: `${pct}%` }}
@@ -296,26 +296,51 @@ export function SalesRegisterPage() {
       {/* max-w-4xl alinea el ancho con SedeInventoryPage / DeliveriesPage para
           que el layout en laptop sea consistente con el resto de la app. En
           mobile (< md) seguimos siendo full-width con padding de 16px. */}
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
-        {/* Header — Cerrar día button */}
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-text-primary">
-              {store?.name ?? 'Ventas'}
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-3 md:gap-4 p-4 pb-24 md:pb-4 text-text-primary">
+        {/* Header — Desktop keeps all actions inline; mobile moves high-frequency Scan to thumb-zone FAB */}
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-text-primary truncate">
+              {store?.name ?? 'Registro de ventas'}
             </h1>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-              Caja
+            <span className="shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-surface-raised border border-surface-border text-text-secondary">
+              Registro de ventas
             </span>
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setCloseDayOpen(true)}
-            className="rounded-xl border-surface-border/80 hover:bg-surface-sunken"
-          >
-            Cerrar día
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              leftIcon={<ScanLine className="h-4 w-4" />}
+              onClick={() => setCashierOpen(true)}
+              aria-label="Escanear venta"
+              className="hidden md:inline-flex rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] hover:opacity-90 border-0 shadow-xs"
+            >
+              Escanear venta
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              leftIcon={<RotateCcw className="h-3.5 w-3.5 text-status-warning" />}
+              onClick={() => setReturnOpen(true)}
+              aria-label="Registrar devolución"
+              className="flex-1 md:flex-initial rounded-full"
+            >
+              Devolución
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setCloseDayOpen(true)}
+              className="flex-1 md:flex-initial rounded-full"
+            >
+              Cerrar día
+            </Button>
+          </div>
         </header>
 
         {/* En desktop ponemos el resumen del día y la lista lado a lado:
@@ -324,25 +349,23 @@ export function SalesRegisterPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 md:gap-6 gap-4">
           {/* Day summary card */}
           <div className="md:col-span-1">
-            <Card className="md:sticky md:top-4 relative overflow-hidden border border-surface-border/80 bg-surface-raised/90 backdrop-blur-md shadow-md rounded-2xl before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-gradient-to-r before:from-brand-primary before:via-indigo-500 before:to-violet-500">
-              <CardContent className="py-4.5">
+            <Card className="md:sticky md:top-4 rounded-[24px]">
+              <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] uppercase tracking-wider text-text-muted font-bold">
-                    Ventas del día
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <p className="text-xs text-text-muted font-semibold">Ventas del día</p>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E3F5EC] dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     En vivo
                   </span>
                 </div>
-                <p className="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight font-tabular text-text-primary">
+                <p className="mt-2 font-display text-3xl sm:text-4xl font-bold tracking-tight font-tabular text-text-primary">
                   {formatBsBig(stats.total)}
                 </p>
                 <p className="mt-1 text-xs text-text-muted font-medium">
                   {stats.count} {stats.count === 1 ? 'prenda vendida' : 'prendas vendidas'}
                 </p>
 
-                <div className="mt-5 flex flex-col gap-3.5">
+                <div className="mt-5 flex flex-col gap-2.5">
                   <PaymentRow label="QR" cents={stats.qr} totalCents={stats.total} />
                   <PaymentRow label="Efectivo" cents={stats.cash} totalCents={stats.total} />
                   <PaymentRow label="Tarjeta" cents={stats.card} totalCents={stats.total} />
@@ -451,29 +474,16 @@ export function SalesRegisterPage() {
         </Modal>
       </main>
 
-      {/* Floating action buttons — scan (primary) and return (warning-soft).
-          WHY: both are "instant scan" actions; grouping them avoids hunting. */}
-      <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-2.5">
+      {/* Mobile FAB Escanear venta (desktop uses inline header button) */}
+      <div className="md:hidden fixed bottom-[88px] right-4 z-30">
         <button
           type="button"
-          onClick={() => setReturnOpen(true)}
-          className="h-11 w-11 rounded-full bg-surface-raised/95 backdrop-blur-md text-status-warning shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center border border-status-warning/40 hover:border-status-warning/70"
-          aria-label="Registrar devolución"
+          onClick={() => setCashierOpen(true)}
+          className="h-13 w-13 rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] shadow-xl shadow-black/20 active:scale-95 transition-all flex items-center justify-center hover:scale-105"
+          aria-label="Escanear venta"
         >
-          <RotateCcw className="h-5 w-5" />
+          <ScanLine className="h-6 w-6" />
         </button>
-
-        <div className="relative group">
-          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 via-brand-primary to-violet-600 opacity-40 blur-md group-hover:opacity-75 transition-opacity" />
-          <button
-            type="button"
-            onClick={() => setCashierOpen(true)}
-            className="relative h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 via-brand-primary to-violet-600 text-white shadow-xl active:scale-95 transition-all flex items-center justify-center hover:scale-105"
-            aria-label="Escanear venta"
-          >
-            <ScanLine className="h-6 w-6" />
-          </button>
-        </div>
       </div>
     </AppShell>
   );

@@ -81,7 +81,7 @@ export function BellMenu() {
          *     en el header, que también está max-w-4xl.
          */
         <div
-          className="absolute right-0 mt-2 rounded-lg border border-surface-border bg-surface-raised shadow-lg z-40"
+          className="absolute right-0 mt-2.5 rounded-2xl border border-surface-border-strong bg-surface-raised shadow-2xl shadow-black/15 dark:shadow-black/60 z-50 overflow-hidden animate-scale-in origin-top-right"
           style={{ width: 'min(320px, calc(100vw - 0.5rem))' }}
         >
           <div className="px-3 py-2 border-b border-surface-border flex items-center justify-between min-w-0">

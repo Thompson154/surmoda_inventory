@@ -105,12 +105,14 @@ export function SedeInventoryPage() {
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1 pb-1">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shadow-xs shrink-0">
+            <div className="h-10 w-10 rounded-full bg-[#EEE8FB] dark:bg-indigo-950/50 border border-[#DDD3F6] dark:border-indigo-500/25 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-2xs shrink-0">
               <Package className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventario</h1>
+                <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight">
+                  Inventario
+                </h1>
                 {store && (
                   <Badge variant={isWarehouse ? 'info' : 'default'} dot>
                     {isWarehouse ? 'Almacén' : 'Sucursal'}
@@ -127,7 +129,7 @@ export function SedeInventoryPage() {
               size="sm"
               leftIcon={<ScanLine className="h-4 w-4" />}
               onClick={() => setScannerOpen(true)}
-              className="shadow-sm shadow-brand-primary/25"
+              className="rounded-full shadow-xs"
             >
               Escanear código
             </Button>
@@ -138,6 +140,7 @@ export function SedeInventoryPage() {
                 size="sm"
                 leftIcon={<ClipboardList className="h-4 w-4" />}
                 onClick={() => setMovementsOpen(true)}
+                className="rounded-full"
               >
                 Movimientos
               </Button>
@@ -170,17 +173,17 @@ export function SedeInventoryPage() {
         )}
 
         <div className="relative group">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle group-focus-within:text-brand-primary transition-colors pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle group-focus-within:text-brand-primary transition-colors pointer-events-none" />
           <Input
             id="inventory-search"
             type="search"
-            placeholder="Buscar por código, prenda o código de barras..."
+            placeholder="Buscar prenda, código o barras..."
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
               setPage(1);
             }}
-            className="pl-10 h-11 rounded-xl bg-surface-raised/80 backdrop-blur-xs border-surface-border/80 focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all text-sm"
+            className="pl-11 h-11 rounded-full bg-surface-raised border-surface-border shadow-2xs focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all text-base sm:text-sm"
             aria-label="Buscar inventario"
           />
         </div>
@@ -203,9 +206,9 @@ export function SedeInventoryPage() {
                   setPage(1);
                 }}
                 className={cn(
-                  'rounded-lg text-xs font-medium px-3 py-1.5 transition-all duration-150 active:scale-95 flex items-center gap-1.5',
+                  'rounded-full text-xs font-medium px-4 py-1.5 transition-all duration-150 active:scale-95 flex items-center gap-1.5',
                   active
-                    ? 'bg-brand-primary text-white shadow-xs font-semibold'
+                    ? 'bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] shadow-xs font-semibold'
                     : 'border border-surface-border bg-surface-raised text-text-secondary hover:bg-surface-sunken hover:border-surface-border-strong',
                 )}
               >

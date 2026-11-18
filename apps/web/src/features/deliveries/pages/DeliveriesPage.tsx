@@ -114,37 +114,46 @@ export function DeliveriesPage() {
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <h1 className="text-xl font-semibold truncate">Entregas</h1>
+            <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight truncate">
+              Entregas
+            </h1>
             {store && (
               <Badge variant={isWarehouse ? 'info' : 'default'}>
                 {isWarehouse ? 'Almacén' : 'Sucursal'}
               </Badge>
             )}
           </div>
-          {/* Transferir lateral — secundario al "+" FAB. Se queda en el header
-              como icon-button para mantener la acción accesible sin competir
-              visualmente con la creación de una nueva entrega. */}
           {canCreate && (
-            <button
-              type="button"
-              onClick={() => setTransferOpen(true)}
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-surface-raised text-text-secondary px-3 py-1.5 text-xs font-semibold hover:bg-surface-sunken active:scale-[0.98] transition"
-              aria-label="Transferir a sede"
-            >
-              <Truck className="h-3.5 w-3.5" />
-              <span>Transferir</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setNewOpen(true)}
+                className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] px-3.5 py-1.5 text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition shadow-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Nueva entrega</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTransferOpen(true)}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-surface-raised text-text-secondary px-3 py-1.5 text-xs font-semibold hover:bg-surface-sunken active:scale-[0.98] transition"
+                aria-label="Transferir a sede"
+              >
+                <Truck className="h-3.5 w-3.5" />
+                <span>Transferir</span>
+              </button>
+            </div>
           )}
         </header>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-subtle pointer-events-none" />
           <Input
             type="search"
-            placeholder="Buscar por título, código o barcode..."
+            placeholder="Buscar entrega, código o prenda..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="pl-9"
+            className="pl-11 h-11 rounded-full bg-surface-raised border-surface-border shadow-2xs"
             aria-label="Buscar entregas"
           />
         </div>
@@ -188,7 +197,7 @@ export function DeliveriesPage() {
                 onClick={() => setFilter(t.value)}
                 className={
                   active
-                    ? 'rounded-full bg-brand-primary text-white text-xs font-semibold px-4 py-1.5'
+                    ? 'rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] text-xs font-semibold px-4 py-1.5 shadow-xs'
                     : 'rounded-full border border-surface-border bg-surface-raised text-text-secondary text-xs px-4 py-1.5 hover:bg-surface-sunken'
                 }
               >
@@ -288,14 +297,13 @@ export function DeliveriesPage() {
         )}
       </main>
 
-      {/* FAB Nueva entrega */}
+      {/* Mobile FAB Nueva entrega (desktop uses inline header button) */}
       {canCreate && (
-        <div className="fixed bottom-20 right-4 z-30 group">
-          <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-indigo-500 via-brand-primary to-violet-600 opacity-40 blur-md group-hover:opacity-75 transition-opacity" />
+        <div className="md:hidden fixed bottom-24 right-4 z-30">
           <button
             type="button"
             onClick={() => setNewOpen(true)}
-            className="relative h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 via-brand-primary to-violet-600 text-white shadow-xl active:scale-95 transition-all flex items-center justify-center hover:scale-105"
+            className="h-13 w-13 rounded-full bg-[#111318] text-white dark:bg-[#e3ff6a] dark:text-[#111318] shadow-xl shadow-black/20 active:scale-95 transition-all flex items-center justify-center hover:scale-105"
             aria-label="Nueva entrega"
           >
             <Plus className="h-6 w-6" />

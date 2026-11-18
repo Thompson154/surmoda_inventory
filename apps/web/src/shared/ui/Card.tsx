@@ -5,10 +5,9 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>): J
   return (
     <div
       className={cn(
-        'bg-surface-raised/85 supports-[backdrop-filter]:bg-glass-elevated backdrop-blur-md',
-        'border border-surface-border/80 dark:border-white/[0.07]',
-        'rounded-2xl shadow-xs hover:shadow-md hover:border-brand-primary/30',
-        'transition-all duration-200 ease-out overflow-hidden',
+        'soft-card bg-surface-raised supports-[backdrop-filter]:bg-glass-elevated backdrop-blur-xl',
+        'border border-surface-border',
+        'rounded-2xl transition-all duration-200 ease-out overflow-hidden',
         className,
       )}
       {...props}

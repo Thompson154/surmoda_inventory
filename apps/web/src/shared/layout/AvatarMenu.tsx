@@ -107,80 +107,84 @@ export function AvatarMenu() {
         <div
           role="menu"
           className={cn(
-            'absolute right-0 mt-2 w-56 rounded-xl border border-surface-border bg-surface-raised shadow-xl z-50',
-            'animate-fade-in',
+            'absolute right-0 mt-2.5 w-64 rounded-2xl border border-surface-border-strong',
+            'bg-surface-raised',
+            'shadow-2xl shadow-black/15 dark:shadow-black/60 p-1.5 z-50',
+            'animate-scale-in origin-top-right',
           )}
         >
-          <div className="px-4 py-3 border-b border-surface-border">
-            <p className="text-sm font-semibold text-text-primary truncate">{user?.fullName}</p>
-            <p className="text-xs text-text-muted truncate">{user?.email}</p>
+          <div className="px-3 py-2.5 mb-1 border-b border-surface-border/70">
+            <p className="text-xs font-bold text-text-primary truncate">{user?.fullName}</p>
+            <p className="text-[11px] text-text-muted truncate mt-0.5">{user?.email}</p>
           </div>
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={goSedes}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
-          >
-            <Boxes className="h-4 w-4 text-text-subtle" />
-            Volver a sucursales
-          </button>
-
-          {user?.isAdmin && (
+          <div className="flex flex-col gap-0.5">
             <button
               type="button"
               role="menuitem"
-              onClick={goAdminPanel}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
+              onClick={goSedes}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-sunken/80 active:scale-[0.98] transition-all"
             >
-              <ShieldCheck className="h-4 w-4 text-text-subtle" />
-              Panel admin
+              <Boxes className="h-4 w-4 text-text-subtle" />
+              Volver a sucursales
             </button>
-          )}
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
-          >
-            <ThemeIcon className="h-4 w-4 text-text-subtle transition-transform duration-200" />
-            {themeEntry.label}
-          </button>
+            {user?.isAdmin && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={goAdminPanel}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-brand-primary hover:bg-brand-primary/10 active:scale-[0.98] transition-all"
+              >
+                <ShieldCheck className="h-4 w-4 text-text-subtle" />
+                Panel admin
+              </button>
+            )}
 
-          <button
-            type="button"
-            role="menuitem"
-            onClick={togglePerformanceMode}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-sunken transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              {reduceMotion ? (
-                <ZapOff className="h-4 w-4 text-status-warning" />
-              ) : (
-                <Zap className="h-4 w-4 text-text-subtle" />
-              )}
-              <span>Animaciones y efectos</span>
-            </span>
-            <span
-              className={cn(
-                'text-[11px] px-1.5 py-0.5 rounded font-medium',
-                reduceMotion
-                  ? 'bg-status-warning-soft text-status-warning'
-                  : 'bg-status-success-soft text-status-success',
-              )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-sunken/80 active:scale-[0.98] transition-all"
             >
-              {reduceMotion ? 'Reducidos' : 'Activos'}
-            </span>
-          </button>
+              <ThemeIcon className="h-4 w-4 text-text-subtle" />
+              {themeEntry.label}
+            </button>
 
-          <div className="border-t border-surface-border">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={togglePerformanceMode}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-sunken/80 active:scale-[0.98] transition-all"
+            >
+              <span className="flex items-center gap-2">
+                {reduceMotion ? (
+                  <ZapOff className="h-4 w-4 text-status-warning" />
+                ) : (
+                  <Zap className="h-4 w-4 text-text-subtle" />
+                )}
+                <span>Animaciones y efectos</span>
+              </span>
+              <span
+                className={cn(
+                  'text-[10px] px-1.5 py-0.5 rounded-full font-semibold',
+                  reduceMotion
+                    ? 'bg-status-warning-soft text-status-warning'
+                    : 'bg-status-success-soft text-status-success',
+                )}
+              >
+                {reduceMotion ? 'Reducidos' : 'Activos'}
+              </span>
+            </button>
+          </div>
+
+          <div className="mt-1 pt-1 border-t border-surface-border/70">
             <button
               type="button"
               role="menuitem"
               onClick={() => void handleLogout()}
               disabled={loggingOut}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-status-danger hover:bg-status-danger-soft transition-colors disabled:opacity-60"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-xl text-status-danger hover:bg-status-danger-soft active:scale-[0.98] transition-all disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" />
               {loggingOut ? 'Saliendo...' : 'Cerrar sesión'}
