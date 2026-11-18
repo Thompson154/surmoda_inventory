@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useAdminReturnRequests } from '../hooks/useReturnRequests';
-import type { ReturnRequestStatus } from '../types';
+import type { ReturnRequest, ReturnRequestStatus } from '../types';
 import { Alert, Skeleton } from '@/shared/ui';
 
 type TabFilter = ReturnRequestStatus | 'all' | 'approved-recent';
@@ -37,8 +38,21 @@ export function AdminReturnRequestsPage() {
         : { status: activeTab as ReturnRequestStatus },
   );
 
+  const items = Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray((data as unknown as { rows?: ReturnRequest[] })?.rows)
+      ? ((data as unknown as { rows: ReturnRequest[] }).rows ?? [])
+      : [];
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 text-text-primary">
+      <Link
+        to="/admin"
+        className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary self-start"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Volver al panel admin
+      </Link>
       <h1 className="text-xl font-semibold">Solicitudes de devolución</h1>
 
       {/* Filter tabs */}
@@ -64,13 +78,13 @@ export function AdminReturnRequestsPage() {
       {isLoading && <Skeleton className="h-20 w-full" />}
       {isError && <Alert variant="error">No pudimos cargar las solicitudes.</Alert>}
 
-      {!isLoading && !isError && data?.items.length === 0 && (
+      {!isLoading && !isError && items.length === 0 && (
         <p className="text-sm text-text-muted py-6 text-center">
           No hay solicitudes en esta categoría.
         </p>
       )}
 
-      {data?.items.map((req) => (
+      {items.map((req) => (
         <div
           key={req.id}
           className="rounded-lg border border-surface-border bg-surface-raised px-4 py-3 flex items-start gap-3"

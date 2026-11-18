@@ -115,4 +115,43 @@ describe('AdminReturnRequestsPage — Autorizadas recientemente tab', () => {
       );
     });
   });
+
+  it('renders gracefully when API returns rows property instead of items', async () => {
+    server.use(
+      http.get(`${BASE}/return-requests`, () => {
+        return HttpResponse.json({ rows: [approvedRequest], total: 1 });
+      }),
+    );
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <AdminReturnRequestsPage />
+      </Wrapper>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Ana García')).toBeInTheDocument();
+      expect(screen.getByText('BARCODE-123')).toBeInTheDocument();
+    });
+  });
+
+  it('renders empty state without crashing when items is undefined', async () => {
+    server.use(
+      http.get(`${BASE}/return-requests`, () => {
+        return HttpResponse.json({ total: 0 });
+      }),
+    );
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <AdminReturnRequestsPage />
+      </Wrapper>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/no hay solicitudes en esta categoría/i)).toBeInTheDocument();
+    });
+  });
 });

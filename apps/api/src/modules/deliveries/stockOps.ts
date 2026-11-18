@@ -137,12 +137,13 @@ export interface OriginRefundArgs {
   deliveryId: string;
   items: ItemQty[];
   userId: string;
+  reason?: 'partial_confirm_refund' | 'delivery_deleted_refund';
 }
 
 /**
  * Return unconfirmed/unshipped units back to origin when a partial reception
- * is confirmed from the origin/warehouse (`partial -> partial_confirmed`), so
- * origin net-decrements only what actually went to the destination.
+ * is confirmed from the origin/warehouse (`partial -> partial_confirmed`), or
+ * when an admin deletes a `sent` delivery before reception.
  */
 export async function applyOriginRefund(
   repo: DeliveryRepository,
@@ -150,6 +151,7 @@ export async function applyOriginRefund(
   tx: DeliveryTx,
 ): Promise<void> {
   if (args.items.length === 0) return;
+  const reason = args.reason ?? 'partial_confirm_refund';
   const sortedItems = args.items.slice().sort((a, b) => a.variantId.localeCompare(b.variantId));
   for (const { variantId, quantity } of sortedItems) {
     if (quantity <= 0) continue;
@@ -165,7 +167,7 @@ export async function applyOriginRefund(
           balanceAfter: after,
           deliveryId: args.deliveryId,
           toStoreId: args.toStoreId,
-          reason: 'partial_confirm_refund',
+          reason,
         },
       },
       tx,

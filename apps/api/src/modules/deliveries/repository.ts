@@ -98,6 +98,7 @@ export interface DeliveryRepository {
     tx: DeliveryTx,
   ): Promise<{
     id: string;
+    number?: number;
     status: DeliveryStatus;
     kind: DeliveryKind;
     title: string | null;
@@ -110,6 +111,7 @@ export interface DeliveryRepository {
       receivedQuantity: number | null;
     }>;
   } | null>;
+  deleteDelivery(deliveryId: string, tx: DeliveryTx): Promise<void>;
   updateDraftHeader(
     deliveryId: string,
     patch: { title?: string | null; note?: string | null },
@@ -304,6 +306,7 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
         where: { id: deliveryId },
         select: {
           id: true,
+          number: true,
           status: true,
           kind: true,
           title: true,
@@ -317,6 +320,7 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
       if (!row) return null;
       return {
         id: row.id,
+        number: row.number,
         status: STATUS_FROM_PRISMA[row.status],
         kind: KIND_FROM_PRISMA[row.kind],
         title: row.title,
@@ -324,6 +328,10 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
         toStoreId: row.toStoreId,
         items: row.items,
       };
+    },
+
+    async deleteDelivery(deliveryId, tx) {
+      await tx.delivery.delete({ where: { id: deliveryId } });
     },
 
     async updateDraftHeader(deliveryId, patch, tx) {

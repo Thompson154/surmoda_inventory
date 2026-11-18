@@ -23,6 +23,7 @@ export interface DeliveryController {
   confirmDraft(req: Request, res: Response, next: NextFunction): Promise<void>;
   receive(req: Request, res: Response, next: NextFunction): Promise<void>;
   confirmPartial(req: Request, res: Response, next: NextFunction): Promise<void>;
+  deleteSent(req: Request, res: Response, next: NextFunction): Promise<void>;
   intakeLookup(req: Request, res: Response, next: NextFunction): Promise<void>;
   intake(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
@@ -235,6 +236,29 @@ export function buildDeliveryController(service: DeliveryService): DeliveryContr
           },
         });
         res.status(200).json(confirmed);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async deleteSent(req, res, next) {
+      try {
+        const auth = requireAuth(req);
+        const deliveryId = requireParam(req, 'deliveryId');
+        const deleted = await service.deleteSent(deliveryId, auth);
+        emitAudit(req, {
+          userId: auth.userId,
+          action: 'DELIVERY_DELETED',
+          entity: 'Delivery',
+          entityId: deleted.id,
+          payload: {
+            number: deleted.number,
+            fromStoreId: deleted.fromStoreId,
+            toStoreId: deleted.toStoreId,
+            totalUnits: deleted.totalUnits,
+          },
+        });
+        res.status(200).json({ deleted: true, id: deleted.id });
       } catch (err) {
         next(err);
       }

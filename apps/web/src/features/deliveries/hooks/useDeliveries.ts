@@ -142,3 +142,14 @@ export function useConfirmPartialDelivery() {
     },
   });
 }
+
+export function useDeleteSentDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deliveryId: string) => deliveriesService.deleteSent(deliveryId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
+    },
+  });
+}

@@ -5,6 +5,7 @@ import {
   BarChart3,
   Camera,
   ChevronRight,
+  ClipboardCheck,
   FileSpreadsheet,
   Package,
   ScrollText,
@@ -12,9 +13,10 @@ import {
   Users,
 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
-import { Alert, Button, Card, CardContent } from '@/shared/ui';
+import { Alert, Badge, Button, Card, CardContent } from '@/shared/ui';
 import { AppShell } from '@/shared/layout/AppShell';
 import { useStores } from '@/features/stores/hooks/useStores';
+import { useAdminReturnRequests } from '@/features/return-requests/hooks/useReturnRequests';
 import { httpClient } from '@/shared/services/httpClient';
 import { useToast } from '@/shared/ui/toast';
 import { ReportGeneratorModal } from '@/features/reports/components/ReportGeneratorModal';
@@ -84,6 +86,8 @@ function StorePickerModal({ isOpen, onClose, onSelect }: StorePickerModalProps) 
 
 export function AdminHomePage() {
   const toast = useToast();
+  const pendingAuthorizations = useAdminReturnRequests({ status: 'pending', pageSize: 1 });
+  const pendingAuthCount = pendingAuthorizations.data?.total ?? 0;
 
   // Snapshot mutation
   const snapshotMutation = useMutation({
@@ -209,6 +213,33 @@ export function AdminHomePage() {
                   <p className="text-sm font-semibold text-text-primary">Auditoría del sistema</p>
                   <p className="text-xs text-text-muted mt-0.5">
                     Log inmutable de acciones — login, ediciones, ventas, entregas
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-text-subtle shrink-0" />
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link to="/admin/return-requests" className="block">
+          <Card className="hover:bg-surface-sunken transition-colors duration-150">
+            <CardContent className="flex items-center justify-between py-4">
+              <div className="flex items-start gap-3">
+                <ClipboardCheck className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-text-primary">
+                      Ver autorizaciones pendientes
+                    </p>
+                    {pendingAuthCount > 0 && (
+                      <Badge variant="warning" dot>
+                        {pendingAuthCount} {pendingAuthCount === 1 ? 'pendiente' : 'pendientes'}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Solicitudes de devolución y cambio enviadas por sucursales para aprobar o
+                    rechazar
                   </p>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMyReturnRequests } from '../hooks/useReturnRequests';
-import type { ReturnRequestStatus } from '../types';
+import type { ReturnRequest, ReturnRequestStatus } from '../types';
 import { Alert, Skeleton } from '@/shared/ui';
 
 type TabFilter = ReturnRequestStatus | 'all';
@@ -30,6 +30,12 @@ export function MyReturnRequestsPage() {
     activeTab === 'all' ? {} : { status: activeTab },
   );
 
+  const items = Array.isArray(data?.items)
+    ? data.items
+    : Array.isArray((data as unknown as { rows?: ReturnRequest[] })?.rows)
+      ? ((data as unknown as { rows: ReturnRequest[] }).rows ?? [])
+      : [];
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 text-text-primary">
       <h1 className="text-xl font-semibold">Mis solicitudes</h1>
@@ -57,11 +63,11 @@ export function MyReturnRequestsPage() {
       {isLoading && <Skeleton className="h-20 w-full" />}
       {isError && <Alert variant="error">No pudimos cargar tus solicitudes.</Alert>}
 
-      {!isLoading && !isError && data?.items.length === 0 && (
+      {!isLoading && !isError && items.length === 0 && (
         <p className="text-sm text-text-muted py-6 text-center">No tenés solicitudes todavía.</p>
       )}
 
-      {data?.items.map((req) => (
+      {items.map((req) => (
         <div
           key={req.id}
           className="rounded-lg border border-surface-border bg-surface-raised px-4 py-3 flex flex-col gap-1.5"

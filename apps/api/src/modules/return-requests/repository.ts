@@ -37,6 +37,18 @@ export interface ReturnRequestRow {
   newPaymentMethod: ReturnPaymentMethod | null;
   newSubtotalCents: number | null;
   createdAt: Date;
+
+  // Enriched presentation fields
+  requestedByFullName?: string;
+  storeName?: string;
+  returnedVariantBarcode?: string;
+  returnedVariantDescription?: string;
+  returnedVariantImagePath?: string | null;
+  exchangeVariantBarcode?: string | null;
+  exchangeVariantDescription?: string | null;
+  quantity?: number;
+  reviewedById?: string | null;
+  reviewedByFullName?: string | null;
 }
 
 export interface CreateReturnRequestInput {
@@ -90,6 +102,7 @@ export interface ListReturnRequestsFilter {
 
 export interface PaginatedReturnRequests {
   rows: ReturnRequestRow[];
+  items?: ReturnRequestRow[];
   total: number;
 }
 
@@ -155,7 +168,7 @@ const INCLUDE_FULL = {
       barcode: true,
       size: true,
       color: true,
-      product: { select: { name: true } },
+      product: { select: { name: true, imagePath: true } },
     },
   },
   exchangeVariant: {
@@ -164,7 +177,7 @@ const INCLUDE_FULL = {
       barcode: true,
       size: true,
       color: true,
-      product: { select: { name: true } },
+      product: { select: { name: true, imagePath: true } },
     },
   },
 } as const;
@@ -197,7 +210,41 @@ function toRow(r: {
   newPaymentMethod: 'cash' | 'card' | 'qr' | null;
   newSubtotalCents: number | null;
   createdAt: Date;
+  requester?: { id: string; fullName: string; email: string } | null;
+  reviewer?: { id: string; fullName: string; email: string } | null;
+  store?: { id: string; name: string; code: string } | null;
+  returnedVariant?: {
+    id: string;
+    barcode: string;
+    size: string;
+    color: string;
+    product?: { name: string; imagePath?: string | null } | null;
+  } | null;
+  exchangeVariant?: {
+    id: string;
+    barcode: string;
+    size: string;
+    color: string;
+    product?: { name: string; imagePath?: string | null } | null;
+  } | null;
+  requestedByFullName?: string;
+  storeName?: string;
+  returnedVariantBarcode?: string;
+  returnedVariantDescription?: string;
+  returnedVariantImagePath?: string | null;
+  exchangeVariantBarcode?: string | null;
+  exchangeVariantDescription?: string | null;
+  quantity?: number;
+  reviewedById?: string | null;
+  reviewedByFullName?: string | null;
 }): ReturnRequestRow {
+  const returnedDesc = r.returnedVariant
+    ? `${r.returnedVariant.product?.name ?? ''} ${r.returnedVariant.size ?? ''} ${r.returnedVariant.color ?? ''}`.trim()
+    : undefined;
+  const exchangeDesc = r.exchangeVariant
+    ? `${r.exchangeVariant.product?.name ?? ''} ${r.exchangeVariant.size ?? ''} ${r.exchangeVariant.color ?? ''}`.trim()
+    : undefined;
+
   return {
     id: r.id,
     requesterId: r.requesterId,
@@ -205,6 +252,7 @@ function toRow(r: {
     status: mapStatus(r.status),
     returnedVariantId: r.returnedVariantId,
     returnedQuantity: r.returnedQuantity,
+    quantity: r.returnedQuantity,
     saleDate: r.saleDate,
     exchangeVariantId: r.exchangeVariantId,
     reason: r.reason,
@@ -221,6 +269,18 @@ function toRow(r: {
     newPaymentMethod: r.newPaymentMethod,
     newSubtotalCents: r.newSubtotalCents,
     createdAt: r.createdAt,
+
+    // Enriched presentation fields
+    requestedByFullName: r.requester?.fullName ?? r.requestedByFullName ?? '',
+    storeName: r.store?.name ?? r.storeName ?? '',
+    returnedVariantBarcode: r.returnedVariant?.barcode ?? r.returnedVariantBarcode ?? '',
+    returnedVariantDescription: returnedDesc ?? r.returnedVariantDescription,
+    returnedVariantImagePath:
+      r.returnedVariant?.product?.imagePath ?? r.returnedVariantImagePath ?? null,
+    exchangeVariantBarcode: r.exchangeVariant?.barcode ?? r.exchangeVariantBarcode ?? null,
+    exchangeVariantDescription: exchangeDesc ?? r.exchangeVariantDescription,
+    reviewedById: r.reviewer?.id ?? r.reviewedBy ?? null,
+    reviewedByFullName: r.reviewer?.fullName ?? r.reviewedByFullName ?? null,
   };
 }
 
@@ -315,16 +375,19 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
         db.returnRequest.count({ where }),
       ]);
 
+      const items = rows.map((r) =>
+        toRow({
+          ...r,
+          originalPaymentMethod: r.originalPaymentMethod
+            ? PM_FROM_PRISMA[r.originalPaymentMethod]
+            : null,
+          newPaymentMethod: r.newPaymentMethod ? PM_FROM_PRISMA[r.newPaymentMethod] : null,
+        }),
+      );
+
       return {
-        rows: rows.map((r) =>
-          toRow({
-            ...r,
-            originalPaymentMethod: r.originalPaymentMethod
-              ? PM_FROM_PRISMA[r.originalPaymentMethod]
-              : null,
-            newPaymentMethod: r.newPaymentMethod ? PM_FROM_PRISMA[r.newPaymentMethod] : null,
-          }),
-        ),
+        rows: items,
+        items,
         total,
       };
     },
@@ -353,16 +416,19 @@ export function buildReturnRequestRepository(db: Database): ReturnRequestReposit
         db.returnRequest.count({ where }),
       ]);
 
+      const items = rows.map((r) =>
+        toRow({
+          ...r,
+          originalPaymentMethod: r.originalPaymentMethod
+            ? PM_FROM_PRISMA[r.originalPaymentMethod]
+            : null,
+          newPaymentMethod: r.newPaymentMethod ? PM_FROM_PRISMA[r.newPaymentMethod] : null,
+        }),
+      );
+
       return {
-        rows: rows.map((r) =>
-          toRow({
-            ...r,
-            originalPaymentMethod: r.originalPaymentMethod
-              ? PM_FROM_PRISMA[r.originalPaymentMethod]
-              : null,
-            newPaymentMethod: r.newPaymentMethod ? PM_FROM_PRISMA[r.newPaymentMethod] : null,
-          }),
-        ),
+        rows: items,
+        items,
         total,
       };
     },

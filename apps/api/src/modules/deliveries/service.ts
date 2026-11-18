@@ -20,7 +20,12 @@ import {
   type StoreScopeRepo,
 } from '../../shared/auth/storeScope';
 import type { DeliveryRepository, DeliveryTx } from './repository';
-import { applyDestinationCredit, applyOriginDebit, applyOriginRefund } from './stockOps';
+import {
+  aggregateItems,
+  applyDestinationCredit,
+  applyOriginDebit,
+  applyOriginRefund,
+} from './stockOps';
 import type { ProductRepository } from '../products/repository.product';
 import type { VariantRepository } from '../products/repository.variant';
 import { generateBarcode } from '../products/barcode';
@@ -96,6 +101,16 @@ export interface DeliveryService {
     input: ConfirmPartialDeliveryDTO,
     auth: AuthContext,
   ): Promise<DeliveryWithItems>;
+  deleteSent(
+    deliveryId: string,
+    auth: AuthContext,
+  ): Promise<{
+    id: string;
+    number?: number;
+    fromStoreId: string | null;
+    toStoreId: string;
+    totalUnits: number;
+  }>;
   intakeLookup(
     warehouseId: string,
     productCode: string,
@@ -1026,6 +1041,56 @@ export function buildDeliveryService({
       if (!full)
         throw new AppError(500, ERROR_CODES.INTERNAL_ERROR, 'Delivery no se pudo recuperar.');
       return full;
+    },
+
+    async deleteSent(deliveryId, auth) {
+      if (!auth.isAdmin) {
+        throw new AppError(
+          403,
+          ERROR_CODES.DELIVERY_FORBIDDEN,
+          'Sólo el administrador puede eliminar envíos.',
+        );
+      }
+
+      return deliveries.runSerializable(async (tx) => {
+        const current = await deliveries.loadForUpdate(deliveryId, tx);
+        if (!current) {
+          throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
+        }
+        if (current.status !== 'sent') {
+          throw new AppError(
+            409,
+            ERROR_CODES.DELIVERY_INVALID_STATE,
+            'Sólo se pueden eliminar envíos en estado Enviada.',
+          );
+        }
+
+        const aggregated = aggregateItems(current.items);
+        if (current.fromStoreId) {
+          await applyOriginRefund(
+            deliveries,
+            {
+              fromStoreId: current.fromStoreId,
+              toStoreId: current.toStoreId,
+              deliveryId,
+              items: aggregated,
+              userId: auth.userId,
+              reason: 'delivery_deleted_refund',
+            },
+            tx,
+          );
+        }
+
+        await deliveries.deleteDelivery(deliveryId, tx);
+
+        return {
+          id: current.id,
+          number: current.number,
+          fromStoreId: current.fromStoreId,
+          toStoreId: current.toStoreId,
+          totalUnits: current.items.reduce((sum, it) => sum + it.quantity, 0),
+        };
+      });
     },
   };
 }

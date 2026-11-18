@@ -90,5 +90,9 @@ describe('TransferToStoreModal — paginated inventory loading', () => {
     });
     expect(screen.getByText('Mostrando 15 de 15')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /cargar más/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('PRENDA-1').closest('button')!);
+    expect(screen.getByText(/A enviar \(1 unidad\)/i)).toBeInTheDocument();
+    expect(screen.getByTestId('transfer-inventory-picker').className).toContain('shrink-0');
   });
 });

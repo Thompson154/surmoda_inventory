@@ -44,8 +44,8 @@ export function BellMenu() {
 
   if (!canSee) return null;
 
-  const total = alerts.data?.items.length ?? 0;
   const items = alerts.data?.items ?? [];
+  const total = items.length;
 
   return (
     <div ref={ref} className="relative">

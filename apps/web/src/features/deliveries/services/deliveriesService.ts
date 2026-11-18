@@ -45,6 +45,8 @@ export const deliveriesService = {
     httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/receive`, payload),
   confirmPartial: (deliveryId: string, payload: ConfirmPartialDeliveryPayload = {}) =>
     httpClient.post<DeliveryWithItems>(`/deliveries/${deliveryId}/confirm-partial`, payload),
+  deleteSent: (deliveryId: string) =>
+    httpClient.delete<{ deleted: true; id: string }>(`/deliveries/${deliveryId}`),
   intakeLookup: (warehouseId: string, code: string) =>
     httpClient.get<WarehouseIntakeLookupResponse>(
       `/stores/${warehouseId}/deliveries/intake/lookup?code=${encodeURIComponent(code)}`,

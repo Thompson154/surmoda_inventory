@@ -295,6 +295,84 @@ describe('DeliveryDetailDrawer — status=partial', () => {
   });
 });
 
+describe('DeliveryDetailDrawer — admin delete sent delivery', () => {
+  it('shows "Eliminar envío" ONLY for admin on sent deliveries and deletes on confirm', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-enc',
+        email: 'enc@surmoda.test',
+        fullName: 'Encargada Test',
+        isAdmin: false,
+        assignments: [{ storeId: 'store-prado-seed', role: 'encargada', storeKind: 'branch' }],
+      },
+    });
+    server.use(http.get(`${BASE}/deliveries/del-1`, () => HttpResponse.json(mockDeliverySent)));
+
+    const WrapperEnc = makeWrapper();
+    const { unmount } = render(
+      <WrapperEnc>
+        <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
+      </WrapperEnc>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /confirmar recepción/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /eliminar envío/i })).not.toBeInTheDocument();
+    unmount();
+
+    // Non-sent delivery (received) must NOT show delete even for admin
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-admin',
+        email: 'admin@surmoda.test',
+        fullName: 'Admin Test',
+        isAdmin: true,
+        assignments: [],
+      },
+    });
+    server.use(http.get(`${BASE}/deliveries/del-2`, () => HttpResponse.json(mockDeliveryReceived)));
+    const WrapperRec = makeWrapper();
+    const { unmount: unmountRec } = render(
+      <WrapperRec>
+        <DeliveryDetailDrawer deliveryId="del-2" onClose={vi.fn()} />
+      </WrapperRec>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/entrega confirmada/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /eliminar envío/i })).not.toBeInTheDocument();
+    unmountRec();
+
+    // Admin on sent delivery sees "Eliminar envío" and DELETEs on confirm
+    let deletedCalled = false;
+    const onClose = vi.fn();
+    server.use(
+      http.get(`${BASE}/deliveries/del-1`, () => HttpResponse.json(mockDeliverySent)),
+      http.delete(`${BASE}/deliveries/del-1`, () => {
+        deletedCalled = true;
+        return HttpResponse.json({ deleted: true, id: 'del-1' });
+      }),
+    );
+
+    const WrapperAdmin = makeWrapper();
+    render(
+      <WrapperAdmin>
+        <DeliveryDetailDrawer deliveryId="del-1" onClose={onClose} />
+      </WrapperAdmin>,
+    );
+    const delBtn = await screen.findByRole('button', { name: /eliminar envío/i });
+    fireEvent.click(delBtn);
+
+    const confirmDialogBtns = await screen.findAllByRole('button', { name: /eliminar envío/i });
+    fireEvent.click(confirmDialogBtns[confirmDialogBtns.length - 1]!);
+
+    await waitFor(() => expect(deletedCalled).toBe(true));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+});
+
 describe('DeliveryDetailDrawer — status=received & partial_confirmed', () => {
   it('shows confirmed label when status=received', async () => {
     useAuthStore.setState({

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History } from 'lucide-react';
+import { History, Trash2 } from 'lucide-react';
 import type {
   DeliveryStatus,
   DeliveryWithItems,
@@ -8,10 +8,11 @@ import type {
 import {
   useConfirmDraftDelivery,
   useConfirmPartialDelivery,
+  useDeleteSentDelivery,
   useDelivery,
   useReceiveDelivery,
 } from '../hooks/useDeliveries';
-import { Alert, Button, ConfirmDialog, Modal, Skeleton } from '@/shared/ui';
+import { Alert, Button, ConfirmDialog, Modal, Skeleton, useToast } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
 import { useStoreParam } from '@/shared/hooks/useStoreParam';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
@@ -74,6 +75,8 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   const [confirmSend, setConfirmSend] = useState(false);
   const [confirmReceive, setConfirmReceive] = useState(false);
   const [confirmPartialOpen, setConfirmPartialOpen] = useState(false);
+  const [confirmDeleteSent, setConfirmDeleteSent] = useState(false);
+  const toast = useToast();
 
   // Reset form when a new delivery loads.
   useEffect(() => {
@@ -101,9 +104,24 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   const confirmMutation = useConfirmDraftDelivery();
   const receiveMutation = useReceiveDelivery();
   const confirmPartialMutation = useConfirmPartialDelivery();
+  const deleteSentMutation = useDeleteSentDelivery();
   const confirmError = useErrorMessage(confirmMutation.error as HttpError | null);
   const receiveError = useErrorMessage(receiveMutation.error as HttpError | null);
   const confirmPartialError = useErrorMessage(confirmPartialMutation.error as HttpError | null);
+  const deleteSentError = useErrorMessage(deleteSentMutation.error as HttpError | null);
+
+  // Reset transient confirmation dialogs and mutation errors when closing or switching delivery.
+  useEffect(() => {
+    setConfirmSend(false);
+    setConfirmReceive(false);
+    setConfirmPartialOpen(false);
+    setConfirmDeleteSent(false);
+    confirmMutation.reset();
+    receiveMutation.reset();
+    confirmPartialMutation.reset();
+    deleteSentMutation.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, deliveryId]);
 
   const adjustmentsByItemId = useMemo(() => {
     const m = new Map<string, DeliveryWithItems['adjustments']>();
@@ -340,6 +358,42 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                     Solo encargada/admin puede confirmar recepción.
                   </p>
                 )}
+                {scope.isAdmin && (
+                  <>
+                    <ConfirmDialog
+                      open={confirmDeleteSent}
+                      onClose={() => setConfirmDeleteSent(false)}
+                      onConfirm={() => {
+                        deleteSentMutation.mutate(data.id, {
+                          onSuccess: () => {
+                            setConfirmDeleteSent(false);
+                            toast.success('Envío eliminado y stock devuelto al origen.');
+                            onClose();
+                          },
+                          onError: () => {
+                            setConfirmDeleteSent(false);
+                          },
+                        });
+                      }}
+                      title="Eliminar envío"
+                      description="Se eliminará este envío y las prendas volverán al stock de la sede de origen. Esta acción no se puede deshacer."
+                      confirmLabel="Eliminar envío"
+                      variant="danger"
+                      isPending={deleteSentMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="md"
+                      leftIcon={<Trash2 className="h-4 w-4" />}
+                      onClick={() => setConfirmDeleteSent(true)}
+                      isLoading={deleteSentMutation.isPending}
+                      disabled={deleteSentMutation.isPending}
+                    >
+                      Eliminar envío
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 
@@ -401,6 +455,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
             {confirmError && <Alert variant="error">{confirmError}</Alert>}
             {receiveError && <Alert variant="error">{receiveError}</Alert>}
             {confirmPartialError && <Alert variant="error">{confirmPartialError}</Alert>}
+            {deleteSentError && <Alert variant="error">{deleteSentError}</Alert>}
 
             {/* Audit history button */}
             {data.adjustments.length > 0 && (

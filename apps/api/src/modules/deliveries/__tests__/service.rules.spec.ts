@@ -16,6 +16,7 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
       createMovement: jest.fn().mockResolvedValue(undefined),
       incrementStock: jest.fn().mockResolvedValue(10),
       setStatus: jest.fn().mockResolvedValue(undefined),
+      deleteDelivery: jest.fn().mockResolvedValue(undefined),
       runSerializable: jest.fn(async (fn: (tx: DeliveryTx) => Promise<unknown>) => fn(FAKE_TX)),
     };
     const stores = {
@@ -172,5 +173,62 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
       null,
       FAKE_TX,
     );
+  });
+
+  it('deleteSent forbids non-admin users (403 DELIVERY_FORBIDDEN)', async () => {
+    const { service } = setup();
+    await expect(
+      service.deleteSent('del-sent', { userId: 'enc-1', isAdmin: false }),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'DELIVERY_FORBIDDEN',
+    });
+  });
+
+  it('deleteSent rejects non-sent deliveries (409 DELIVERY_INVALID_STATE)', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-rec',
+      status: 'received',
+      kind: 'distribution',
+      title: 'Recibida',
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-online',
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 5 }],
+    });
+
+    await expect(
+      service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'DELIVERY_INVALID_STATE',
+    });
+    expect(deliveries.deleteDelivery).not.toHaveBeenCalled();
+  });
+
+  it('deleteSent refunds origin stock and deletes sent delivery when called by admin', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-sent',
+      number: 16,
+      status: 'sent',
+      kind: 'distribution',
+      title: 'Nuevo Ingreso',
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 2, receivedQuantity: null }],
+    });
+
+    const result = await service.deleteSent('del-sent', { userId: 'admin-1', isAdmin: true });
+
+    expect(result).toEqual({
+      id: 'del-sent',
+      number: 16,
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      totalUnits: 2,
+    });
+    expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 2, FAKE_TX);
+    expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-sent', FAKE_TX);
   });
 });

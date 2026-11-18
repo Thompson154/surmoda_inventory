@@ -116,7 +116,14 @@ export function buildReturnRequestController({
           pageSize: query.pageSize,
         });
 
-        res.json(result);
+        const items = result.items ?? result.rows ?? [];
+        res.json({
+          items,
+          rows: items,
+          total: result.total,
+          page: query.page,
+          pageSize: query.pageSize,
+        });
       } catch (err) {
         next(err);
       }
@@ -145,7 +152,14 @@ export function buildReturnRequestController({
           pageSize: query.pageSize,
         });
 
-        res.json(result);
+        const items = result.items ?? result.rows ?? [];
+        res.json({
+          items,
+          rows: items,
+          total: result.total,
+          page: query.page,
+          pageSize: query.pageSize,
+        });
       } catch (err) {
         next(err);
       }
