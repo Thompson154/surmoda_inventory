@@ -29,7 +29,7 @@ const STATUS_LABEL: Record<DeliveryStatus, string> = {
   draft: 'Borrador',
   sent: 'Enviada',
   received: 'Recibida',
-  partial: 'Parcial · Por confirmar',
+  partial: 'Recibido parcialmente · En revisión',
   partial_confirmed: 'Recibido parcialmente - Confirmado',
 };
 

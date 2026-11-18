@@ -13,6 +13,7 @@ import {
 } from '../hooks/useDeliveries';
 import { Alert, Button, ConfirmDialog, Modal, Skeleton } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
+import { useStoreParam } from '@/shared/hooks/useStoreParam';
 import { useStoreScope } from '@/shared/hooks/useStoreScope';
 import type { HttpError } from '@/shared/services/httpClient';
 
@@ -25,7 +26,7 @@ const STATUS_LABEL: Record<DeliveryStatus, string> = {
   draft: 'Borrador',
   sent: 'Enviada',
   received: 'Recibida',
-  partial: 'Parcial · Por confirmar',
+  partial: 'Recibido parcialmente · En revisión',
   partial_confirmed: 'Recibido parcialmente - Confirmado',
 };
 
@@ -86,12 +87,16 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
     setShowHistory(false);
   }, [data?.id, data?.status]);
 
+  const activeStoreId = useStoreParam();
   const scope = useStoreScope(data?.toStoreId ?? null);
   const originScope = useStoreScope(data?.fromStoreId ?? null);
   const canConfirmDraft = scope.canManage;
   const canManage = scope.canManage;
-  const canConfirmPartial =
+  const hasOriginConfirmRole =
     scope.isAdmin || scope.hasEncargadaRole || originScope.directRole === 'encargada';
+  const isAtOriginStore =
+    activeStoreId == null || !data?.fromStoreId || activeStoreId === data.fromStoreId;
+  const canConfirmPartial = hasOriginConfirmRole && isAtOriginStore;
 
   const confirmMutation = useConfirmDraftDelivery();
   const receiveMutation = useReceiveDelivery();
@@ -238,7 +243,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                           maxLength={500}
                         />
                       )}
-                      {adjustments.length > 0 && !editable && (
+                      {adjustments.length > 0 && (!editable || data.status === 'partial') && (
                         <ul className="mt-1.5 flex flex-col gap-0.5">
                           {adjustments.map((a) => (
                             <li
@@ -293,8 +298,9 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                   <>
                     {isPartialPreview && (
                       <Alert variant="info">
-                        Vas a reportar una <strong>recepción parcial</strong>: quedará pendiente de
-                        confirmación desde Almacén Central antes de sumar stock.
+                        Vas a reportar una <strong>recepción parcial (en revisión)</strong>: quedará
+                        pendiente hasta que {data.fromStoreName ?? 'Almacén Central'} confirme los
+                        montos reales y ajuste el stock.
                       </Alert>
                     )}
                     <ConfirmDialog
@@ -309,10 +315,10 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                       }
                       description={
                         isPartialPreview
-                          ? 'Se enviará la discrepancia para confirmación interna desde Almacén Central.'
+                          ? `La entrega pasará a estado en revisión para ser confirmada desde ${data.fromStoreName ?? 'Almacén Central'}.`
                           : 'Una vez confirmado no se puede revertir.'
                       }
-                      confirmLabel="Confirmar"
+                      confirmLabel={isPartialPreview ? 'Enviar a revisión' : 'Confirmar'}
                       variant="default"
                       isPending={receiveMutation.isPending}
                     />
@@ -324,7 +330,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                       isLoading={receiveMutation.isPending}
                       disabled={receiveMutation.isPending}
                     >
-                      {isPartialPreview ? 'Confirmar recepción parcial' : 'Confirmar recepción'}
+                      {isPartialPreview ? 'Recibir parcialmente' : 'Confirmar recepción'}
                     </Button>
                   </>
                 )}
@@ -372,8 +378,9 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                   </>
                 ) : (
                   <Alert variant="info">
-                    Recepción parcial reportada. Esperando confirmación interna desde Almacén
-                    Central o Administración para acreditar el stock.
+                    {hasOriginConfirmRole && !isAtOriginStore
+                      ? `Recepción parcial en revisión. Ve a ${data.fromStoreName ?? 'Almacén Central'} para confirmar definitivamente y ajustar el stock.`
+                      : `Recepción parcial reportada. Esperando confirmación interna desde ${data.fromStoreName ?? 'Almacén Central'} o Administración para acreditar el stock.`}
                   </Alert>
                 )}
               </div>

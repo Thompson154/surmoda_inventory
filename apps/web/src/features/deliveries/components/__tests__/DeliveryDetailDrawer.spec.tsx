@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { http, HttpResponse } from 'msw';
 import { DeliveryDetailDrawer } from '../DeliveryDetailDrawer';
@@ -108,7 +108,7 @@ describe('DeliveryDetailDrawer — status=sent, encargada', () => {
     expect(screen.queryByRole('button', { name: /solicitar edición/i })).not.toBeInTheDocument();
   });
 
-  it('switches CTA to "Confirmar recepción parcial" when quantity is lowered', async () => {
+  it('switches CTA to "Recibir parcialmente" when quantity is lowered', async () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
@@ -118,9 +118,7 @@ describe('DeliveryDetailDrawer — status=sent, encargada', () => {
     const input = await screen.findByLabelText(/recibidos de blusa-seda/i);
     fireEvent.change(input, { target: { value: '10' } });
 
-    expect(
-      screen.getByRole('button', { name: /confirmar recepción parcial/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^recibir parcialmente$/i })).toBeInTheDocument();
   });
 });
 
@@ -215,6 +213,85 @@ describe('DeliveryDetailDrawer — status=partial', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^confirmar$/i }));
 
     await waitFor(() => expect(confirmedCalled).toBe(true));
+  });
+
+  it('hides "Confirmar recepción parcial" for admin while viewing from destination branch, and allows it from Almacén Central', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-admin',
+        email: 'admin@surmoda.test',
+        fullName: 'Admin Test',
+        isAdmin: true,
+        assignments: [],
+      },
+    });
+    const partialWithAdjustment = {
+      ...mockDeliveryPartial,
+      adjustments: [
+        {
+          id: 'adj-1',
+          deliveryItemId: 'di-1',
+          expectedQty: 11,
+          actualQty: 10,
+          reason: 'Solo llegaron 10',
+          adjustedByUserId: 'user-prado',
+          adjustedByFullName: 'Sucursal Prado',
+          createdAt: '2026-04-28T11:00:00.000Z',
+        },
+      ],
+    };
+    server.use(
+      http.get(`${BASE}/deliveries/del-3`, () => HttpResponse.json(partialWithAdjustment)),
+    );
+
+    const qcBranch = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { unmount } = render(
+      <QueryClientProvider client={qcBranch}>
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/sedes/store-prado-seed/entregas']}>
+            <Routes>
+              <Route
+                path="/sedes/:storeId/entregas"
+                element={<DeliveryDetailDrawer deliveryId="del-3" onClose={vi.fn()} />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Recibido parcialmente · En revisión/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Ve a Almacén Central/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /confirmar recepción parcial/i }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    const qcWarehouse = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qcWarehouse}>
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/sedes/store-almacen-seed/entregas']}>
+            <Routes>
+              <Route
+                path="/sedes/:storeId/entregas"
+                element={<DeliveryDetailDrawer deliveryId="del-3" onClose={vi.fn()} />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Solo llegaron 10/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole('button', { name: /confirmar recepción parcial/i }),
+    ).toBeInTheDocument();
   });
 });
 
