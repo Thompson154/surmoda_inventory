@@ -8,6 +8,7 @@ import type { HttpError } from '@/shared/services/httpClient';
 import { sizeLabel } from '@/shared/format/sizeLabel';
 import { formatBsShort } from '@/shared/format/currency';
 import { getImageUrl } from '@/features/products/services/productsService';
+import { compressImageToDataUrl } from '@/shared/utils/compressImage';
 
 interface WarehouseIntakeModalProps {
   warehouseId: string;
@@ -51,15 +52,6 @@ function emptyVariant(): DraftVariant {
     existingWarehouseQuantity: 0,
     existingImagePath: null,
   };
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(reader.error ?? new Error('Read failed'));
-    reader.readAsDataURL(file);
-  });
 }
 
 export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIntakeModalProps) {
@@ -156,14 +148,14 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
     });
   };
 
-  const handleImage = async (idx: number, file: File | null) => {
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return;
+  const handleImage = async (idx: number, rawFile: File | null) => {
+    if (!rawFile) return;
+    if (rawFile.type && !rawFile.type.startsWith('image/')) return;
+    const { file, dataUrl } = await compressImageToDataUrl(rawFile);
     const previous = variants[idx]?.previewUrl;
     if (previous) URL.revokeObjectURL(previous);
     const previewUrl = URL.createObjectURL(file);
-    const imageBase64 = await readFileAsDataUrl(file);
-    updateVariant(idx, { previewUrl, imageBase64 });
+    updateVariant(idx, { previewUrl, imageBase64: dataUrl });
   };
 
   const clearImage = (idx: number) => {
@@ -229,9 +221,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
             autoCapitalize="characters"
             error={!codeValid}
           />
-          {!codeValid && (
-            <p className="text-[11px] text-status-danger mt-1">{PRODUCT_CODE_HINT}</p>
-          )}
+          {!codeValid && <p className="text-[11px] text-status-danger mt-1">{PRODUCT_CODE_HINT}</p>}
           {upperCode.length >= 2 && lookup.data && (
             <p className="text-xs mt-1 text-text-secondary">
               {exists
@@ -390,7 +380,7 @@ export function WarehouseIntakeModal({ warehouseId, open, onClose }: WarehouseIn
                         )}
                         <input
                           type="file"
-                          accept="image/png,image/jpeg,image/webp"
+                          accept="image/*"
                           className="absolute inset-0 opacity-0 cursor-pointer"
                           onChange={(e) => {
                             void handleImage(idx, e.target.files?.[0] ?? null);

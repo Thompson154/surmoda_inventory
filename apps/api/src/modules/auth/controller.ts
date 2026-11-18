@@ -20,11 +20,18 @@ const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 function refreshCookieOptions(maxAgeMs: number): CookieOptions {
   const config = loadConfig();
+  const isProduction = cookieSecure();
+  // Cross-origin HTTPS deploys (Cloudflare Pages -> Railway API) require
+  // sameSite='none' + secure=true and host-only cookies when COOKIE_DOMAIN is
+  // left at the local default ('localhost'). Local dev across localhost ports
+  // is same-site HTTP so 'lax' + secure=false works on reload.
+  const domain =
+    config.COOKIE_DOMAIN && config.COOKIE_DOMAIN !== 'localhost' ? config.COOKIE_DOMAIN : undefined;
   return {
     httpOnly: true,
-    sameSite: 'strict',
-    secure: cookieSecure(),
-    domain: config.COOKIE_DOMAIN,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+    ...(domain ? { domain } : {}),
     path: REFRESH_COOKIE_PATH,
     maxAge: maxAgeMs,
   };

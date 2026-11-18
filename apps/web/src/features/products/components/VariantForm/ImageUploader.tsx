@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Image as ImageIcon, Upload, X } from 'lucide-react';
 import { getImageUrl } from '../../services/productsService';
+import { compressImageToFile } from '@/shared/utils/compressImage';
 import { Field, IconButton } from '@/shared/ui';
 
 interface ImageUploaderProps {
@@ -9,13 +10,11 @@ interface ImageUploaderProps {
   onChange: (file: File | null) => void;
 }
 
-const MAX_BYTES = 5 * 1024 * 1024;
-const ALLOWED = ['image/png', 'image/jpeg', 'image/webp'];
-
 export function ImageUploader({ currentImagePath, onChange }: ImageUploaderProps) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(getImageUrl(currentImagePath));
   const [error, setError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
 
   useEffect(() => {
     if (!file) {
@@ -27,24 +26,28 @@ export function ImageUploader({ currentImagePath, onChange }: ImageUploaderProps
     return () => URL.revokeObjectURL(url);
   }, [file, currentImagePath]);
 
-  const handleFile = (selected: File | null) => {
+  const handleFile = async (selected: File | null) => {
     if (!selected) {
       setFile(null);
       setError(null);
       onChange(null);
       return;
     }
-    if (!ALLOWED.includes(selected.type)) {
-      setError('Formato inválido. Solo PNG, JPG o WebP.');
+    if (selected.type && !selected.type.startsWith('image/')) {
+      setError('Formato inválido. Solo imágenes.');
       return;
     }
-    if (selected.size > MAX_BYTES) {
-      setError('La imagen supera 5 MB.');
-      return;
-    }
+    setCompressing(true);
     setError(null);
-    setFile(selected);
-    onChange(selected);
+    try {
+      const compressed = await compressImageToFile(selected);
+      setFile(compressed);
+      onChange(compressed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No pudimos procesar la imagen.');
+    } finally {
+      setCompressing(false);
+    }
   };
 
   return (
@@ -63,14 +66,17 @@ export function ImageUploader({ currentImagePath, onChange }: ImageUploaderProps
             className="inline-flex items-center gap-1 rounded-lg border border-surface-border bg-surface-raised px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-sunken cursor-pointer transition-colors duration-150"
           >
             <Upload className="h-4 w-4" />
-            {file ? 'Cambiar' : 'Elegir imagen'}
+            {compressing ? 'Optimizando...' : file ? 'Cambiar' : 'Elegir imagen'}
           </label>
           <input
             id="variant-image"
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/*"
             className="hidden"
-            onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              void handleFile(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
           />
           {(file || currentImagePath) && (
             <IconButton
@@ -79,7 +85,7 @@ export function ImageUploader({ currentImagePath, onChange }: ImageUploaderProps
               variant="ghost"
               size="sm"
               type="button"
-              onClick={() => handleFile(null)}
+              onClick={() => void handleFile(null)}
             />
           )}
         </div>

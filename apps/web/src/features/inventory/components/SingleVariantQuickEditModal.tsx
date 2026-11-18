@@ -14,6 +14,7 @@ import {
 } from '@/features/products/services/productsService';
 import { formatBs as formatPrice } from '@/shared/format/currency';
 import { sizeLabel } from '@/shared/format/sizeLabel';
+import { compressImageToFile } from '@/shared/utils/compressImage';
 
 interface SingleVariantQuickEditModalProps {
   storeId: string;
@@ -101,12 +102,19 @@ export function SingleVariantQuickEditModal({
     };
   }, [previewUrl]);
 
-  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPendingImage(file);
-    setPreviewUrl(URL.createObjectURL(file));
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    e.target.value = '';
+    if (!rawFile) return;
+    setSubmitError(null);
+    try {
+      const compressed = await compressImageToFile(rawFile);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPendingImage(compressed);
+      setPreviewUrl(URL.createObjectURL(compressed));
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'No pudimos procesar la imagen.');
+    }
   };
 
   // Compute dirtiness up front so we can render warnings + gate the button.
@@ -218,9 +226,11 @@ export function SingleVariantQuickEditModal({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/*"
             className="hidden"
-            onChange={onPickImage}
+            onChange={(e) => {
+              void onPickImage(e);
+            }}
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-text-primary truncate">{row.productName}</p>
