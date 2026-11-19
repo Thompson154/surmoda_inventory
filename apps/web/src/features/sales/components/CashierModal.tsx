@@ -10,6 +10,7 @@ import {
   Modal,
   ProductCodeBadge,
   Skeleton,
+  cn,
   useToast,
 } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -416,7 +417,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
             ))}
           </div>
           <div className="text-sm">
-            <span className="text-text-muted">SubTotal</span>{' '}
+            <span className="text-text-muted">Total a cobrar:</span>{' '}
             <span className="font-semibold text-text-primary">{formatBs(subTotalCents)}</span>
           </div>
         </div>
@@ -433,7 +434,7 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                 <tr>
                   <th className="text-left px-2 py-2">Talla / Color</th>
                   <th className="text-right px-2 py-2">Cantidad</th>
-                  <th className="text-right px-2 py-2">Total</th>
+                  <th className="text-right px-2 py-2">P. Lista</th>
                   <th className="text-right px-2 py-2">SubTotal</th>
                   <th className="px-1 py-2"></th>
                 </tr>
@@ -450,30 +451,38 @@ export function CashierModal({ storeId, open, onClose, onSold }: CashierModalPro
                     </td>
                     <td className="px-2 py-2 text-right">
                       <Input
+                        fullWidth={false}
                         type="number"
                         inputMode="numeric"
                         min={0}
                         max={i.available}
                         value={String(i.quantity)}
                         onChange={(e) => updateQty(i.variantId, Number(e.target.value) || 0)}
-                        className="w-14 text-center text-xs py-1"
+                        className="w-14 text-center text-xs py-1 h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         aria-label="Cantidad"
                       />
                     </td>
-                    <td className="px-2 py-2 text-right font-mono">
+                    <td className="px-2 py-2 text-right font-mono text-text-muted">
                       {formatBs(i.unitPriceCents * i.quantity)}
                     </td>
                     <td className="px-2 py-2 text-right">
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        step={0.01}
-                        value={(i.subtotalCents / 100).toFixed(2)}
-                        onChange={(e) => updateSubtotal(i.variantId, Number(e.target.value) || 0)}
-                        className={`w-20 text-right text-xs py-1 font-mono ${!isSubtotalValid(i) ? 'border-status-danger ring-1 ring-status-danger' : ''}`}
-                        aria-label="SubTotal"
-                      />
+                      <div className="inline-flex items-center justify-end gap-1">
+                        <span className="text-[11px] text-text-muted font-mono">Bs.</span>
+                        <Input
+                          fullWidth={false}
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          step={0.01}
+                          value={(i.subtotalCents / 100).toFixed(2)}
+                          onChange={(e) => updateSubtotal(i.variantId, Number(e.target.value) || 0)}
+                          className={cn(
+                            'w-24 text-right text-xs py-1 px-2 h-8 font-mono font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+                            !isSubtotalValid(i) && 'border-status-danger ring-1 ring-status-danger',
+                          )}
+                          aria-label="SubTotal"
+                        />
+                      </div>
                       {!isSubtotalValid(i) && (
                         <p className="text-[10px] text-status-danger mt-0.5">Descuento máx 30%</p>
                       )}

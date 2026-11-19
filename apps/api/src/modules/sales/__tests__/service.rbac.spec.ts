@@ -69,15 +69,28 @@ describe('SaleService.create — RBAC', () => {
     ).resolves.toBeDefined();
   });
 
-  it('forbids encargada from creating a sale', async () => {
+  it('allows encargada assigned to the store to create a sale', async () => {
     const repo = buildMockRepo();
-    // WHY: encargada oversees stores but does not register sales — vendedora does.
     const scope: StoreScopeRepo = {
       findActiveAssignment: jest.fn().mockResolvedValue({ role: 'encargada' }),
       hasAnyEncargadaRole: jest.fn().mockResolvedValue(true),
     };
     const service = buildSaleService({ sales: repo, assignments: scope });
     const auth: AuthContext = { userId: 'enc-1', isAdmin: false };
+
+    await expect(
+      service.create(STORE_ID, { items: [ITEM], paymentMethod: 'cash' }, auth),
+    ).resolves.toBeDefined();
+  });
+
+  it('forbids unassigned staff from creating a sale', async () => {
+    const repo = buildMockRepo();
+    const scope: StoreScopeRepo = {
+      findActiveAssignment: jest.fn().mockResolvedValue(null),
+      hasAnyEncargadaRole: jest.fn().mockResolvedValue(false),
+    };
+    const service = buildSaleService({ sales: repo, assignments: scope });
+    const auth: AuthContext = { userId: 'stranger-1', isAdmin: false };
 
     await expect(
       service.create(STORE_ID, { items: [ITEM], paymentMethod: 'cash' }, auth),

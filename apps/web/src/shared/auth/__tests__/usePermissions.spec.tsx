@@ -104,9 +104,9 @@ describe('usePermissions', () => {
       const { result } = renderHook(() => usePermissions());
       expect(result.current.can('reports:generate')).toBe(true);
     });
-    it('cannot create sales', () => {
+    it('can create sales', () => {
       const { result } = renderHook(() => usePermissions());
-      expect(result.current.can('sales:create')).toBe(false);
+      expect(result.current.can('sales:create')).toBe(true);
     });
   });
 });

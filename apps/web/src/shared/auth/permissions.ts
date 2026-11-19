@@ -33,6 +33,7 @@ const PERMISSIONS: Record<Exclude<Role, 'admin'>, ReadonlyArray<Action>> = {
     'deliveries:read',
   ],
   encargada: [
+    'sales:create',
     'sales:read',
     'sales:full-view',
     'sales:closures-history',

@@ -76,8 +76,8 @@ describe('PERMISSIONS matrix', () => {
     it('can return-requests:create-with-replacement', () => {
       expect(can('encargada', 'return-requests:create-with-replacement')).toBe(true);
     });
-    it('cannot sales:create', () => {
-      expect(can('encargada', 'sales:create')).toBe(false);
+    it('can sales:create', () => {
+      expect(can('encargada', 'sales:create')).toBe(true);
     });
     it('cannot sales:edit:post-charge', () => {
       expect(can('encargada', 'sales:edit:post-charge')).toBe(false);
