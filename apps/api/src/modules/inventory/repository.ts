@@ -214,7 +214,7 @@ export function buildInventoryRepository(db: Database): InventoryRepository {
         }
       >();
 
-      const LOW_THRESHOLD = 5;
+      const LOW_THRESHOLD = 2;
       for (const row of rows) {
         const productId = row.variant.productId;
         const isZero = row.quantity === 0;

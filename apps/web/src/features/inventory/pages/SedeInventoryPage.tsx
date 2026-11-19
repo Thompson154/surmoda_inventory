@@ -42,6 +42,7 @@ import { useDebounce } from '@/shared/hooks/useDebounce';
 // WHY: removed in Wave 5 — only admin edits inventory now (see ADR pending)
 
 const PAGE_SIZE = 20;
+const LOW_STOCK_THRESHOLD = 2;
 
 export function SedeInventoryPage() {
   const params = useParams<{ storeId: string }>();
@@ -76,7 +77,8 @@ export function SedeInventoryPage() {
   const searchVariants = useMemo(() => {
     const items = searchQuery.data?.items ?? [];
     if (stockStatus === 'zero') return items.filter((r) => r.quantity === 0);
-    if (stockStatus === 'low') return items.filter((r) => r.quantity > 0 && r.quantity <= 5);
+    if (stockStatus === 'low')
+      return items.filter((r) => r.quantity > 0 && r.quantity <= LOW_STOCK_THRESHOLD);
     return items;
   }, [searchQuery.data?.items, stockStatus]);
 
@@ -414,7 +416,7 @@ export function SedeInventoryPage() {
                                       'text-xs font-mono font-semibold px-2 py-0.5 rounded',
                                       v.quantity === 0
                                         ? 'bg-status-danger-soft text-status-danger'
-                                        : v.quantity <= 5
+                                        : v.quantity <= LOW_STOCK_THRESHOLD
                                           ? 'bg-status-warning-soft text-status-warning'
                                           : 'bg-surface-sunken text-text-primary',
                                     )}

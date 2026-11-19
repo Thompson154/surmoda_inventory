@@ -15,7 +15,7 @@ import {
 } from '../../shared/datetime/bolivia';
 import { SIZE_FROM_PRISMA } from '../../shared/enums/mappings';
 
-const LOW_STOCK_THRESHOLD = 5;
+const LOW_STOCK_THRESHOLD = 2;
 const HOT_LOOKBACK_DAYS = 7;
 const ALERT_LIMIT_PER_KIND = 25;
 

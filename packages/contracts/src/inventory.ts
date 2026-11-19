@@ -38,7 +38,7 @@ export interface GroupedInventoryItem {
   imagePath: string | null;
   totalQuantity: number;
   variantsCount: number;
-  /** Variants of this product with quantity in 1..5 (low) at the requested store. */
+  /** Variants of this product with quantity in 1..2 (low) at the requested store. */
   lowVariantsCount: number;
   /** Variants of this product with quantity = 0 (out) at the requested store. */
   zeroVariantsCount: number;
