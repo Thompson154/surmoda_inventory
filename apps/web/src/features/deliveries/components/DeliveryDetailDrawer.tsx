@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History, Trash2 } from 'lucide-react';
+import { History, Pencil, Trash2 } from 'lucide-react';
 import type {
   DeliveryStatus,
   DeliveryWithItems,
@@ -76,6 +76,10 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   const [confirmReceive, setConfirmReceive] = useState(false);
   const [confirmPartialOpen, setConfirmPartialOpen] = useState(false);
   const [confirmDeleteSent, setConfirmDeleteSent] = useState(false);
+  // Reception edit flow: editing is locked until encargada confirms the edit popup.
+  const [isEditingReception, setIsEditingReception] = useState(false);
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [discrepancyReason, setDiscrepancyReason] = useState('');
   const toast = useToast();
 
   // Reset form when a new delivery loads.
@@ -88,6 +92,9 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
     setReceivedQty(init);
     setReasonByItem({});
     setShowHistory(false);
+    setIsEditingReception(false);
+    setConfirmEditOpen(false);
+    setDiscrepancyReason('');
   }, [data?.id, data?.status]);
 
   const activeStoreId = useStoreParam();
@@ -116,6 +123,9 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
     setConfirmReceive(false);
     setConfirmPartialOpen(false);
     setConfirmDeleteSent(false);
+    setConfirmEditOpen(false);
+    setIsEditingReception(false);
+    setDiscrepancyReason('');
     confirmMutation.reset();
     receiveMutation.reset();
     confirmPartialMutation.reset();
@@ -141,12 +151,26 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
 
   const handleReceive = () => {
     if (!data) return;
+    const fallbackReason = isEditingReception ? discrepancyReason.trim() : undefined;
     const payload: ReceiveDeliveryItemAdjustment[] = data.items.map((i) => ({
       deliveryItemId: i.id,
       receivedQuantity: receivedQty[i.id] ?? i.quantity,
-      reason: reasonByItem[i.id]?.trim() || undefined,
+      reason: reasonByItem[i.id]?.trim() || fallbackReason || undefined,
     }));
-    receiveMutation.mutate({ deliveryId: data.id, payload: { items: payload } });
+    receiveMutation.mutate(
+      { deliveryId: data.id, payload: { items: payload } },
+      {
+        onSuccess: () => {
+          if (isEditingReception) {
+            toast.info('Recepción parcial reportada. Queda en revisión para Almacén / Admin.');
+          } else {
+            toast.success('Recepción confirmada exitosamente.');
+          }
+          setIsEditingReception(false);
+          setDiscrepancyReason('');
+        },
+      },
+    );
   };
 
   const handleConfirmPartial = () => {
@@ -199,12 +223,54 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
             )}
 
             <div>
-              <p className="text-sm font-semibold mb-2">Productos</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold">Productos</p>
+                {data.status === 'sent' && canManage && !isEditingReception && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<Pencil className="h-3.5 w-3.5" />}
+                    onClick={() => setConfirmEditOpen(true)}
+                    aria-label="Editar recepción"
+                  >
+                    Editar
+                  </Button>
+                )}
+                {data.status === 'sent' && canManage && isEditingReception && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const init: Record<string, number> = {};
+                      for (const i of data.items) {
+                        init[i.id] = i.quantity;
+                      }
+                      setReceivedQty(init);
+                      setReasonByItem({});
+                      setDiscrepancyReason('');
+                      setIsEditingReception(false);
+                    }}
+                    className="text-xs text-text-muted hover:text-text-primary"
+                  >
+                    Cancelar edición
+                  </Button>
+                )}
+              </div>
+
+              {data.status === 'sent' && canManage && isEditingReception && (
+                <Alert variant="warning" className="mb-2">
+                  Modo edición activado: Modificá las cantidades recibidas e ingresá el motivo
+                  obligatorio de la discrepancia.
+                </Alert>
+              )}
+
               <ul className="flex flex-col gap-2">
                 {data.items.map((it) => {
                   const adjustments = adjustmentsByItemId.get(it.id) ?? [];
                   const editable =
-                    (data.status === 'sent' && canManage) ||
+                    (data.status === 'sent' && canManage && isEditingReception) ||
                     (data.status === 'partial' && canConfirmPartial);
                   const value = receivedQty[it.id] ?? it.receivedQuantity ?? it.quantity;
                   const adjusted =
@@ -239,9 +305,16 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                                 );
                                 setReceivedQty((prev) => ({ ...prev, [it.id]: v }));
                               }}
-                              className="w-16 rounded border border-surface-border text-sm text-right px-2 py-1 font-mono"
+                              className="w-16 rounded border border-surface-border text-sm text-right px-2 py-1 font-mono focus:border-brand-primary"
                               aria-label={`Recibidos de ${it.productCode}`}
                             />
+                          </div>
+                        ) : data.status === 'sent' ? (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-text-subtle">de {it.quantity}</span>
+                            <span className="text-sm font-semibold text-text-primary px-2.5 py-1 rounded bg-surface-sunken font-mono">
+                              {it.quantity}
+                            </span>
                           </div>
                         ) : (
                           <p className="text-2xl font-semibold text-text-primary shrink-0">
@@ -252,7 +325,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                       {editable && adjusted && (
                         <input
                           type="text"
-                          placeholder="Motivo del ajuste (opcional, queda en auditoría)"
+                          placeholder="Nota individual por ítem (opcional)"
                           value={reasonByItem[it.id] ?? ''}
                           onChange={(e) =>
                             setReasonByItem((prev) => ({ ...prev, [it.id]: e.target.value }))
@@ -278,6 +351,31 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                   );
                 })}
               </ul>
+
+              {data.status === 'sent' && canManage && isEditingReception && (
+                <div className="mt-3 flex flex-col gap-1.5 p-3 rounded-lg border border-status-warning bg-status-warning-soft/30">
+                  <label
+                    htmlFor="discrepancy-reason"
+                    className="text-xs font-semibold text-text-primary"
+                  >
+                    Motivo de la discrepancia / mermas <span className="text-status-danger">*</span>
+                  </label>
+                  <textarea
+                    id="discrepancy-reason"
+                    rows={3}
+                    placeholder="Explicá por qué llegó menos mercadería (obligatorio para control de mermas)..."
+                    value={discrepancyReason}
+                    onChange={(e) => setDiscrepancyReason(e.target.value)}
+                    className="w-full rounded border border-surface-border bg-surface-base p-2 text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none"
+                    required
+                  />
+                  {!discrepancyReason.trim() && (
+                    <p className="text-[11px] text-status-danger font-medium">
+                      El motivo es obligatorio para poder reportar la recepción parcial.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -314,42 +412,112 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                 {/* Confirmar recepción — encargada/admin only */}
                 {canManage && (
                   <>
-                    {isPartialPreview && (
-                      <Alert variant="info">
-                        Vas a reportar una <strong>recepción parcial (en revisión)</strong>: quedará
-                        pendiente hasta que {data.fromStoreName ?? 'Almacén Central'} confirme los
-                        montos reales y ajuste el stock.
-                      </Alert>
-                    )}
                     <ConfirmDialog
-                      open={confirmReceive}
-                      onClose={() => setConfirmReceive(false)}
+                      open={confirmEditOpen}
+                      onClose={() => setConfirmEditOpen(false)}
                       onConfirm={() => {
-                        handleReceive();
-                        setConfirmReceive(false);
+                        setIsEditingReception(true);
+                        setConfirmEditOpen(false);
                       }}
-                      title={
-                        isPartialPreview ? 'Reportar recepción parcial' : 'Confirmar recepción'
-                      }
-                      description={
-                        isPartialPreview
-                          ? `La entrega pasará a estado en revisión para ser confirmada desde ${data.fromStoreName ?? 'Almacén Central'}.`
-                          : 'Una vez confirmado no se puede revertir.'
-                      }
-                      confirmLabel={isPartialPreview ? 'Enviar a revisión' : 'Confirmar'}
+                      title="¿Editar recepción de mercadería?"
+                      description="¿Está seguro de que quiere editar la recepción porque le llegaron menos productos?"
+                      confirmLabel="Sí, editar recepción"
                       variant="default"
-                      isPending={receiveMutation.isPending}
                     />
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="md"
-                      onClick={() => setConfirmReceive(true)}
-                      isLoading={receiveMutation.isPending}
-                      disabled={receiveMutation.isPending}
-                    >
-                      {isPartialPreview ? 'Recibir parcialmente' : 'Confirmar recepción'}
-                    </Button>
+
+                    {isEditingReception ? (
+                      <>
+                        {isPartialPreview && (
+                          <Alert variant="info">
+                            Vas a reportar una <strong>recepción parcial (en revisión)</strong>:
+                            quedará pendiente hasta que {data.fromStoreName ?? 'Almacén Central'}{' '}
+                            confirme los montos reales y ajuste el stock.
+                          </Alert>
+                        )}
+                        <ConfirmDialog
+                          open={confirmReceive}
+                          onClose={() => setConfirmReceive(false)}
+                          onConfirm={() => {
+                            handleReceive();
+                            setConfirmReceive(false);
+                          }}
+                          title="Reportar recepción parcial"
+                          description={`La entrega pasará a estado en revisión con motivo de merma: "${discrepancyReason.trim()}". Se notificará al administrador para confirmar esta discrepancia.`}
+                          confirmLabel="Enviar a revisión"
+                          variant="default"
+                          isPending={receiveMutation.isPending}
+                        />
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="md"
+                          onClick={() => setConfirmReceive(true)}
+                          isLoading={receiveMutation.isPending}
+                          disabled={receiveMutation.isPending || !discrepancyReason.trim()}
+                        >
+                          Recibir recepción parcialmente
+                        </Button>
+                        {!discrepancyReason.trim() && (
+                          <p className="text-xs text-status-danger text-center font-medium">
+                            Ingresá el motivo obligatorio arriba para poder recibir parcialmente.
+                          </p>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const init: Record<string, number> = {};
+                            for (const i of data.items) {
+                              init[i.id] = i.quantity;
+                            }
+                            setReceivedQty(init);
+                            setReasonByItem({});
+                            setDiscrepancyReason('');
+                            setIsEditingReception(false);
+                          }}
+                          disabled={receiveMutation.isPending}
+                        >
+                          Cancelar edición y volver a recepción completa
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <ConfirmDialog
+                          open={confirmReceive}
+                          onClose={() => setConfirmReceive(false)}
+                          onConfirm={() => {
+                            handleReceive();
+                            setConfirmReceive(false);
+                          }}
+                          title="Confirmar recepción"
+                          description="¿Confirmás la recepción completa de la mercadería enviada? Una vez confirmado no se puede revertir."
+                          confirmLabel="Confirmar recepción"
+                          variant="default"
+                          isPending={receiveMutation.isPending}
+                        />
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="md"
+                          onClick={() => setConfirmReceive(true)}
+                          isLoading={receiveMutation.isPending}
+                          disabled={receiveMutation.isPending}
+                        >
+                          Confirmar recepción
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          leftIcon={<Pencil className="h-4 w-4" />}
+                          onClick={() => setConfirmEditOpen(true)}
+                          disabled={receiveMutation.isPending}
+                        >
+                          Editar recepción (llegaron menos)
+                        </Button>
+                      </>
+                    )}
                   </>
                 )}
                 {/* WHY: vendedora cannot confirm reception per Wave 5 BE */}

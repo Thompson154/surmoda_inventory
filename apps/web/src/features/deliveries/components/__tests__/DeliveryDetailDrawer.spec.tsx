@@ -108,17 +108,67 @@ describe('DeliveryDetailDrawer — status=sent, encargada', () => {
     expect(screen.queryByRole('button', { name: /solicitar edición/i })).not.toBeInTheDocument();
   });
 
-  it('switches CTA to "Recibir parcialmente" when quantity is lowered', async () => {
+  it('keeps quantities locked initially and does not show editable input', async () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper>
         <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
       </Wrapper>,
     );
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /confirmar recepción/i })).toBeInTheDocument();
+    });
+    // The number input is locked initially
+    expect(screen.queryByLabelText(/recibidos de blusa-seda/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /editar/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('opens confirmation popup when clicking edit, unlocks inputs and requires reason for partial reception', async () => {
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <DeliveryDetailDrawer deliveryId="del-1" onClose={vi.fn()} />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /editar/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Click edit button
+    const editBtns = screen.getAllByRole('button', { name: /editar/i });
+    fireEvent.click(editBtns[0]!);
+
+    // Confirmation popup appears
+    expect(
+      await screen.findByText(
+        /¿está seguro de que quiere editar la recepción porque le llegaron menos productos\?/i,
+      ),
+    ).toBeInTheDocument();
+
+    // Confirm the popup
+    fireEvent.click(screen.getByRole('button', { name: /sí, editar recepción/i }));
+
+    // Now input is editable and discrepancy reason textarea appears
     const input = await screen.findByLabelText(/recibidos de blusa-seda/i);
+    expect(input).toBeInTheDocument();
     fireEvent.change(input, { target: { value: '10' } });
 
-    expect(screen.getByRole('button', { name: /^recibir parcialmente$/i })).toBeInTheDocument();
+    // The CTA switches to "Recibir recepción parcialmente"
+    const partialBtn = screen.getByRole('button', { name: /recibir recepción parcialmente/i });
+    expect(partialBtn).toBeInTheDocument();
+
+    // Disabled because reason is mandatory
+    expect(partialBtn).toBeDisabled();
+    expect(screen.getByText(/el motivo es obligatorio/i)).toBeInTheDocument();
+
+    // Fill discrepancy reason
+    const reasonTextarea = screen.getByLabelText(/motivo de la discrepancia \/ mermas/i);
+    fireEvent.change(reasonTextarea, {
+      target: { value: 'Llegó 1 prenda menos en la caja sellada' },
+    });
+
+    // Now enabled!
+    expect(partialBtn).not.toBeDisabled();
   });
 });
 
