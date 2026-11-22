@@ -40,7 +40,7 @@ describe('permissions matrix', () => {
     it('can see closures history', () => expect(can(role, 'sales:closures-history')).toBe(true));
 
     it('can create sales', () => expect(can(role, 'sales:create')).toBe(true));
-    it('cannot close day', () => expect(can(role, 'sales:close-day')).toBe(false));
+    it('can close day', () => expect(can(role, 'sales:close-day')).toBe(true));
     it('cannot edit inventory', () => expect(can(role, 'inventory:edit')).toBe(false));
     it('cannot manage users', () => expect(can(role, 'users:manage')).toBe(false));
     it('cannot review returns', () => expect(can(role, 'returns:review')).toBe(false));

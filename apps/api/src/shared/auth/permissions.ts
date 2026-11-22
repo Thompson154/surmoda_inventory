@@ -32,6 +32,7 @@ export const PERMISSIONS: Record<Role, ReadonlyArray<Action>> = {
   encargada: [
     'sales:create',
     'sales:read',
+    'sales:close-day',
     'inventory:read',
     'deliveries:create',
     'deliveries:read',

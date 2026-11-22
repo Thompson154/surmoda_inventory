@@ -48,13 +48,23 @@ describe('DailyReportService.closeToday — RBAC', () => {
     await expect(service.closeToday(STORE_ID, VENDEDORA_AUTH, [])).resolves.toBeDefined();
   });
 
-  it('forbids encargada from closing today', async () => {
+  it('allows encargada to close today', async () => {
     const repo = buildMockRepo();
-    // WHY: encargada is encargada, not vendedora — close-day is vendedora-only.
     const assignments = buildMockAssignments(true);
     const service = buildDailyReportService({ reports: repo, assignments });
 
-    await expect(service.closeToday(STORE_ID, ENCARGADA_AUTH, [])).rejects.toMatchObject({
+    await expect(service.closeToday(STORE_ID, ENCARGADA_AUTH, [])).resolves.toBeDefined();
+  });
+
+  it('forbids unassigned staff from closing today', async () => {
+    const repo = buildMockRepo();
+    const assignments = {
+      hasAnyEncargadaRole: jest.fn().mockResolvedValue(false),
+      findActiveAssignment: jest.fn().mockResolvedValue(null),
+    };
+    const service = buildDailyReportService({ reports: repo, assignments });
+
+    await expect(service.closeToday(STORE_ID, VENDEDORA_AUTH, [])).rejects.toMatchObject({
       statusCode: 403,
       code: 'DAILY_REPORT_FORBIDDEN',
     });

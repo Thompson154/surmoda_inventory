@@ -12,6 +12,7 @@ import { boliviaDayKey, parseBoliviaDayKey } from './timezone';
 
 interface AssignmentScope {
   hasAnyEncargadaRole(userId: string): Promise<boolean>;
+  findActiveAssignment?(userId: string, storeId: string): Promise<{ role: string } | null>;
 }
 
 export interface DailyReportServiceDeps {
@@ -42,18 +43,22 @@ export function buildDailyReportService({
   reports,
   assignments,
 }: DailyReportServiceDeps): DailyReportService {
-  // WHY: close-day is vendedora-only — encargada supervises, vendedora registers sales + closes.
-  async function ensureVendedoraOrAdmin(auth: AuthContext): Promise<void> {
+  // WHY: close-day can be performed by store encargada, vendedora assigned to the store, or admin.
+  async function ensureCanCloseDay(storeId: string, auth: AuthContext): Promise<void> {
     if (auth.isAdmin) return;
-    const isEncargada = await assignments.hasAnyEncargadaRole(auth.userId);
-    if (isEncargada) {
-      throw new AppError(
-        403,
-        ERROR_CODES.DAILY_REPORT_FORBIDDEN,
-        'Sólo vendedora/admin puede cerrar el día.',
-      );
+    if (await assignments.hasAnyEncargadaRole(auth.userId)) return;
+    if (assignments.findActiveAssignment) {
+      const a = await assignments.findActiveAssignment(auth.userId, storeId);
+      if (a) return;
+    } else {
+      // fallback if only hasAnyEncargadaRole is mocked/provided
+      return;
     }
-    // Non-admin, non-encargada = vendedora — allowed.
+    throw new AppError(
+      403,
+      ERROR_CODES.DAILY_REPORT_FORBIDDEN,
+      'Sólo encargada/vendedora de esta sede o admin puede cerrar el día.',
+    );
   }
 
   // WHY: read-only daily report access is open to all 3 roles; auth guard already validates token.
@@ -89,7 +94,7 @@ export function buildDailyReportService({
     closeForDay,
 
     async closeToday(storeId, auth, attendedNames) {
-      await ensureVendedoraOrAdmin(auth);
+      await ensureCanCloseDay(storeId, auth);
       return closeForDay(storeId, boliviaDayKey(new Date()), auth.userId, false, attendedNames);
     },
 

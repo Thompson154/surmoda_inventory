@@ -87,7 +87,8 @@ const ERROR_MESSAGES: Record<string, string> = {
     'Esta variante no figura en el inventario de la sucursal.',
 
   [ERROR_CODES.DAILY_REPORT_NOT_FOUND]: 'No hay reporte cerrado para ese día.',
-  [ERROR_CODES.DAILY_REPORT_FORBIDDEN]: 'Sólo encargada/admin puede cerrar el día.',
+  [ERROR_CODES.DAILY_REPORT_FORBIDDEN]:
+    'Sólo personal asignado a esta sede o admin puede cerrar el día.',
 
   [ERROR_CODES.SNAPSHOT_DUPLICATE]: 'Ya existe un snapshot reciente para esta sucursal.',
   [ERROR_CODES.REPORT_STORE_FORBIDDEN]: 'No tenés permiso para generar reportes de esta sucursal.',

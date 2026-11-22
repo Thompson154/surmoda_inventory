@@ -117,13 +117,12 @@ describe('POST /api/v1/stores/:storeId/daily-reports/close-today', () => {
     expect(second.body.qrCents).toBeGreaterThan(0);
   });
 
-  // WHY: encargada is forbidden from closing — only vendedora/admin can close the day.
-  it('encargada cannot close (403)', async () => {
+  // WHY: encargada can close the day for her store.
+  it('encargada can close (200)', async () => {
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
       .set(bearer(encargadaToken));
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe('DAILY_REPORT_FORBIDDEN');
+    expect(res.status).toBe(200);
   });
 
   it('admin can close the day', async () => {

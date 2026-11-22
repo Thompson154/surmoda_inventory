@@ -193,6 +193,11 @@ function ItemSaleCard({ row, index = 0, onImageClick }: ItemSaleCardProps) {
   );
 }
 
+function getTodayIsoBolivia(): string {
+  const local = new Date(Date.now() - 4 * 60 * 60 * 1000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function SalesRegisterPage() {
   const storeId = useStoreParam() ?? '';
   const stores = useStores();
@@ -233,9 +238,14 @@ export function SalesRegisterPage() {
     return tabs;
   }, [storeId, isWarehouse, isVendedoraHere]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const [todayStr] = useState(getTodayIsoBolivia);
+
   const todayItems = useMemo(() => {
-    const all = todayList.data?.items.filter((s) => s.createdAt.startsWith(todayStr)) ?? [];
+    const all =
+      todayList.data?.items.filter((s) => {
+        const itemLocal = new Date(new Date(s.createdAt).getTime() - 4 * 60 * 60 * 1000);
+        return itemLocal.toISOString().slice(0, 10) === todayStr;
+      }) ?? [];
     // Once the encargada cierra el día, the page should look "fresh" — hide the
     // sales that fell into the closed window. The data still lives in DailyReport
     // and the sales API; we only filter visually.

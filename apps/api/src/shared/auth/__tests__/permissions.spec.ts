@@ -82,8 +82,8 @@ describe('PERMISSIONS matrix', () => {
     it('cannot sales:edit:post-charge', () => {
       expect(can('encargada', 'sales:edit:post-charge')).toBe(false);
     });
-    it('cannot sales:close-day', () => {
-      expect(can('encargada', 'sales:close-day')).toBe(false);
+    it('can sales:close-day', () => {
+      expect(can('encargada', 'sales:close-day')).toBe(true);
     });
     it('cannot inventory:edit', () => {
       expect(can('encargada', 'inventory:edit')).toBe(false);

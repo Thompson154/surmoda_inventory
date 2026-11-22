@@ -234,6 +234,9 @@ export function buildComposition(): Composition {
       async hasAnyEncargadaRole(userId) {
         return inventoryRepo.hasAnyEncargadaRole(userId);
       },
+      async findActiveAssignment(userId, storeId) {
+        return storeScope.findActiveAssignment(userId, storeId);
+      },
     },
   });
   const dailyReportController = buildDailyReportController(dailyReportService);
