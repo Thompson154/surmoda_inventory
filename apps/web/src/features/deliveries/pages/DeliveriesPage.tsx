@@ -97,13 +97,13 @@ export function DeliveriesPage() {
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [];
-    // WHY: vendedora NO ve Inventario (Wave 5 le quitó inventory:read).
+    // Oculta la pestaña de inventario para personal sin permisos.
     if (!isVendedoraHere) {
       tabs.push({ to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' });
     }
     tabs.push({ to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' });
     if (!isWarehouse) {
-      // WHY: Ventas visible para TODOS — vendedora ve sólo cierres, encargada/admin ven todo.
+      // Pestaña de ventas para sedes comerciales.
       tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
       tabs.push({ to: `/sedes/${storeId}/scanner`, label: 'Scanner', icon: 'scanner' });
     }
@@ -127,7 +127,7 @@ export function DeliveriesPage() {
 
   return (
     <AppShell context={store?.name} bottomNav={bottomNav}>
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 text-text-primary">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 pb-36 md:pb-4 text-text-primary">
         <header className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight truncate">
@@ -316,7 +316,7 @@ export function DeliveriesPage() {
 
       {/* Mobile FAB Nueva entrega — only on Almacén Central */}
       {canCreate && isWarehouse && (
-        <div className="md:hidden fixed bottom-24 right-4 z-30">
+        <div className="md:hidden fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] right-4 z-40">
           <button
             type="button"
             onClick={() => setNewOpen(true)}

@@ -225,13 +225,13 @@ export function SalesRegisterPage() {
 
   const bottomNav = useMemo<BottomNavTab[]>(() => {
     const tabs: BottomNavTab[] = [];
-    // WHY: vendedora NO ve Inventario (Wave 5 le quitó inventory:read).
+    // Oculta la pestaña de inventario para personal sin permisos.
     if (!isVendedoraHere) {
       tabs.push({ to: `/sedes/${storeId}/inventario`, label: 'Inventario', icon: 'inventario' });
     }
     tabs.push({ to: `/sedes/${storeId}/entregas`, label: 'Entregas', icon: 'entregas' });
     if (!isWarehouse) {
-      // WHY: Ventas visible para TODOS — vendedora ve sólo cierres, encargada/admin ven todo.
+      // Pestaña de ventas para sedes comerciales.
       tabs.push({ to: `/sedes/${storeId}/ventas`, label: 'Ventas', icon: 'ventas' });
       tabs.push({ to: `/sedes/${storeId}/scanner`, label: 'Scanner', icon: 'scanner' });
     }
@@ -306,7 +306,7 @@ export function SalesRegisterPage() {
       {/* max-w-4xl alinea el ancho con SedeInventoryPage / DeliveriesPage para
           que el layout en laptop sea consistente con el resto de la app. En
           mobile (< md) seguimos siendo full-width con padding de 16px. */}
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-3 md:gap-4 p-4 pb-24 md:pb-4 text-text-primary">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-3 md:gap-4 p-4 pb-36 md:pb-4 text-text-primary">
         {/* Header — Desktop keeps all actions inline; mobile moves high-frequency Scan to thumb-zone FAB */}
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -485,7 +485,7 @@ export function SalesRegisterPage() {
       </main>
 
       {/* Mobile FAB Escanear venta (desktop uses inline header button) */}
-      <div className="md:hidden fixed bottom-[88px] right-4 z-30">
+      <div className="md:hidden fixed bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] right-4 z-40">
         <button
           type="button"
           onClick={() => setCashierOpen(true)}
