@@ -37,6 +37,7 @@ export interface DailyReportRepository {
   listStoreStaff(
     storeId: string,
   ): Promise<Array<{ userId: string; fullName: string; role: 'encargada' | 'vendedora' }>>;
+  lockStoreSales?(storeId: string, lockedAt: Date, tx?: DailyReportTx): Promise<void>;
   runSerializable<T>(fn: (tx: DailyReportTx) => Promise<T>): Promise<T>;
 }
 
@@ -342,6 +343,14 @@ export function buildDailyReportRepository(db: Database): DailyReportRepository 
       }
       out.sort((a, b) => a.fullName.localeCompare(b.fullName, 'es'));
       return out;
+    },
+
+    async lockStoreSales(storeId, lockedAt, tx) {
+      const c = client(tx);
+      await c.store.updateMany({
+        where: { id: storeId, kind: 'branch' },
+        data: { salesLockedAt: lockedAt },
+      });
     },
 
     async runSerializable(fn) {

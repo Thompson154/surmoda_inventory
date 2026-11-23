@@ -127,7 +127,7 @@ export function buildSaleService({
             throw new AppError(
               423,
               ERROR_CODES.SALES_LOCKED,
-              'El registro de ventas está bloqueado. Cerrá el día primero.',
+              'El registro de ventas está bloqueado por cierre diario o fuera de horario.',
               { lockedAt: lockState.salesLockedAt.toISOString() },
             );
           }

@@ -78,7 +78,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.SALE_INSUFFICIENT_STOCK]: 'Stock insuficiente en esta sede.',
   [ERROR_CODES.SALE_VARIANT_NOT_FOUND]: 'Variante no encontrada.',
   [ERROR_CODES.SALE_DASHBOARD_FORBIDDEN]: 'Sólo encargada/admin puede ver el dashboard.',
-  [ERROR_CODES.SALES_LOCKED]: 'El registro de ventas está bloqueado. Cerrá el día primero.',
+  [ERROR_CODES.SALES_LOCKED]:
+    'El registro de ventas está bloqueado por cierre diario o fuera de horario.',
 
   [ERROR_CODES.SALES_RETURN_CREATE_INVALID_BARCODE]: 'No encontramos un producto con ese código.',
   [ERROR_CODES.SALES_RETURN_CREATE_FORBIDDEN_STORE]:
@@ -89,6 +90,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   [ERROR_CODES.DAILY_REPORT_NOT_FOUND]: 'No hay reporte cerrado para ese día.',
   [ERROR_CODES.DAILY_REPORT_FORBIDDEN]:
     'Sólo personal asignado a esta sede o admin puede cerrar el día.',
+  [ERROR_CODES.DAILY_REPORT_TOO_EARLY]:
+    'El cierre del día sólo puede realizarse a partir de las 20:45 (8:45 PM).',
 
   [ERROR_CODES.SNAPSHOT_DUPLICATE]: 'Ya existe un snapshot reciente para esta sucursal.',
   [ERROR_CODES.REPORT_STORE_FORBIDDEN]: 'No tenés permiso para generar reportes de esta sucursal.',

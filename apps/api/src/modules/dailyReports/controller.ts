@@ -2,7 +2,11 @@ import type { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../shared/errors/AppError';
 import { ERROR_CODES } from '../../shared/constants/errorCodes';
 import { emitAudit } from '../../middleware/auditLogger';
-import { CloseDayPayloadSchema, DailyReportDateParamSchema, ListDailyReportsQuerySchema } from './validators';
+import {
+  CloseDayPayloadSchema,
+  DailyReportDateParamSchema,
+  ListDailyReportsQuerySchema,
+} from './validators';
 import type { AuthContext } from './types';
 import type { DailyReportService } from './service';
 
@@ -33,7 +37,11 @@ export function buildDailyReportController(service: DailyReportService): DailyRe
         const storeId = requireParam(req, 'storeId');
         // Body is optional for backwards-compat with older clients — defaults to [].
         const body = CloseDayPayloadSchema.parse(req.body ?? {});
-        const report = await service.closeToday(storeId, auth, body.attendedNames);
+        const testNow =
+          process.env.NODE_ENV === 'test' && req.headers['x-test-now']
+            ? new Date(req.headers['x-test-now'] as string)
+            : undefined;
+        const report = await service.closeToday(storeId, auth, body.attendedNames, testNow);
         emitAudit(req, {
           userId: auth.userId,
           action: 'DAILY_REPORT_CLOSED',

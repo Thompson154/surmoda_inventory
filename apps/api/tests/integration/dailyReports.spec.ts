@@ -73,22 +73,26 @@ async function createSale(token: string, paymentMethod: string, qty: number) {
     .send({ items: [{ variantId: testVariantA, quantity: qty }], paymentMethod });
 }
 
+const POST_CLOSE_TIME = '2026-11-21T21:00:00.000-04:00';
+const PRE_CLOSE_TIME = '2026-11-21T15:00:00.000-04:00';
+
 describe('POST /api/v1/stores/:storeId/daily-reports/close-today', () => {
   beforeEach(async () => {
     await db.dailyReport.deleteMany({ where: { storeId: pradoStoreId } });
     await db.saleItem.deleteMany({});
     await db.sale.deleteMany({});
+    await db.store.update({ where: { id: pradoStoreId }, data: { salesLockedAt: null } });
   });
 
-  // WHY: close-day is vendedora-only per Wave 2 RBAC overhaul.
-  it('vendedora closes the day and the report aggregates the sales by payment method', async () => {
+  it('vendedora closes the day at or after 20:45 and the report aggregates the sales', async () => {
     await createSale(vendedoraToken, 'cash', 1);
     await createSale(vendedoraToken, 'qr', 2);
     await createSale(adminToken, 'card', 1);
 
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(vendedoraToken));
+      .set(bearer(vendedoraToken))
+      .set('x-test-now', POST_CLOSE_TIME);
 
     expect(res.status).toBe(200);
     expect(res.body.transactionsCount).toBe(3);
@@ -100,33 +104,56 @@ describe('POST /api/v1/stores/:storeId/daily-reports/close-today', () => {
     expect(res.body.closedByUserId).not.toBeNull();
   });
 
-  it('is idempotent — second call refreshes the snapshot for the same day', async () => {
-    await createSale(vendedoraToken, 'cash', 1);
+  it('forbids staff from closing before 20:45 (422 DAILY_REPORT_TOO_EARLY)', async () => {
+    const res = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
+      .set(bearer(encargadaToken))
+      .set('x-test-now', PRE_CLOSE_TIME);
+
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('DAILY_REPORT_TOO_EARLY');
+  });
+
+  it('locks sales immediately after manual close (subsequent sales return 423 SALES_LOCKED)', async () => {
+    await createSale(adminToken, 'cash', 1);
+    const closeRes = await request(app)
+      .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
+      .set(bearer(adminToken));
+    expect(closeRes.status).toBe(200);
+
+    const saleRes = await createSale(adminToken, 'cash', 1);
+    expect(saleRes.status).toBe(423);
+    expect(saleRes.body.code).toBe('SALES_LOCKED');
+  });
+
+  it('is idempotent — second call refreshes the report', async () => {
+    await createSale(adminToken, 'cash', 1);
     const first = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(vendedoraToken));
+      .set(bearer(adminToken))
+      .send({ attendedNames: ['Maria'] });
     expect(first.status).toBe(200);
 
-    await createSale(vendedoraToken, 'qr', 1);
     const second = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(vendedoraToken));
+      .set(bearer(adminToken))
+      .send({ attendedNames: ['Maria', 'Lucia'] });
     expect(second.status).toBe(200);
     expect(second.body.id).toBe(first.body.id);
-    expect(second.body.transactionsCount).toBe(2);
-    expect(second.body.qrCents).toBeGreaterThan(0);
+    expect(second.body.attendees.length).toBe(2);
   });
 
   // WHY: encargada can close the day for her store.
-  it('encargada can close (200)', async () => {
+  it('encargada can close at or after 20:45 (200)', async () => {
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
-      .set(bearer(encargadaToken));
+      .set(bearer(encargadaToken))
+      .set('x-test-now', POST_CLOSE_TIME);
     expect(res.status).toBe(200);
   });
 
-  it('admin can close the day', async () => {
-    await createSale(vendedoraToken, 'cash', 1);
+  it('admin can close the day at any time', async () => {
+    await createSale(adminToken, 'cash', 1);
     const res = await request(app)
       .post(`/api/v1/stores/${pradoStoreId}/daily-reports/close-today`)
       .set(bearer(adminToken));

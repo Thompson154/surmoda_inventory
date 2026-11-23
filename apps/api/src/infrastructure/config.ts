@@ -26,12 +26,12 @@ const EnvSchema = z
       .default('info'),
 
     /** Feature 012 — when true the dailyLock cron locks branch sales at 22:00
-     *  Bolivia and clears the lock at 00:00. Default false so the behaviour is
-     *  dark-launched until product is ready to flip it. */
+     *  Bolivia and clears the lock at 00:00. Enabled by default. */
     ENABLE_DAILY_SALES_LOCK: z
       .string()
       .optional()
-      .transform((v) => v === 'true' || v === '1'),
+      .transform((v) => (v === undefined ? true : v === 'true' || v === '1'))
+      .default('true'),
 
     /** Tier 1 — number of days to keep audit_logs rows. 0 disables the cron
      *  (useful for dev / thesis demo). Recommended in production: 365. */

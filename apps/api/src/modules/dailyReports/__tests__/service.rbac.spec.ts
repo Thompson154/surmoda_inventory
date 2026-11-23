@@ -16,7 +16,13 @@ function buildMockRepo(): jest.Mocked<DailyReportRepository> {
     findByDate: jest.fn(),
     getDayItems: jest.fn(),
     listStoreStaff: jest.fn().mockResolvedValue([]),
+    lockStoreSales: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<DailyReportRepository>;
+}
+
+function boliviaTime(boliviaHour: number, boliviaMinute = 0): Date {
+  const utcHour = (boliviaHour + 4) % 24;
+  return new Date(Date.UTC(2026, 4, 1, utcHour, boliviaMinute, 0));
 }
 
 function buildMockAssignments(isEncargada = false) {
@@ -31,38 +37,73 @@ const ADMIN_AUTH: AuthContext = { userId: 'admin-1', isAdmin: true };
 const VENDEDORA_AUTH: AuthContext = { userId: 'vend-1', isAdmin: false };
 const ENCARGADA_AUTH: AuthContext = { userId: 'enc-1', isAdmin: false };
 
-describe('DailyReportService.closeToday — RBAC', () => {
-  it('allows admin to close today', async () => {
+describe('DailyReportService.closeToday — RBAC and timing', () => {
+  it('allows admin to close today anytime (even before 20:45)', async () => {
     const repo = buildMockRepo();
     const assignments = buildMockAssignments(false);
-    const service = buildDailyReportService({ reports: repo, assignments });
+    const service = buildDailyReportService({
+      reports: repo,
+      assignments,
+      now: () => boliviaTime(14, 0),
+    });
 
     await expect(service.closeToday(STORE_ID, ADMIN_AUTH, [])).resolves.toBeDefined();
+    expect(repo.lockStoreSales).toHaveBeenCalledWith(STORE_ID, expect.any(Date), expect.anything());
   });
 
-  it('allows vendedora to close today', async () => {
+  it('allows vendedora to close today at or after 20:45', async () => {
     const repo = buildMockRepo();
     const assignments = buildMockAssignments(false);
-    const service = buildDailyReportService({ reports: repo, assignments });
+    const service = buildDailyReportService({
+      reports: repo,
+      assignments,
+      now: () => boliviaTime(20, 45),
+    });
 
     await expect(service.closeToday(STORE_ID, VENDEDORA_AUTH, [])).resolves.toBeDefined();
+    expect(repo.lockStoreSales).toHaveBeenCalledWith(STORE_ID, expect.any(Date), expect.anything());
   });
 
-  it('allows encargada to close today', async () => {
+  it('allows encargada to close today at or after 20:45', async () => {
     const repo = buildMockRepo();
     const assignments = buildMockAssignments(true);
-    const service = buildDailyReportService({ reports: repo, assignments });
+    const service = buildDailyReportService({
+      reports: repo,
+      assignments,
+      now: () => boliviaTime(21, 0),
+    });
 
     await expect(service.closeToday(STORE_ID, ENCARGADA_AUTH, [])).resolves.toBeDefined();
+    expect(repo.lockStoreSales).toHaveBeenCalledWith(STORE_ID, expect.any(Date), expect.anything());
   });
 
-  it('forbids unassigned staff from closing today', async () => {
+  it('forbids encargada/vendedora from closing before 20:45', async () => {
+    const repo = buildMockRepo();
+    const assignments = buildMockAssignments(true);
+    const service = buildDailyReportService({
+      reports: repo,
+      assignments,
+      now: () => boliviaTime(20, 44),
+    });
+
+    await expect(service.closeToday(STORE_ID, ENCARGADA_AUTH, [])).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'DAILY_REPORT_TOO_EARLY',
+    });
+    expect(repo.lockStoreSales).not.toHaveBeenCalled();
+  });
+
+  it('forbids unassigned staff from closing today even after 20:45', async () => {
     const repo = buildMockRepo();
     const assignments = {
       hasAnyEncargadaRole: jest.fn().mockResolvedValue(false),
       findActiveAssignment: jest.fn().mockResolvedValue(null),
     };
-    const service = buildDailyReportService({ reports: repo, assignments });
+    const service = buildDailyReportService({
+      reports: repo,
+      assignments,
+      now: () => boliviaTime(21, 0),
+    });
 
     await expect(service.closeToday(STORE_ID, VENDEDORA_AUTH, [])).rejects.toMatchObject({
       statusCode: 403,

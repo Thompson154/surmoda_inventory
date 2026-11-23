@@ -35,6 +35,14 @@ function todayIsoBolivia(): string {
   return local.toISOString().slice(0, 10);
 }
 
+function isBeforeEarliestCloseTime(): boolean {
+  const now = new Date();
+  const local = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+  const hour = local.getUTCHours();
+  const minute = local.getUTCMinutes();
+  return hour < 20 || (hour === 20 && minute < 45);
+}
+
 export function CloseDayModal({
   storeId,
   open,
@@ -52,6 +60,10 @@ export function CloseDayModal({
   const [primary, setPrimary] = useState(''); // encargada / cuenta principal
   const [extras, setExtras] = useState<string[]>([]);
   const [extraInput, setExtraInput] = useState('');
+  const [isTooEarly, setIsTooEarly] = useState(() => {
+    if (currentUser?.isAdmin) return false;
+    return isBeforeEarliestCloseTime();
+  });
 
   // When the modal opens, prefill from previous cierre OR from the auth user's
   // own name (the encargada most likely closing the day).
@@ -62,6 +74,7 @@ export function CloseDayModal({
       closeMutation.reset();
       return;
     }
+    setIsTooEarly(currentUser?.isAdmin ? false : isBeforeEarliestCloseTime());
     if (existing.data && existing.data.attendees.length > 0) {
       const [head, ...tail] = existing.data.attendees;
       setPrimary(head?.fullName ?? '');
@@ -71,7 +84,7 @@ export function CloseDayModal({
       setExtras([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, existing.data?.id]);
+  }, [open, existing.data?.id, currentUser?.isAdmin]);
 
   const closedReport: DailyReportDTO | null = closeMutation.data ?? existing.data ?? null;
   const isAlreadyClosed = !confirmed && Boolean(existing.data);
@@ -110,16 +123,25 @@ export function CloseDayModal({
       <div className="flex flex-col gap-3">
         {existing.isLoading && <Skeleton className="h-16 w-full" />}
 
+        {isTooEarly && (
+          <Alert variant="warning">
+            El cierre del día sólo está habilitado a partir de las 20:45 (8:45 PM).
+          </Alert>
+        )}
+
         {closedReport && (
           <>
             {isAlreadyClosed && (
               <Alert variant="info">
-                Este día ya fue cerrado{closedReport.autoClosed ? ' automáticamente' : ''}. Volvé a
-                cerrarlo solo si registraste ventas nuevas o necesitás corregir el personal del día.
+                Este día ya fue cerrado{closedReport.autoClosed ? ' automáticamente' : ''}. El
+                registro de ventas de esta sede se encuentra bloqueado.
               </Alert>
             )}
             {confirmed && closeMutation.isSuccess && (
-              <Alert variant="success">Cierre registrado correctamente.</Alert>
+              <Alert variant="success">
+                Cierre registrado correctamente. Las ventas de la sede quedaron bloqueadas para esta
+                jornada.
+              </Alert>
             )}
             <ul className="rounded-lg border border-surface-border divide-y divide-surface-border text-sm">
               <li className="flex items-center justify-between px-3 py-2">
@@ -265,7 +287,9 @@ export function CloseDayModal({
             type="button"
             variant="primary"
             size="md"
-            disabled={closeMutation.isPending || existing.isLoading || !primary.trim()}
+            disabled={
+              isTooEarly || closeMutation.isPending || existing.isLoading || !primary.trim()
+            }
             onClick={submit}
           >
             {closeMutation.isPending
