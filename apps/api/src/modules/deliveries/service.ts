@@ -1096,99 +1096,18 @@ export function buildDeliveryService({
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
         }
-        const allowedStatuses: DeliveryStatus[] = [
-          'draft',
-          'sent',
-          'partial',
-          'received',
-          'partial_confirmed',
-        ];
+        const allowedStatuses: DeliveryStatus[] = ['draft', 'sent', 'partial'];
         if (!allowedStatuses.includes(current.status)) {
           throw new AppError(
             409,
             ERROR_CODES.DELIVERY_INVALID_STATE,
-            'Sólo se pueden eliminar entregas en estado Borrador, Enviada, Parcial o Recibida.',
+            'Sólo se pueden eliminar entregas en estado borrador, enviada o recepción parcial.',
           );
         }
 
         if (current.status === 'sent' || current.status === 'partial') {
           const aggregated = aggregateItems(current.items);
           if (current.fromStoreId) {
-            await applyOriginRefund(
-              deliveries,
-              {
-                fromStoreId: current.fromStoreId,
-                toStoreId: current.toStoreId,
-                deliveryId,
-                items: aggregated,
-                userId: auth.userId,
-                reason: 'delivery_deleted_refund',
-              },
-              tx,
-            );
-          }
-        } else if (current.status === 'received') {
-          for (const it of current.items) {
-            const qty = it.receivedQuantity ?? it.quantity;
-            if (qty > 0) {
-              await deliveries.decrementStock(current.toStoreId, it.variantId, qty, tx);
-              await deliveries.createMovement(
-                {
-                  storeId: current.toStoreId,
-                  variantId: it.variantId,
-                  userId: auth.userId,
-                  type: 'adjusted',
-                  payload: {
-                    quantity: qty,
-                    deliveryId,
-                    reason: 'delivery_deleted_revert',
-                  },
-                },
-                tx,
-              );
-            }
-          }
-          if (current.fromStoreId) {
-            const aggregated = aggregateItems(current.items);
-            await applyOriginRefund(
-              deliveries,
-              {
-                fromStoreId: current.fromStoreId,
-                toStoreId: current.toStoreId,
-                deliveryId,
-                items: aggregated,
-                userId: auth.userId,
-                reason: 'delivery_deleted_refund',
-              },
-              tx,
-            );
-          }
-        } else if (current.status === 'partial_confirmed') {
-          for (const it of current.items) {
-            const qty = it.receivedQuantity ?? 0;
-            if (qty > 0) {
-              await deliveries.decrementStock(current.toStoreId, it.variantId, qty, tx);
-              await deliveries.createMovement(
-                {
-                  storeId: current.toStoreId,
-                  variantId: it.variantId,
-                  userId: auth.userId,
-                  type: 'adjusted',
-                  payload: {
-                    quantity: qty,
-                    deliveryId,
-                    reason: 'delivery_deleted_revert',
-                  },
-                },
-                tx,
-              );
-            }
-          }
-          if (current.fromStoreId) {
-            const confirmedItems = current.items
-              .filter((it) => (it.receivedQuantity ?? 0) > 0)
-              .map((it) => ({ variantId: it.variantId, quantity: it.receivedQuantity! }));
-            const aggregated = aggregateItems(confirmedItems);
             await applyOriginRefund(
               deliveries,
               {

@@ -696,19 +696,6 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                 <p className="text-xs text-status-success text-center font-medium">
                   Recibido parcialmente - Confirmado — stock ajustado en origen y destino.
                 </p>
-                {scope.isAdmin && (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="md"
-                    leftIcon={<Trash2 className="h-4 w-4" />}
-                    onClick={() => setConfirmDeleteSent(true)}
-                    isLoading={deleteSentMutation.isPending}
-                    disabled={deleteSentMutation.isPending}
-                  >
-                    Eliminar entrega (revertir stock)
-                  </Button>
-                )}
               </div>
             )}
 
@@ -717,19 +704,6 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                 <p className="text-xs text-text-muted text-center italic">
                   Entrega confirmada — no se puede modificar.
                 </p>
-                {scope.isAdmin && (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="md"
-                    leftIcon={<Trash2 className="h-4 w-4" />}
-                    onClick={() => setConfirmDeleteSent(true)}
-                    isLoading={deleteSentMutation.isPending}
-                    disabled={deleteSentMutation.isPending}
-                  >
-                    Eliminar entrega (revertir stock)
-                  </Button>
-                )}
               </div>
             )}
 

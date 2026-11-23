@@ -260,7 +260,7 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
     expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-partial', FAKE_TX);
   });
 
-  it('deleteSent reverts destination stock and refunds origin for received delivery', async () => {
+  it('deleteSent rejects received delivery (409 DELIVERY_INVALID_STATE)', async () => {
     const { deliveries, service } = setup();
     deliveries.loadForUpdate.mockResolvedValue({
       id: 'del-rec',
@@ -273,18 +273,35 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
       items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 5 }],
     });
 
-    const result = await service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true });
+    await expect(
+      service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'DELIVERY_INVALID_STATE',
+    });
+    expect(deliveries.deleteDelivery).not.toHaveBeenCalled();
+  });
 
-    expect(result).toEqual({
-      id: 'del-rec',
-      number: 45,
+  it('deleteSent rejects partial_confirmed delivery (409 DELIVERY_INVALID_STATE)', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-pconf',
+      number: 46,
+      status: 'partial_confirmed',
+      kind: 'distribution',
+      title: 'Parcial Confirmada',
       fromStoreId: 'store-wh',
       toStoreId: 'store-zsur',
-      totalUnits: 5,
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 3 }],
     });
-    expect(deliveries.decrementStock).toHaveBeenCalledWith('store-zsur', 'var-1', 5, FAKE_TX);
-    expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 5, FAKE_TX);
-    expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-rec', FAKE_TX);
+
+    await expect(
+      service.deleteSent('del-pconf', { userId: 'admin-1', isAdmin: true }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'DELIVERY_INVALID_STATE',
+    });
+    expect(deliveries.deleteDelivery).not.toHaveBeenCalled();
   });
 
   it('revertReception reverts partial delivery back to sent', async () => {
