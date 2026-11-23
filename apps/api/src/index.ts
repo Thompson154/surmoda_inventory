@@ -1,4 +1,4 @@
-// WHY: load .env BEFORE any module that touches `process.env` at import time.
+// Carga variables de entorno antes de importar módulos dependientes.
 import 'dotenv/config';
 
 import { buildServer } from './server';
@@ -12,12 +12,7 @@ import { startDailyLockJob, type DailyLockJobHandle } from './jobs/dailyLock';
 import { startAuditRetentionJob, type AuditRetentionJobHandle } from './jobs/auditRetention';
 import { startInventorySnapshotCron, type SnapshotCronHandle } from './jobs/inventorySnapshot';
 
-// Last-ditch process safety net. These handlers fire BEFORE main() so a fault
-// during startup is logged structured-style instead of dumping a raw stack
-// trace to stderr. Per Node.js docs, after either event the process is in an
-// undefined state and we MUST exit. We give graceful shutdown 5 seconds; if
-// it can't drain in that window the supervisor (systemd / Docker / Render)
-// restarts us cleanly.
+// Registra manejadores para capturar excepciones no controladas.
 function installCrashHandlers(): void {
   const crash = (origin: string, err: unknown): void => {
     logger.fatal({ err, origin }, 'fatal: process entering invalid state');
@@ -39,26 +34,33 @@ async function main(): Promise<void> {
   let auditRetentionJob: AuditRetentionJobHandle | undefined;
   let snapshotCronHandle: SnapshotCronHandle | null = null;
   if (config.NODE_ENV !== 'test') {
+    // Ensure critical enum values exist in PostgreSQL (safe idempotency guard)
+    try {
+      await getPrisma().$executeRawUnsafe(
+        `ALTER TYPE "delivery_status" ADD VALUE IF NOT EXISTS 'partial_confirmed';`,
+      );
+    } catch (err) {
+      logger.warn({ err }, 'Could not ensure partial_confirmed enum value');
+    }
+
     cleanupJob = startRefreshTokenCleanup(getPrisma());
     const composition = buildComposition();
     dailyCloseJob = startDailyCloseJob({
       reports: composition.dailyReportRepository,
       service: composition.dailyReportService,
     });
-    // Feature 012 — only spin up the lock cron when explicitly enabled. Schema
-    // and code ship dark; flipping the env var lights it up without redeploy.
+    // Inicia el cron de bloqueo de ventas si está habilitado en configuración.
     if (config.ENABLE_DAILY_SALES_LOCK) {
       dailyLockJob = startDailyLockJob({ db: getPrisma() });
       logger.info('Daily sales lock cron started');
     }
-    // Tier 1 — audit retention. No-op when AUDIT_RETENTION_DAYS=0.
+    // Inicia el cron de retención de registros de auditoría.
     auditRetentionJob = startAuditRetentionJob(getPrisma(), config.AUDIT_RETENTION_DAYS);
     if (config.AUDIT_RETENTION_DAYS > 0) {
       logger.info({ retentionDays: config.AUDIT_RETENTION_DAYS }, 'Audit retention cron started');
     }
 
-    // Inventory snapshot cron — Sundays 03:00 Bolivia.
-    // Only starts in production or when ENABLE_SNAPSHOT_CRON=true.
+    // Inicia el cron de captura semanal de snapshots de inventario.
     snapshotCronHandle = startInventorySnapshotCron(composition.inventorySnapshotService);
   }
 
@@ -98,9 +100,7 @@ async function main(): Promise<void> {
 }
 
 void main().catch((err) => {
-  // Hard failure during startup (bad config, DB unreachable, etc.). Log it
-  // structured-style and exit non-zero so a process supervisor (systemd,
-  // Docker, Render, etc.) restarts the container cleanly.
+  // Captura y registra errores fatales durante el inicio del servidor.
   logger.fatal({ err }, 'API failed to start');
   process.exit(1);
 });

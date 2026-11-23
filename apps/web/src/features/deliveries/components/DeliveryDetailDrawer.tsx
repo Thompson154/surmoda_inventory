@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History, Pencil, Trash2 } from 'lucide-react';
+import { History, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import type {
   DeliveryStatus,
   DeliveryWithItems,
@@ -11,6 +11,7 @@ import {
   useDeleteSentDelivery,
   useDelivery,
   useReceiveDelivery,
+  useRevertDeliveryReception,
 } from '../hooks/useDeliveries';
 import { Alert, Button, ConfirmDialog, Modal, Skeleton, useToast } from '@/shared/ui';
 import { useErrorMessage } from '@/shared/hooks/useErrorMessage';
@@ -75,6 +76,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   const [confirmSend, setConfirmSend] = useState(false);
   const [confirmReceive, setConfirmReceive] = useState(false);
   const [confirmPartialOpen, setConfirmPartialOpen] = useState(false);
+  const [confirmRevertOpen, setConfirmRevertOpen] = useState(false);
   const [confirmDeleteSent, setConfirmDeleteSent] = useState(false);
   // Reception edit flow: editing is locked until encargada confirms the edit popup.
   const [isEditingReception, setIsEditingReception] = useState(false);
@@ -111,10 +113,12 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
   const confirmMutation = useConfirmDraftDelivery();
   const receiveMutation = useReceiveDelivery();
   const confirmPartialMutation = useConfirmPartialDelivery();
+  const revertReceptionMutation = useRevertDeliveryReception();
   const deleteSentMutation = useDeleteSentDelivery();
   const confirmError = useErrorMessage(confirmMutation.error as HttpError | null);
   const receiveError = useErrorMessage(receiveMutation.error as HttpError | null);
   const confirmPartialError = useErrorMessage(confirmPartialMutation.error as HttpError | null);
+  const revertError = useErrorMessage(revertReceptionMutation.error as HttpError | null);
   const deleteSentError = useErrorMessage(deleteSentMutation.error as HttpError | null);
 
   // Reset transient confirmation dialogs and mutation errors when closing or switching delivery.
@@ -122,6 +126,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
     setConfirmSend(false);
     setConfirmReceive(false);
     setConfirmPartialOpen(false);
+    setConfirmRevertOpen(false);
     setConfirmDeleteSent(false);
     setConfirmEditOpen(false);
     setIsEditingReception(false);
@@ -129,6 +134,7 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
     confirmMutation.reset();
     receiveMutation.reset();
     confirmPartialMutation.reset();
+    revertReceptionMutation.reset();
     deleteSentMutation.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, deliveryId]);
@@ -593,7 +599,9 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                       size="md"
                       onClick={() => setConfirmPartialOpen(true)}
                       isLoading={confirmPartialMutation.isPending}
-                      disabled={confirmPartialMutation.isPending}
+                      disabled={
+                        confirmPartialMutation.isPending || revertReceptionMutation.isPending
+                      }
                     >
                       Confirmar recepción parcial
                     </Button>
@@ -605,24 +613,130 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                       : `Recepción parcial reportada. Esperando confirmación interna desde ${data.fromStoreName ?? 'Almacén Central'} o Administración para acreditar el stock.`}
                   </Alert>
                 )}
+
+                {(canManage || canConfirmPartial || scope.isAdmin) && (
+                  <>
+                    <ConfirmDialog
+                      open={confirmRevertOpen}
+                      onClose={() => setConfirmRevertOpen(false)}
+                      onConfirm={() => {
+                        revertReceptionMutation.mutate(data.id, {
+                          onSuccess: () => {
+                            setConfirmRevertOpen(false);
+                            toast.success('Recepción cancelada. La entrega volvió a Enviada.');
+                          },
+                          onError: () => {
+                            setConfirmRevertOpen(false);
+                          },
+                        });
+                      }}
+                      title="Cancelar recepción"
+                      description="Se anulará el reporte de recepción parcial y la entrega volverá al estado Enviada para que se pueda recibir nuevamente."
+                      confirmLabel="Cancelar recepción"
+                      variant="default"
+                      isPending={revertReceptionMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="md"
+                      leftIcon={<RotateCcw className="h-4 w-4" />}
+                      onClick={() => setConfirmRevertOpen(true)}
+                      isLoading={revertReceptionMutation.isPending}
+                      disabled={
+                        revertReceptionMutation.isPending || confirmPartialMutation.isPending
+                      }
+                    >
+                      Cancelar recepción (revertir a Enviada)
+                    </Button>
+                  </>
+                )}
+
+                {scope.isAdmin && (
+                  <>
+                    <ConfirmDialog
+                      open={confirmDeleteSent}
+                      onClose={() => setConfirmDeleteSent(false)}
+                      onConfirm={() => {
+                        deleteSentMutation.mutate(data.id, {
+                          onSuccess: () => {
+                            setConfirmDeleteSent(false);
+                            toast.success('Entrega eliminada y stock devuelto al origen.');
+                            onClose();
+                          },
+                          onError: () => {
+                            setConfirmDeleteSent(false);
+                          },
+                        });
+                      }}
+                      title="Eliminar entrega"
+                      description="Se eliminará esta entrega y las prendas volverán al stock de la sede de origen. Esta acción no se puede deshacer."
+                      confirmLabel="Eliminar entrega"
+                      variant="danger"
+                      isPending={deleteSentMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="md"
+                      leftIcon={<Trash2 className="h-4 w-4" />}
+                      onClick={() => setConfirmDeleteSent(true)}
+                      isLoading={deleteSentMutation.isPending}
+                      disabled={deleteSentMutation.isPending}
+                    >
+                      Eliminar entrega
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 
             {data.status === 'partial_confirmed' && (
-              <p className="text-xs text-status-success text-center font-medium">
-                Recibido parcialmente - Confirmado — stock ajustado en origen y destino.
-              </p>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-status-success text-center font-medium">
+                  Recibido parcialmente - Confirmado — stock ajustado en origen y destino.
+                </p>
+                {scope.isAdmin && (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="md"
+                    leftIcon={<Trash2 className="h-4 w-4" />}
+                    onClick={() => setConfirmDeleteSent(true)}
+                    isLoading={deleteSentMutation.isPending}
+                    disabled={deleteSentMutation.isPending}
+                  >
+                    Eliminar entrega (revertir stock)
+                  </Button>
+                )}
+              </div>
             )}
 
             {data.status === 'received' && (
-              <p className="text-xs text-text-muted text-center italic">
-                Entrega confirmada — no se puede modificar.
-              </p>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-text-muted text-center italic">
+                  Entrega confirmada — no se puede modificar.
+                </p>
+                {scope.isAdmin && (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="md"
+                    leftIcon={<Trash2 className="h-4 w-4" />}
+                    onClick={() => setConfirmDeleteSent(true)}
+                    isLoading={deleteSentMutation.isPending}
+                    disabled={deleteSentMutation.isPending}
+                  >
+                    Eliminar entrega (revertir stock)
+                  </Button>
+                )}
+              </div>
             )}
 
             {confirmError && <Alert variant="error">{confirmError}</Alert>}
             {receiveError && <Alert variant="error">{receiveError}</Alert>}
             {confirmPartialError && <Alert variant="error">{confirmPartialError}</Alert>}
+            {revertError && <Alert variant="error">{revertError}</Alert>}
             {deleteSentError && <Alert variant="error">{deleteSentError}</Alert>}
 
             {/* Audit history button */}

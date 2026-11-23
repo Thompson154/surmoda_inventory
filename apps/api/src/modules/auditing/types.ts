@@ -31,6 +31,7 @@ export type AuditAction =
   | 'DELIVERY_RECEIVED'
   | 'DELIVERY_RECEIVED_PARTIAL'
   | 'DELIVERY_PARTIAL_CONFIRMED'
+  | 'DELIVERY_RECEPTION_REVERTED'
   | 'DELIVERY_DELETED'
   | 'SALE_CREATED'
   | 'SALE_RETURN_CREATE'
@@ -38,7 +39,7 @@ export type AuditAction =
   | 'RETURN_REQUEST_CREATE'
   | 'RETURN_REQUEST_APPROVE'
   | 'RETURN_REQUEST_REJECT'
-  // WHY: admin retroactive edits to closed daily reports require documented reason.
+  // Razón obligatoria para ediciones retroactivas.
   | 'DAILY_CLOSURE_RETROACTIVE_EDIT'
   | 'DELIVERY_EDIT_REQUEST_CREATE'
   | 'DELIVERY_EDIT_REQUEST_APPROVE'

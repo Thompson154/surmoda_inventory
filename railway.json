@@ -4,7 +4,6 @@
     "buildCommand": "npm run build -w @surmoda/contracts && npm run build -w @proyecto-degrado/api"
   },
   "deploy": {
-    "preDeployCommand": "npm run prisma:deploy -w @proyecto-degrado/api && npm run prisma:seed -w @proyecto-degrado/api",
-    "startCommand": "npm run start -w @proyecto-degrado/api"
+    "startCommand": "npm run prisma:deploy -w @proyecto-degrado/api && npm run start -w @proyecto-degrado/api"
   }
 }

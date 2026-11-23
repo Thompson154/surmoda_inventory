@@ -23,6 +23,7 @@ export interface DeliveryController {
   confirmDraft(req: Request, res: Response, next: NextFunction): Promise<void>;
   receive(req: Request, res: Response, next: NextFunction): Promise<void>;
   confirmPartial(req: Request, res: Response, next: NextFunction): Promise<void>;
+  revertReception(req: Request, res: Response, next: NextFunction): Promise<void>;
   deleteSent(req: Request, res: Response, next: NextFunction): Promise<void>;
   intakeLookup(req: Request, res: Response, next: NextFunction): Promise<void>;
   intake(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -236,6 +237,28 @@ export function buildDeliveryController(service: DeliveryService): DeliveryContr
           },
         });
         res.status(200).json(confirmed);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    async revertReception(req, res, next) {
+      try {
+        const auth = requireAuth(req);
+        const deliveryId = requireParam(req, 'deliveryId');
+        const reverted = await service.revertReception(deliveryId, auth);
+        emitAudit(req, {
+          userId: auth.userId,
+          action: 'DELIVERY_RECEPTION_REVERTED',
+          entity: 'Delivery',
+          entityId: reverted.id,
+          payload: {
+            number: reverted.number,
+            status: reverted.status,
+            toStoreId: reverted.toStoreId,
+          },
+        });
+        res.status(200).json(reverted);
       } catch (err) {
         next(err);
       }

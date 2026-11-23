@@ -15,8 +15,10 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
       recordAdjustments: jest.fn().mockResolvedValue(undefined),
       createMovement: jest.fn().mockResolvedValue(undefined),
       incrementStock: jest.fn().mockResolvedValue(10),
+      decrementStock: jest.fn().mockResolvedValue(5),
       setStatus: jest.fn().mockResolvedValue(undefined),
       deleteDelivery: jest.fn().mockResolvedValue(undefined),
+      revertReception: jest.fn().mockResolvedValue(undefined),
       runSerializable: jest.fn(async (fn: (tx: DeliveryTx) => Promise<unknown>) => fn(FAKE_TX)),
     };
     const stores = {
@@ -185,20 +187,20 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
     });
   });
 
-  it('deleteSent rejects non-sent deliveries (409 DELIVERY_INVALID_STATE)', async () => {
+  it('deleteSent rejects invalid status deliveries (409 DELIVERY_INVALID_STATE)', async () => {
     const { deliveries, service } = setup();
     deliveries.loadForUpdate.mockResolvedValue({
-      id: 'del-rec',
-      status: 'received',
+      id: 'del-inv',
+      status: 'unknown_status' as unknown as 'sent',
       kind: 'distribution',
-      title: 'Recibida',
+      title: 'Invalida',
       fromStoreId: 'store-wh',
       toStoreId: 'store-online',
       items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 5 }],
     });
 
     await expect(
-      service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true }),
+      service.deleteSent('del-inv', { userId: 'admin-1', isAdmin: true }),
     ).rejects.toMatchObject({
       statusCode: 409,
       code: 'DELIVERY_INVALID_STATE',
@@ -230,5 +232,103 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
     });
     expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 2, FAKE_TX);
     expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-sent', FAKE_TX);
+  });
+
+  it('deleteSent refunds origin stock and deletes partial delivery when called by admin', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-partial',
+      number: 44,
+      status: 'partial',
+      kind: 'distribution',
+      title: 'Parcial',
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 3, receivedQuantity: 0 }],
+    });
+
+    const result = await service.deleteSent('del-partial', { userId: 'admin-1', isAdmin: true });
+
+    expect(result).toEqual({
+      id: 'del-partial',
+      number: 44,
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      totalUnits: 3,
+    });
+    expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 3, FAKE_TX);
+    expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-partial', FAKE_TX);
+  });
+
+  it('deleteSent reverts destination stock and refunds origin for received delivery', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-rec',
+      number: 45,
+      status: 'received',
+      kind: 'distribution',
+      title: 'Recibida',
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 5 }],
+    });
+
+    const result = await service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true });
+
+    expect(result).toEqual({
+      id: 'del-rec',
+      number: 45,
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      totalUnits: 5,
+    });
+    expect(deliveries.decrementStock).toHaveBeenCalledWith('store-zsur', 'var-1', 5, FAKE_TX);
+    expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 5, FAKE_TX);
+    expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-rec', FAKE_TX);
+  });
+
+  it('revertReception reverts partial delivery back to sent', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-partial',
+      status: 'partial',
+      kind: 'distribution',
+      title: 'Parcial',
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 3, receivedQuantity: 0 }],
+    });
+    deliveries.findDelivery.mockResolvedValue({
+      id: 'del-partial',
+      status: 'sent',
+    });
+
+    const result = await service.revertReception('del-partial', {
+      userId: 'admin-1',
+      isAdmin: true,
+    });
+
+    expect(result.status).toBe('sent');
+    expect(deliveries.revertReception).toHaveBeenCalledWith('del-partial', FAKE_TX);
+  });
+
+  it('revertReception rejects non-partial delivery (409)', async () => {
+    const { deliveries, service } = setup();
+    deliveries.loadForUpdate.mockResolvedValue({
+      id: 'del-sent',
+      status: 'sent',
+      kind: 'distribution',
+      title: 'Enviada',
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      items: [{ id: 'di-1', variantId: 'var-1', quantity: 3, receivedQuantity: null }],
+    });
+
+    await expect(
+      service.revertReception('del-sent', { userId: 'admin-1', isAdmin: true }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'DELIVERY_INVALID_STATE',
+    });
   });
 });

@@ -31,6 +31,9 @@ export function buildDeliveriesByIdRouter(controller: DeliveryController): Route
   router.post('/:deliveryId/confirm-partial', (req, res, next) =>
     controller.confirmPartial(req, res, next),
   );
+  router.post('/:deliveryId/revert-reception', (req, res, next) =>
+    controller.revertReception(req, res, next),
+  );
   router.delete('/:deliveryId', (req, res, next) => controller.deleteSent(req, res, next));
   return router;
 }

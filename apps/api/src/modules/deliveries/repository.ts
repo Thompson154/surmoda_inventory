@@ -139,6 +139,7 @@ export interface DeliveryRepository {
     rows: DeliveryAdjustmentInput[],
     tx: DeliveryTx,
   ): Promise<void>;
+  revertReception(deliveryId: string, tx: DeliveryTx): Promise<void>;
   findDelivery(deliveryId: string, tx?: DeliveryTx): Promise<DeliveryWithItems | null>;
   list(storeId: string, query: ListDeliveriesQuery): Promise<PaginatedDeliveries>;
   listGroupedByProduct(
@@ -387,6 +388,22 @@ export function buildDeliveryRepository(db: Database): DeliveryRepository {
           reason: r.reason,
           adjustedByUserId: r.adjustedByUserId,
         })),
+      });
+    },
+
+    async revertReception(deliveryId, tx) {
+      await tx.deliveryItemAdjustment.deleteMany({ where: { deliveryId } });
+      await tx.deliveryItem.updateMany({
+        where: { deliveryId },
+        data: { receivedQuantity: null },
+      });
+      await tx.delivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: STATUS_TO_PRISMA['sent'],
+          receivedAt: null,
+          receivedByUserId: null,
+        },
       });
     },
 

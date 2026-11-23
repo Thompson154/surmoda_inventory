@@ -143,6 +143,17 @@ export function useConfirmPartialDelivery() {
   });
 }
 
+export function useRevertDeliveryReception() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deliveryId: string) => deliveriesService.revertReception(deliveryId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: deliveriesQueryKeys.all });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKeys.all });
+    },
+  });
+}
+
 export function useDeleteSentDelivery() {
   const qc = useQueryClient();
   return useMutation({
