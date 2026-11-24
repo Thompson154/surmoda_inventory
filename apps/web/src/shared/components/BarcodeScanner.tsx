@@ -43,6 +43,7 @@ export function BarcodeScanner({
 }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const detectorRef = useRef<DetectorInstance | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const isScanningRef = useRef<boolean>(false);
@@ -53,6 +54,9 @@ export function BarcodeScanner({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [hasZoom, setHasZoom] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
   const [justDetected, setJustDetected] = useState(false);
 
   // Expose imperative handle so parents can extend the cooldown for a code
@@ -81,6 +85,8 @@ export function BarcodeScanner({
     }
     setTorchOn(false);
     setHasTorch(false);
+    setHasZoom(false);
+    setZoomLevel(1);
     isScanningRef.current = false;
   }, [cameraOn]);
 
@@ -111,28 +117,29 @@ export function BarcodeScanner({
     }
   };
 
+  const toggleZoom = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      const targetZoom = zoomLevel === 1 ? Math.min(2, zoomRange.max) : 1;
+      await (
+        track as unknown as { applyConstraints: (c: unknown) => Promise<void> }
+      ).applyConstraints({
+        advanced: [{ zoom: targetZoom }],
+      });
+      setZoomLevel(targetZoom);
+    } catch {
+      // Ignored if zoom cannot be toggled
+    }
+  };
+
   const initDetector = async (): Promise<DetectorInstance> => {
     if (detectorRef.current) return detectorRef.current;
 
-    // 1. Try native browser BarcodeDetector if available and supports code_128
-    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
-      try {
-        const NativeBD = (window as unknown as { BarcodeDetector: typeof PolyfillBarcodeDetector })
-          .BarcodeDetector;
-        const nativeFormats = await NativeBD.getSupportedFormats();
-        if (nativeFormats && nativeFormats.includes('code_128')) {
-          const nativeInst = new NativeBD({
-            formats: ['code_128', 'ean_13', 'qr_code'],
-          });
-          detectorRef.current = nativeInst as unknown as DetectorInstance;
-          return nativeInst as unknown as DetectorInstance;
-        }
-      } catch {
-        // Fall back to WASM polyfill
-      }
-    }
-
-    // 2. Use WASM polyfill backed by local /zxing_reader.wasm
+    // Use ZXing WASM polyfill backed by the local /zxing_reader.wasm bundle.
+    // This guarantees rock-solid 1D/2D scanning parity across desktop and mobile,
+    // avoiding WebKit/iOS experimental native BarcodeDetector crashes on <video>.
     const polyfillInst = new PolyfillBarcodeDetector({
       formats: [...SUPPORTED_FORMATS],
     });
@@ -167,15 +174,20 @@ export function BarcodeScanner({
 
       streamRef.current = stream;
 
-      // Check for torch capability and attempt continuous focus
+      // Check for torch capability, zoom, and attempt continuous focus
       const track = stream.getVideoTracks()[0];
       if (track && typeof track.getCapabilities === 'function') {
         const capabilities = track.getCapabilities() as {
           torch?: boolean;
+          zoom?: { min: number; max: number; step: number };
           focusMode?: string[];
         };
         if (capabilities?.torch) {
           setHasTorch(true);
+        }
+        if (capabilities?.zoom && capabilities.zoom.max > 1) {
+          setHasZoom(true);
+          setZoomRange({ min: capabilities.zoom.min, max: capabilities.zoom.max });
         }
         if (capabilities?.focusMode?.includes('continuous') && track.applyConstraints) {
           track
@@ -203,10 +215,23 @@ export function BarcodeScanner({
       pollTimerRef.current = window.setInterval(async () => {
         const vid = videoRef.current;
         if (!vid || vid.readyState < 2 || !detectorRef.current || isScanningRef.current) return;
+        if (vid.videoWidth === 0 || vid.videoHeight === 0) return;
 
         isScanningRef.current = true;
         try {
-          const codes = await detectorRef.current.detect(vid);
+          // Offscreen canvas bridges native and polyfill decoders reliably
+          if (!canvasRef.current) {
+            canvasRef.current = document.createElement('canvas');
+          }
+          const canvas = canvasRef.current;
+          if (canvas.width !== vid.videoWidth || canvas.height !== vid.videoHeight) {
+            canvas.width = vid.videoWidth;
+            canvas.height = vid.videoHeight;
+          }
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx?.drawImage(vid, 0, 0, canvas.width, canvas.height);
+
+          const codes = await detectorRef.current.detect(canvas);
           if (codes && codes.length > 0) {
             const detected = codes[0]!.rawValue;
             if (detected) {
@@ -290,6 +315,16 @@ export function BarcodeScanner({
       {cameraOn && (
         <>
           <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+            {hasZoom && (
+              <button
+                type="button"
+                onClick={() => void toggleZoom()}
+                aria-label="Alternar zoom"
+                className="rounded-full bg-black/60 backdrop-blur-xs text-white text-xs px-2.5 py-1 hover:bg-black/80 active:scale-95 transition-all font-mono font-semibold"
+              >
+                {zoomLevel}x
+              </button>
+            )}
             {hasTorch && (
               <button
                 type="button"

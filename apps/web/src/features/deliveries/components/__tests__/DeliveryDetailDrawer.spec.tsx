@@ -473,4 +473,58 @@ describe('DeliveryDetailDrawer — status=received & partial_confirmed', () => {
       expect(screen.getAllByText(/recibido parcialmente - confirmado/i).length).toBeGreaterThan(0);
     });
   });
+
+  it('renders "Eliminar entrega (revertir stock)" for admin when delivery is received', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-admin',
+        email: 'admin@surmoda.test',
+        fullName: 'Admin Test',
+        isAdmin: true,
+        assignments: [],
+      },
+    });
+    server.use(http.get(`${BASE}/deliveries/del-2`, () => HttpResponse.json(mockDeliveryReceived)));
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <DeliveryDetailDrawer deliveryId="del-2" onClose={vi.fn()} />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /eliminar entrega \(revertir stock\)/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('renders "Eliminar entrega (revertir stock)" for admin when delivery is partial_confirmed', async () => {
+    useAuthStore.setState({
+      accessToken: 'tok',
+      user: {
+        id: 'user-admin',
+        email: 'admin@surmoda.test',
+        fullName: 'Admin Test',
+        isAdmin: true,
+        assignments: [],
+      },
+    });
+    server.use(
+      http.get(`${BASE}/deliveries/del-4`, () => HttpResponse.json(mockDeliveryPartialConfirmed)),
+    );
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <DeliveryDetailDrawer deliveryId="del-4" onClose={vi.fn()} />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /eliminar entrega \(revertir stock\)/i }),
+      ).toBeInTheDocument();
+    });
+  });
 });

@@ -260,7 +260,7 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
     expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-partial', FAKE_TX);
   });
 
-  it('deleteSent rejects received delivery (409 DELIVERY_INVALID_STATE)', async () => {
+  it('deleteSent reverts received delivery: decrements destination stock and refunds origin', async () => {
     const { deliveries, service } = setup();
     deliveries.loadForUpdate.mockResolvedValue({
       id: 'del-rec',
@@ -273,16 +273,21 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
       items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 5 }],
     });
 
-    await expect(
-      service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true }),
-    ).rejects.toMatchObject({
-      statusCode: 409,
-      code: 'DELIVERY_INVALID_STATE',
+    const result = await service.deleteSent('del-rec', { userId: 'admin-1', isAdmin: true });
+
+    expect(result).toEqual({
+      id: 'del-rec',
+      number: 45,
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      totalUnits: 5,
     });
-    expect(deliveries.deleteDelivery).not.toHaveBeenCalled();
+    expect(deliveries.decrementStock).toHaveBeenCalledWith('store-zsur', 'var-1', 5, FAKE_TX);
+    expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 5, FAKE_TX);
+    expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-rec', FAKE_TX);
   });
 
-  it('deleteSent rejects partial_confirmed delivery (409 DELIVERY_INVALID_STATE)', async () => {
+  it('deleteSent reverts partial_confirmed delivery: decrements confirmed from dest and refunds confirmed to origin', async () => {
     const { deliveries, service } = setup();
     deliveries.loadForUpdate.mockResolvedValue({
       id: 'del-pconf',
@@ -295,13 +300,18 @@ describe('DeliveryService — warehouse & transfer & partial confirmation rules'
       items: [{ id: 'di-1', variantId: 'var-1', quantity: 5, receivedQuantity: 3 }],
     });
 
-    await expect(
-      service.deleteSent('del-pconf', { userId: 'admin-1', isAdmin: true }),
-    ).rejects.toMatchObject({
-      statusCode: 409,
-      code: 'DELIVERY_INVALID_STATE',
+    const result = await service.deleteSent('del-pconf', { userId: 'admin-1', isAdmin: true });
+
+    expect(result).toEqual({
+      id: 'del-pconf',
+      number: 46,
+      fromStoreId: 'store-wh',
+      toStoreId: 'store-zsur',
+      totalUnits: 5,
     });
-    expect(deliveries.deleteDelivery).not.toHaveBeenCalled();
+    expect(deliveries.decrementStock).toHaveBeenCalledWith('store-zsur', 'var-1', 3, FAKE_TX);
+    expect(deliveries.incrementStock).toHaveBeenCalledWith('store-wh', 'var-1', 3, FAKE_TX);
+    expect(deliveries.deleteDelivery).toHaveBeenCalledWith('del-pconf', FAKE_TX);
   });
 
   it('revertReception reverts partial delivery back to sent', async () => {

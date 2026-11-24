@@ -696,6 +696,42 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                 <p className="text-xs text-status-success text-center font-medium">
                   Recibido parcialmente - Confirmado — stock ajustado en origen y destino.
                 </p>
+                {scope.isAdmin && (
+                  <>
+                    <ConfirmDialog
+                      open={confirmDeleteSent}
+                      onClose={() => setConfirmDeleteSent(false)}
+                      onConfirm={() => {
+                        deleteSentMutation.mutate(data.id, {
+                          onSuccess: () => {
+                            setConfirmDeleteSent(false);
+                            toast.success('Entrega eliminada y stock revertido.');
+                            onClose();
+                          },
+                          onError: () => {
+                            setConfirmDeleteSent(false);
+                          },
+                        });
+                      }}
+                      title="Eliminar entrega y revertir stock"
+                      description={`Se eliminará esta entrega. Se descontarán las unidades confirmadas de ${data.toStoreName} y se devolverá la totalidad a ${data.fromStoreName ?? 'Almacén Central'}.`}
+                      confirmLabel="Eliminar y revertir"
+                      variant="danger"
+                      isPending={deleteSentMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="md"
+                      leftIcon={<Trash2 className="h-4 w-4" />}
+                      onClick={() => setConfirmDeleteSent(true)}
+                      isLoading={deleteSentMutation.isPending}
+                      disabled={deleteSentMutation.isPending}
+                    >
+                      Eliminar entrega (revertir stock)
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 
@@ -704,6 +740,42 @@ export function DeliveryDetailDrawer({ deliveryId, onClose }: DeliveryDetailDraw
                 <p className="text-xs text-text-muted text-center italic">
                   Entrega confirmada — no se puede modificar.
                 </p>
+                {scope.isAdmin && (
+                  <>
+                    <ConfirmDialog
+                      open={confirmDeleteSent}
+                      onClose={() => setConfirmDeleteSent(false)}
+                      onConfirm={() => {
+                        deleteSentMutation.mutate(data.id, {
+                          onSuccess: () => {
+                            setConfirmDeleteSent(false);
+                            toast.success('Entrega eliminada y stock revertido.');
+                            onClose();
+                          },
+                          onError: () => {
+                            setConfirmDeleteSent(false);
+                          },
+                        });
+                      }}
+                      title="Eliminar entrega y revertir stock"
+                      description={`Se eliminará esta entrega. Se descontará el stock que había ingresado en ${data.toStoreName} y se devolverá a ${data.fromStoreName ?? 'Almacén Central'}.`}
+                      confirmLabel="Eliminar y revertir"
+                      variant="danger"
+                      isPending={deleteSentMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="md"
+                      leftIcon={<Trash2 className="h-4 w-4" />}
+                      onClick={() => setConfirmDeleteSent(true)}
+                      isLoading={deleteSentMutation.isPending}
+                      disabled={deleteSentMutation.isPending}
+                    >
+                      Eliminar entrega (revertir stock)
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 

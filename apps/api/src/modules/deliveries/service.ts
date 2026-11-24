@@ -12,6 +12,7 @@ import type { DeliveryRepository, DeliveryTx } from './repository';
 import {
   aggregateItems,
   applyDestinationCredit,
+  applyDestinationDebit,
   applyOriginDebit,
   applyOriginRefund,
 } from './stockOps';
@@ -1096,12 +1097,18 @@ export function buildDeliveryService({
         if (!current) {
           throw new AppError(404, ERROR_CODES.DELIVERY_NOT_FOUND, 'Entrega no encontrada.');
         }
-        const allowedStatuses: DeliveryStatus[] = ['draft', 'sent', 'partial'];
+        const allowedStatuses: DeliveryStatus[] = [
+          'draft',
+          'sent',
+          'partial',
+          'received',
+          'partial_confirmed',
+        ];
         if (!allowedStatuses.includes(current.status)) {
           throw new AppError(
             409,
             ERROR_CODES.DELIVERY_INVALID_STATE,
-            'Sólo se pueden eliminar entregas en estado borrador, enviada o recepción parcial.',
+            `No se puede eliminar una entrega en estado ${current.status}.`,
           );
         }
 
@@ -1115,6 +1122,78 @@ export function buildDeliveryService({
                 toStoreId: current.toStoreId,
                 deliveryId,
                 items: aggregated,
+                userId: auth.userId,
+                reason: 'delivery_deleted_refund',
+              },
+              tx,
+            );
+          }
+        } else if (current.status === 'received') {
+          // Decrement actual units received at destination
+          const destItems = aggregateItems(
+            current.items.map((i) => ({
+              variantId: i.variantId,
+              quantity: i.receivedQuantity ?? i.quantity,
+            })),
+          );
+          await applyDestinationDebit(
+            deliveries,
+            {
+              toStoreId: current.toStoreId,
+              fromStoreId: current.fromStoreId,
+              deliveryId,
+              items: destItems,
+              userId: auth.userId,
+              reason: 'delivery_deleted_revert',
+            },
+            tx,
+          );
+          // Refund origin with the full sent items if distribution
+          if (current.fromStoreId) {
+            const origItems = aggregateItems(current.items);
+            await applyOriginRefund(
+              deliveries,
+              {
+                fromStoreId: current.fromStoreId,
+                toStoreId: current.toStoreId,
+                deliveryId,
+                items: origItems,
+                userId: auth.userId,
+                reason: 'delivery_deleted_refund',
+              },
+              tx,
+            );
+          }
+        } else if (current.status === 'partial_confirmed') {
+          // Decrement confirmed units at destination
+          const confirmedItems = aggregateItems(
+            current.items.map((i) => ({
+              variantId: i.variantId,
+              quantity: i.receivedQuantity ?? 0,
+            })),
+          );
+          await applyDestinationDebit(
+            deliveries,
+            {
+              toStoreId: current.toStoreId,
+              fromStoreId: current.fromStoreId,
+              deliveryId,
+              items: confirmedItems,
+              userId: auth.userId,
+              reason: 'delivery_deleted_revert',
+            },
+            tx,
+          );
+          // Origin was already refunded (quantity - confirmed) during confirmPartial.
+          // Refund the remaining confirmed units so origin is 100% whole.
+          if (current.fromStoreId) {
+            await applyOriginRefund(
+              deliveries,
+              {
+                fromStoreId: current.fromStoreId,
+                toStoreId: current.toStoreId,
+                deliveryId,
+                items: confirmedItems,
                 userId: auth.userId,
                 reason: 'delivery_deleted_refund',
               },

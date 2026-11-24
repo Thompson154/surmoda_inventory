@@ -131,6 +131,48 @@ export async function applyDestinationCredit(
   }
 }
 
+export interface DestinationDebitArgs {
+  toStoreId: string;
+  fromStoreId: string | null;
+  deliveryId: string;
+  items: ItemQty[];
+  userId: string;
+  reason?: string;
+}
+
+/**
+ * Decrement destination stock when a received or partially-confirmed delivery
+ * is deleted/reverted by an administrator. Emits `delivery_out` movements.
+ */
+export async function applyDestinationDebit(
+  repo: DeliveryRepository,
+  args: DestinationDebitArgs,
+  tx: DeliveryTx,
+): Promise<void> {
+  if (args.items.length === 0) return;
+  const sortedItems = args.items.slice().sort((a, b) => a.variantId.localeCompare(b.variantId));
+  for (const { variantId, quantity } of sortedItems) {
+    if (quantity <= 0) continue;
+    const after = await repo.decrementStock(args.toStoreId, variantId, quantity, tx);
+    await repo.createMovement(
+      {
+        storeId: args.toStoreId,
+        variantId,
+        userId: args.userId,
+        type: 'delivery_out',
+        payload: {
+          quantity,
+          balanceAfter: after,
+          deliveryId: args.deliveryId,
+          fromStoreId: args.fromStoreId,
+          reason: args.reason ?? 'delivery_deleted_revert',
+        },
+      },
+      tx,
+    );
+  }
+}
+
 export interface OriginRefundArgs {
   fromStoreId: string;
   toStoreId: string;
