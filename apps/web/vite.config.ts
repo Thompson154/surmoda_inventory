@@ -9,8 +9,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // WHY: autoUpdate keeps the SW silent — no "new version available" banner.
-      // For an internal B2B tool we trust the deploy cycle.
+      // Auto-update keeps the SW silent without prompt banner.
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
@@ -50,10 +49,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // WHY: API responses must always try the network first so cashiers don't
-        // see stale stock. Falls back to cache only if the network is down,
-        // which is the entire point of the PWA on a flaky in-store wifi.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Cache static assets including wasm for offline barcode scanning.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,wasm}'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
@@ -78,11 +75,9 @@ export default defineConfig({
             },
           },
         ],
-        // 5MB cap so dev bundles never silently overflow.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       devOptions: {
-        // Enable the SW in dev so we can test install + offline locally.
         enabled: false,
       },
     }),
