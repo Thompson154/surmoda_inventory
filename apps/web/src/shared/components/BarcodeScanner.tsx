@@ -4,6 +4,7 @@ import {
   BarcodeDetector as PolyfillBarcodeDetector,
   setZXingModuleOverrides,
 } from '@sec-ant/barcode-detector';
+import { enhanceBarcodeRgba, pickBestBarcodeValue } from './barcodeEnhance';
 import { Button } from '@/shared/ui';
 
 // Override the wasm location so it is fetched locally from the PWA/host instead of an external CDN
@@ -44,8 +45,10 @@ export function BarcodeScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const enhanceCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const detectorRef = useRef<DetectorInstance | null>(null);
   const fallbackDetectorRef = useRef<DetectorInstance | null>(null);
+  const isNativeDetectorRef = useRef<boolean>(false);
   const pollTimerRef = useRef<number | null>(null);
   const isScanningRef = useRef<boolean>(false);
   // code → expiry timestamp (ms). Reads while still in the future are dropped.
@@ -138,9 +141,7 @@ export function BarcodeScanner({
   const initDetector = async (): Promise<DetectorInstance> => {
     if (detectorRef.current) return detectorRef.current;
 
-    // Prefer native BarcodeDetector when available (iOS 17+ Apple Vision, Android Chrome MLKit).
-    // Native detectors use hardware-accelerated computer vision models that reliably decode 1D barcodes
-    // in real-time camera frames even with glare, slight blur, and LCD moiré.
+    // Utiliza el detector nativo del navegador si está disponible.
     if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
       try {
         const NativeDetector = (
@@ -159,6 +160,7 @@ export function BarcodeScanner({
             formats: formatsToUse.length > 0 ? formatsToUse : undefined,
           });
           detectorRef.current = nativeInst;
+          isNativeDetectorRef.current = true;
           return nativeInst;
         }
       } catch (err) {
@@ -174,6 +176,7 @@ export function BarcodeScanner({
       formats: [...SUPPORTED_FORMATS],
     });
     detectorRef.current = polyfillInst as unknown as DetectorInstance;
+    isNativeDetectorRef.current = false;
     return polyfillInst as unknown as DetectorInstance;
   };
 
@@ -271,15 +274,56 @@ export function BarcodeScanner({
               }) as unknown as DetectorInstance;
             }
             detectorRef.current = fallbackDetectorRef.current;
+            isNativeDetectorRef.current = false;
             try {
               codes = await fallbackDetectorRef.current.detect(canvas);
             } catch {
               // Ignore frame decode error
             }
           }
-          if (codes && codes.length > 0) {
-            const detected = codes[0]!.rawValue;
-            if (detected) {
+
+          // Pass 2 (software decoder / iOS WebKit): enhance center barcode band to handle
+          // LCD screen glare, subpixel fringes, and narrow quiet zones on dark backgrounds.
+          if ((!codes || codes.length === 0) && !isNativeDetectorRef.current) {
+            if (!enhanceCanvasRef.current) {
+              enhanceCanvasRef.current = document.createElement('canvas');
+              enhanceCanvasRef.current.width = 880;
+              enhanceCanvasRef.current.height = 240;
+            }
+            const eCanvas = enhanceCanvasRef.current;
+            const eCtx = eCanvas.getContext('2d', { willReadFrequently: true });
+            if (eCtx) {
+              const vw = vid.videoWidth;
+              const vh = vid.videoHeight;
+              const vidAspect = vw / vh;
+              const targetAspect = 16 / 9;
+              const visW = vidAspect > targetAspect ? vh * targetAspect : vw;
+              const visH = vidAspect > targetAspect ? vh : vw / targetAspect;
+              const visX = (vw - visW) / 2;
+              const visY = (vh - visH) / 2;
+
+              const sx = visX + visW * 0.05;
+              const sy = visY + visH * 0.22;
+              const sw = visW * 0.9;
+              const sh = visH * 0.56;
+
+              eCtx.drawImage(vid, sx, sy, sw, sh, 0, 0, eCanvas.width, eCanvas.height);
+              const imgData = eCtx.getImageData(0, 0, eCanvas.width, eCanvas.height);
+              const enhanced = enhanceBarcodeRgba(imgData.data, eCanvas.width, eCanvas.height);
+              imgData.data.set(enhanced);
+              eCtx.putImageData(imgData, 0, 0);
+
+              try {
+                codes = await detectorRef.current.detect(eCanvas);
+              } catch {
+                // Ignore enhanced pass decode error
+              }
+            }
+          }
+
+          const detected = pickBestBarcodeValue(codes);
+          if (detected) {
+            {
               const expiry = handledRef.current.get(detected);
               const now = Date.now();
               if (expiry === undefined || now >= expiry) {
