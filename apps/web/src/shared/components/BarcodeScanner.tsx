@@ -45,6 +45,7 @@ export function BarcodeScanner({
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const detectorRef = useRef<DetectorInstance | null>(null);
+  const fallbackDetectorRef = useRef<DetectorInstance | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const isScanningRef = useRef<boolean>(false);
   // code → expiry timestamp (ms). Reads while still in the future are dropped.
@@ -137,9 +138,38 @@ export function BarcodeScanner({
   const initDetector = async (): Promise<DetectorInstance> => {
     if (detectorRef.current) return detectorRef.current;
 
-    // Use ZXing WASM polyfill backed by the local /zxing_reader.wasm bundle.
-    // This guarantees rock-solid 1D/2D scanning parity across desktop and mobile,
-    // avoiding WebKit/iOS experimental native BarcodeDetector crashes on <video>.
+    // Prefer native BarcodeDetector when available (iOS 17+ Apple Vision, Android Chrome MLKit).
+    // Native detectors use hardware-accelerated computer vision models that reliably decode 1D barcodes
+    // in real-time camera frames even with glare, slight blur, and LCD moiré.
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        const NativeDetector = (
+          window as unknown as {
+            BarcodeDetector: {
+              new (options?: { formats?: readonly string[] }): DetectorInstance;
+              getSupportedFormats: () => Promise<string[]>;
+            };
+          }
+        ).BarcodeDetector;
+
+        const supported = await NativeDetector.getSupportedFormats();
+        if (supported && supported.includes('code_128')) {
+          const formatsToUse = SUPPORTED_FORMATS.filter((f) => supported.includes(f));
+          const nativeInst = new NativeDetector({
+            formats: formatsToUse.length > 0 ? formatsToUse : undefined,
+          });
+          detectorRef.current = nativeInst;
+          return nativeInst;
+        }
+      } catch (err) {
+        console.warn(
+          'Native BarcodeDetector unavailable or failed to initialize, using polyfill:',
+          err,
+        );
+      }
+    }
+
+    // Fallback: ZXing WASM polyfill backed by the local /zxing_reader.wasm bundle.
     const polyfillInst = new PolyfillBarcodeDetector({
       formats: [...SUPPORTED_FORMATS],
     });
@@ -166,8 +196,8 @@ export function BarcodeScanner({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
         },
         audio: false,
       });
@@ -231,7 +261,22 @@ export function BarcodeScanner({
           const ctx = canvas.getContext('2d', { willReadFrequently: true });
           ctx?.drawImage(vid, 0, 0, canvas.width, canvas.height);
 
-          const codes = await detectorRef.current.detect(canvas);
+          let codes: Array<{ rawValue: string }> = [];
+          try {
+            codes = await detectorRef.current.detect(canvas);
+          } catch {
+            if (!fallbackDetectorRef.current) {
+              fallbackDetectorRef.current = new PolyfillBarcodeDetector({
+                formats: [...SUPPORTED_FORMATS],
+              }) as unknown as DetectorInstance;
+            }
+            detectorRef.current = fallbackDetectorRef.current;
+            try {
+              codes = await fallbackDetectorRef.current.detect(canvas);
+            } catch {
+              // Ignore frame decode error
+            }
+          }
           if (codes && codes.length > 0) {
             const detected = codes[0]!.rawValue;
             if (detected) {
